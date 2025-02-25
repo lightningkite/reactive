@@ -34,7 +34,11 @@ val lk = project.lk {
 }
 
 kotlin {
-    jvm()
+    jvm {
+        compilations.all {
+            kotlinOptions.jvmTarget = "1.8"
+        }
+    }
     iosX64()
     iosArm64()
     iosSimulatorArm64()
