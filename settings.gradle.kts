@@ -10,9 +10,5 @@ pluginManagement {
     }
 }
 
-rootProject.name = "kiteui"
+rootProject.name = "readable"
 
-include(":library")
-include(":example-app")
-include(":processor")
-include(":gradle-plugin")
