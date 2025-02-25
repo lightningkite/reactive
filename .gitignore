@@ -1,7 +1,6 @@
 .gradle
 .idea
 local.properties
-build.gradle.kts
 .terraform
 .kotlin
 build
