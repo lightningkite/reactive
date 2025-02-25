@@ -4,5 +4,5 @@ local.properties
 build.gradle.kts
 .terraform
 .kotlin
-
+build
 local.version.txt
