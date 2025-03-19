@@ -20,6 +20,6 @@ val <T : Any> Readable<T?>.waitForNotNull: Readable<T> get() = WaitForNotNull(th
 
 suspend fun <T : Any> Readable<T?>.awaitNotNull(): T {
     val basis = await()
-    if (basis == null) return suspendCancellableCoroutine<T> {  }
-    else return basis
+    return if (basis == null) suspendCancellableCoroutine<T> {  }
+    else basis
 }

@@ -18,78 +18,8 @@ fun List<() -> Unit>.invokeAllSafe() = forEach {
     }
 }
 
-@OptIn(ExperimentalStdlibApi::class)
-private fun <A> CalculationContext.oneAtATime(work: Boolean, action: suspend (A) -> Unit): (A) -> Unit {
-    var lastJob: Job? = null
-    var reportTo = RawReadable(ReadableState(Unit))
-    if (work)
-        coroutineContext[StatusListener]?.working(reportTo)
-    else
-        coroutineContext[StatusListener]?.loading(reportTo)
-
-    return {
-        lastJob?.cancel()
-        lastJob = this.let { calculationContext ->
-            var done = false
-            val job = calculationContext.launch(
-                start = if (calculationContext.coroutineContext[CoroutineDispatcher]?.isDispatchNeeded(
-                        calculationContext.coroutineContext
-                    ) == false
-                ) CoroutineStart.UNDISPATCHED else CoroutineStart.DEFAULT
-            ) {
-                val result = readableState {
-                    action(it)
-                }
-                done = true
-                reportTo.state = result
-            }
-
-            if (done) {
-                return@let null
-            } else {
-                // start load
-                reportTo.state = ReadableState.notReady
-                return@let job
-            }
-        }
-    }
-}
-
-infix fun <T> Writable<T>.bind(master: Writable<T>) {
-    var reportTo = RawReadable(ReadableState(Unit))
-    with(CoroutineScopeStack.current()) {
-        coroutineContext[StatusListener]?.loading(reportTo)
-        launch {
-            reportTo.state = ReadableState.notReady
-            reportTo.state = readableState {
-                var intendedValue: T = master.await()
-                this@bind.set(intendedValue)
-                val setReplica = this@with.oneAtATime(false) { value: T ->
-                    this@bind.set(value)
-                }
-                val setMaster = this@with.oneAtATime(true) { value: T ->
-                    master.set(value)
-                }
-                master.addListener {
-                    master.state.onSuccess {
-                        if (intendedValue != it) {
-                            intendedValue = it
-                            setReplica(it)
-                        }
-                    }
-                }.also { this@with.onRemove(it) }
-                this@bind.addListener {
-                    this@bind.state.onSuccess {
-                        if (intendedValue != it) {
-                            intendedValue = it
-                            setMaster(it)
-                        }
-                    }
-                }.also { this@with.onRemove(it) }
-            }
-        }
-    }
-}
+@Deprecated("Only exists to not break imports", level = DeprecationLevel.ERROR)
+fun <T> Nothing.bind(): Nothing = TODO()
 
 //infix fun <T> ImmediateWritable<T>.bind(master: Writable<T>) {
 //    with(CoroutineScopeStack.current()) {

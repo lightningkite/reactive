@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.resume
+import kotlin.reflect.KMutableProperty0
 import kotlin.test.*
 
 class ReactivityTests {
@@ -467,7 +468,7 @@ class VirtualDelayer() {
     }
 }
 
-class TestContext : CoroutineScope {
+class TestContext : CoroutineScopeHelpers() {
     var error: Throwable? = null
     val job = Job()
     var loadCount = 0
@@ -505,9 +506,7 @@ class TestContext : CoroutineScope {
 
 fun testContext(action: TestContext.() -> Unit) {
     with(TestContext()) {
-        CoroutineScopeStack.useIn(this) {
-            action()
-        }
+        action()
         job.cancel()
         if (error != null) throw Exception("Unexpected error", error!!)
         assertEquals(0, loadCount, "Some work was not completed: ${incompleteKeys}")
