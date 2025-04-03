@@ -1,5 +1,8 @@
 package com.lightningkite.readable
 
+import com.lightningkite.jsoptimized.emptyVector
+import com.lightningkite.jsoptimized.forEach
+import com.lightningkite.jsoptimized.push
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -37,27 +40,27 @@ class WaitGate(permit: Boolean = false) {
         set(value) {
             field = value
             if (value) {
-                for (continuation in continuations) {
-                    continuation.resume(Unit)
+                continuations.forEach {
+                    it.resume(Unit)
                 }
-                continuations.clear()
+                continuations = emptyVector()
             }
         }
     fun permitOnce() {
         permit = true
         permit = false
     }
-    val continuations = ArrayList<Continuation<Unit>>()
+    var continuations = emptyVector<Continuation<Unit>>()
     suspend fun await(): Unit {
         if (permit) return
         else return suspendCancellableCoroutine {
-            continuations.add(it)
+            continuations.push(it)
         }
     }
     fun abandon() {
-        for (continuation in continuations) {
-            continuation.resumeWithException(CancellationException("abandoned as requested"))
+        continuations.forEach {
+            it.resumeWithException(CancellationException("abandoned as requested"))
         }
-        continuations.clear()
+        continuations = emptyVector()
     }
 }

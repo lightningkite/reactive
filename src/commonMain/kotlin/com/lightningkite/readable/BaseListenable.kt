@@ -1,26 +1,35 @@
 package com.lightningkite.readable
 
+import com.lightningkite.jsoptimized.copy
+import com.lightningkite.jsoptimized.emptyVector
+import com.lightningkite.jsoptimized.forEach
+import com.lightningkite.jsoptimized.indexOf
+import com.lightningkite.jsoptimized.isEmpty
+import com.lightningkite.jsoptimized.length
+import com.lightningkite.jsoptimized.push
+import com.lightningkite.jsoptimized.splice
+import com.lightningkite.jsoptimized.vectorOf
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.random.Random
 
 abstract class BaseListenable : Listenable {
     protected open fun activate() {}
     protected open fun deactivate() {}
-    private val listeners = ArrayList<() -> Unit>()
+    private val listeners = emptyVector<() -> Unit>()
     override fun addListener(listener: () -> Unit): () -> Unit {
-        if (listeners.isEmpty()) activate()
-        listeners.add(listener)
+        if (listeners.length == 0) activate()
+        listeners.push(listener)
         return {
-            val pos = listeners.indexOfFirst { it === listener }
+            val pos = listeners.indexOf(listener)
             if (pos != -1) {
-                listeners.removeAt(pos)
+                listeners.splice(pos, 1)
                 if (listeners.isEmpty()) deactivate()
             }
         }
     }
 
     protected fun invokeAllListeners() {
-        listeners.toList().forEach {
+        listeners.copy().forEach {
             try {
                 it()
             } catch (e: Exception) {

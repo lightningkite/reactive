@@ -16,7 +16,7 @@ buildscript {
         maven("https://jitpack.io")
     }
     dependencies {
-        classpath("com.lightningkite:lk-gradle-helpers:1.1.3")
+        classpath("com.lightningkite:lk-gradle-helpers:1.2.3")
         classpath("org.jetbrains.dokka:dokka-gradle-plugin:2.0.0")
     }
 }
@@ -64,6 +64,7 @@ kotlin {
 
         val commonMain by getting {
             dependencies {
+                api(lk.jsOptimizedConstructs(1))
                 api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
             }
         }

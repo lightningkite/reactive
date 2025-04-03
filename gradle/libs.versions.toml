@@ -3,11 +3,12 @@
 kotlin = "2.0.21"
 
 [libraries]
+comLightningkiteJsOptimizedConstructs = { module = "com.lightningkite:js-optimized-constructs", version = { strictly = "version-1-SNAPSHOT" } }
 comLightningkiteTestingKotlinTestManualRuntime = { module = "com.lightningkite.testing:kotlin-test-manual-runtime", version = "0.0.8" }
 
 [plugins]
+androidLibrary = { id = "com.android.library", version = "8.5.2" }
 comLightningkiteTestingManual = { id = "com.lightningkite.testing.manual", version = "0.0.8" }
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version = { ref = "kotlin" } }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version = { ref = "kotlin" } }
-androidLibrary = { id = "com.android.library", version = "8.5.2" }
 vanniktechMaven = { id = "com.vanniktech.maven.publish", version = "0.30.0" }
