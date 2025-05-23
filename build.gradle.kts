@@ -78,13 +78,12 @@ kotlin {
 }
 
 mavenPublishing {
-    // publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
     signAllPublications()
     coordinates(group.toString(), name, version.toString())
     pom {
-        name.set("Readable")
+        name.set("Signal")
         description.set("A lightweight reactivity platform for Kotlin Multiplatform")
-        github("lightningkite", "readable")
+        github("lightningkite", "signal")
 
         licenses {
             mit()
@@ -100,5 +99,4 @@ mavenPublishing {
             }
         }
     }
-
 }
