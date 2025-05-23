@@ -23,7 +23,7 @@ typealias ImmediateWritable<T> = MutableValueSignal<T>
 typealias Property<T> = BasicSignal<T>
 
 @Deprecated("Use new name: RememberBasicSignal", ReplaceWith("RememberBasicSignal", "com.lightningkite.signal"))
-typealias LazyProperty<T> = RememberBasicSignal<T>
+typealias LazyProperty<T> = MutableRememberSignal<T>
 
 @Deprecated("Use new name: DebounceSignal", ReplaceWith("DebounceSignal", "com.lightningkite.signal"))
 typealias DebounceReadable<T> = DebounceSignal<T>
@@ -41,7 +41,7 @@ typealias ReadableState<T> = SignalState<T>
 typealias ReadableEmitter<T> = SignalEmitter<T>
 
 @Deprecated("Use new name: ImmediateMutable", ReplaceWith("ImmediateMutable", "com.lightningkite.signal"))
-typealias ImmediateWriteOnly<T> = ImmediateMutable<T>
+typealias ImmediateWriteOnly<T> = MutableValue<T>
 
 @Deprecated("Use new name: BaseValueSignal", ReplaceWith("BaseValueSignal", "com.lightningkite.signal"))
 typealias BaseImmediateReadable<T> = BaseValueSignal<T>

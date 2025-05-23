@@ -7,7 +7,7 @@ class LazyBasicSignalSharedBehaviorTests {
     @Test
     fun sharedPassesNulls() {
         val a = LateInitSignal<Int?>()
-        val b = RememberBasicSignal { a() }
+        val b = MutableRememberSignal { a() }
         var hits = 0
         testContext {
             reactiveScope {
@@ -24,7 +24,7 @@ class LazyBasicSignalSharedBehaviorTests {
 
     @Test fun sharedDoesNotEmitSameValue() {
         val a = LateInitSignal<Int?>()
-        val b = RememberBasicSignal { a() }
+        val b = MutableRememberSignal { a() }
         var hits = 0
         testContext {
             reactiveScope {
@@ -42,7 +42,7 @@ class LazyBasicSignalSharedBehaviorTests {
     @Test fun sharedTerminatesWhenNoOneIsListening() {
         var onRemoveCalled = 0
         var scopeCalled = 0
-        val shared = RememberBasicSignal {
+        val shared = MutableRememberSignal {
             scopeCalled++
             onRemove { onRemoveCalled++ }
             42
@@ -60,7 +60,7 @@ class LazyBasicSignalSharedBehaviorTests {
     @Test fun sharedSharesCalculations() {
         var hits = 0
         val basicSignal = BasicSignal(1)
-        val a = RememberBasicSignal {
+        val a = MutableRememberSignal {
             hits++
             basicSignal()
         }
@@ -102,7 +102,7 @@ class LazyBasicSignalSharedBehaviorTests {
         val late = LateInitSignal<Int>()
         var starts = 0
         var hits = 0
-        val a = RememberBasicSignal {
+        val a = MutableRememberSignal {
             starts++
             val r = late()
             hits++
@@ -127,7 +127,7 @@ class LazyBasicSignalSharedBehaviorTests {
 class LazyBasicSignalTests {
     @Test fun sharedIsOverridden() {
         val late = LateInitSignal<Int>()
-        val test = RememberBasicSignal {
+        val test = MutableRememberSignal {
             println("In initial value")
             late()
         }
@@ -147,7 +147,7 @@ class LazyBasicSignalTests {
     @Test fun stopsListeningWhenOverridden() {
         var hits: Int = 0
         val prop = BasicSignal(1)
-        val test = RememberBasicSignal {
+        val test = MutableRememberSignal {
             hits++
             prop()
         }
@@ -173,7 +173,7 @@ class LazyBasicSignalTests {
     @Test fun startsListeningAgainOnceReset() {
         var hits: Int = 0
         val prop = BasicSignal(1)
-        val test = RememberBasicSignal {
+        val test = MutableRememberSignal {
             hits++
             prop()
         }
@@ -204,7 +204,7 @@ class LazyBasicSignalTests {
 
     @Test fun useLastWhileLoadingWorks() {
         val late = LateInitSignal<Int>()
-        val test = RememberBasicSignal(useLastWhileLoading = true) {
+        val test = MutableRememberSignal(useLastWhileLoading = true) {
             late()
         }
 
@@ -233,7 +233,7 @@ class LazyBasicSignalTests {
     @Test fun keepsListeningIfTold() {
         var hits = 0
         val prop = BasicSignal(0)
-        val test = RememberBasicSignal(stopListeningWhenOverridden = false) {
+        val test = MutableRememberSignal(stopListeningWhenOverridden = false) {
             println("Calculation")
             hits++
             prop()
@@ -273,7 +273,7 @@ class LazyBasicSignalTests {
 
     @Test fun testStupidCase() {
         val basis = BasicSignal("Test")
-        val lazy = RememberBasicSignal(stopListeningWhenOverridden = false) { basis() }
+        val lazy = MutableRememberSignal(stopListeningWhenOverridden = false) { basis() }
         val lensed = lazy.lens { it.take(3) }
         val lensed2 = lazy.lens(get = { it.take(3) }, modify = { o, it -> it })
         testContext {
@@ -289,7 +289,7 @@ class LazyBasicSignalTests {
 
     @Test fun testStupidCase2() {
         val basis = BasicSignal("Test")
-        val lazy = RememberBasicSignal(stopListeningWhenOverridden = false) { basis() }
+        val lazy = MutableRememberSignal(stopListeningWhenOverridden = false) { basis() }
         val lensed = lazy.lens { it.take(3) }
         val lensed2 = lazy.lens(get = { it.take(3) }, modify = { o, it -> it })
         var value = ""

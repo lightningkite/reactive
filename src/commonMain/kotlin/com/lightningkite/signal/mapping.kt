@@ -138,7 +138,7 @@ fun <O, T> MutableValueSignal<O>.lens(
 ): MutableValueSignal<T> = ModifyLensValue(this, get, modify)
 
 @Deprecated("Be specific about what kind you need.")
-fun <E, ID, W> MutableSignal<List<E>>.lensByElement(identity: (E) -> ID, map: CalculationContext.(ImmediateMutableValueSignal<E>) -> W) =
+fun <E, ID, W> MutableSignal<List<E>>.lensByElement(identity: (E) -> ID, map: CalculationContext.(MutableWithValueSignal<E>) -> W) =
     WritableList<E, ID, W>(this, identity = identity, elementLens = { it.map(it) })
 
 @Deprecated("Be specific about what kind you need.")
@@ -148,7 +148,7 @@ fun <E, ID> MutableSignal<List<E>>.lensByElement(identity: (E) -> ID) =
 @Deprecated("Be specific about what kind you need.")
 @JvmName("setLensByElement")
 @Suppress("Deprecation")
-fun <E, ID, W> MutableSignal<Set<E>>.lensByElement(identity: (E) -> ID, map: CalculationContext.(ImmediateMutableValueSignal<E>) -> W) =
+fun <E, ID, W> MutableSignal<Set<E>>.lensByElement(identity: (E) -> ID, map: CalculationContext.(MutableWithValueSignal<E>) -> W) =
     lens(get = { it.toList() }, set = { it.toSet() }).lensByElement(identity, map)
 
 @Deprecated("Be specific about what kind you need.")
@@ -159,7 +159,7 @@ fun <E, ID> MutableSignal<Set<E>>.lensByElement(identity: (E) -> ID) =
 
 fun <E, ID, W> MutableSignal<List<E>>.lensByElementWithIdentity(
     identity: (E) -> ID,
-    map: CalculationContext.(ImmediateMutableValueSignal<E>) -> W
+    map: CalculationContext.(MutableWithValueSignal<E>) -> W
 ) =
     WritableList<E, ID, W>(this, identity = identity, elementLens = { it.map(it) })
 
@@ -170,7 +170,7 @@ fun <E, ID> MutableSignal<List<E>>.lensByElementWithIdentity(identity: (E) -> ID
 @Suppress("Deprecation")
 fun <E, ID, W> MutableSignal<Set<E>>.lensByElementWithIdentity(
     identity: (E) -> ID,
-    map: CalculationContext.(ImmediateMutableValueSignal<E>) -> W
+    map: CalculationContext.(MutableWithValueSignal<E>) -> W
 ) =
     lens(get = { it.toList() }, set = { it.toSet() }).lensByElement(identity, map)
 
@@ -179,7 +179,7 @@ fun <E, ID, W> MutableSignal<Set<E>>.lensByElementWithIdentity(
 fun <E, ID> MutableSignal<Set<E>>.lensByElementWithIdentity(identity: (E) -> ID) =
     lens(get = { it.toList() }, set = { it.toSet() }).lensByElement(identity)
 
-interface ListItemMutableSignal<E> : ImmediateMutableValueSignal<E> {
+interface ListItemMutableSignal<E> : MutableWithValueSignal<E> {
     val index: ValueSignal<Int>
 }
 
@@ -257,7 +257,7 @@ class WritableList<E, ID, T>(
     val identity: (E) -> ID,
     val elementLens: (WritableList<E, ID, T>.ElementMutableSignal) -> T
 ) : Signal<List<T>> {
-    inner class ElementMutableSignal internal constructor(valueInit: E) : ImmediateMutableValueSignal<E>,
+    inner class ElementMutableSignal internal constructor(valueInit: E) : MutableWithValueSignal<E>,
         CalculationContext {
         private var job = Job()
         private val restOfContext = Dispatchers.Default + CoroutineExceptionHandler { coroutineContext, throwable ->

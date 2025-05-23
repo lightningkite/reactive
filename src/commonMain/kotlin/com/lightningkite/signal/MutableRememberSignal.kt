@@ -1,5 +1,8 @@
 package com.lightningkite.signal
 
+import kotlinx.coroutines.Dispatchers
+import kotlin.coroutines.CoroutineContext
+
 
 /**
  * Essentially RememberSignal but can be set.
@@ -10,13 +13,14 @@ package com.lightningkite.signal
  * @property useLastWhileLoading When true, the most recent set value or calculated result is used while new results
  * are being calculated
  * */
-class RememberBasicSignal<T>(
+class MutableRememberSignal<T>(
     private val stopListeningWhenOverridden: Boolean = true,
     private val useLastWhileLoading: Boolean = false,
+    coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     initialValue: ReactiveContext.() -> T
-): ImmediateMutableSignal<T> {
+): SignalWithMutableValue<T> {
 
-    private val shared = RememberSignal(useLastWhileLoading = useLastWhileLoading, action = initialValue)
+    private val shared = RememberSignal(coroutineContext, useLastWhileLoading, initialValue)
 
     private val listeners = ArrayList<() -> Unit>()
     override fun addListener(listener: () -> Unit): () -> Unit {
@@ -78,7 +82,7 @@ class RememberBasicSignal<T>(
             state = SignalState(value)
         }
 
-    override fun setImmediate(value: T) { this.value = value }
+    override fun setValue(value: T) { this.value = value }
 
     /**
      * Resets the MutableSignal to the initial value calculation.
@@ -102,3 +106,10 @@ class RememberBasicSignal<T>(
         }
     }
 }
+
+fun <T> mutableRemember(
+    stopListeningWhenOverridden: Boolean = true,
+    useLastWhileLoading: Boolean = false,
+    coroutineContext: CoroutineContext = Dispatchers.Unconfined,
+    initialValue: ReactiveContext.() -> T
+) = MutableRememberSignal(stopListeningWhenOverridden, useLastWhileLoading, coroutineContext, initialValue)

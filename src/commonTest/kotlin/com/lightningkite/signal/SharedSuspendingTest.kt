@@ -8,7 +8,7 @@ class SharedSuspendingTest {
     @Test
     fun sharedPassesNulls() {
         val a = LateInitSignal<Int?>()
-        val b = sharedSuspending(Dispatchers.Unconfined) { a() }
+        val b = rememberSuspending(Dispatchers.Unconfined) { a() }
         var hits = 0
         testContext {
             reactiveSuspending {
@@ -27,7 +27,7 @@ class SharedSuspendingTest {
 
     @Test fun sharedDoesNotEmitSameValue() {
         val a = LateInitSignal<Int?>()
-        val b = sharedSuspending(Dispatchers.Unconfined) { a() }
+        val b = rememberSuspending(Dispatchers.Unconfined) { a() }
         var hits = 0
         testContext {
             reactiveSuspending {
@@ -45,7 +45,7 @@ class SharedSuspendingTest {
     @Test fun sharedTerminatesWhenNoOneIsListening() {
         var onRemoveCalled = 0
         var scopeCalled = 0
-        val sharedSuspending = sharedSuspending(Dispatchers.Unconfined) {
+        val sharedSuspending = rememberSuspending(Dispatchers.Unconfined) {
             scopeCalled++
             onRemove { onRemoveCalled++ }
             42
@@ -63,7 +63,7 @@ class SharedSuspendingTest {
     @Test fun sharedSharesCalculations() {
         var hits = 0
         val basicSignal = BasicSignal(1)
-        val a = sharedSuspending(Dispatchers.Unconfined) {
+        val a = rememberSuspending(Dispatchers.Unconfined) {
             hits++
             basicSignal()
         }

@@ -57,6 +57,6 @@ class RememberSuspendingSignal<T>(
  * - Outside a reactive scope, [Signal.await] invokes the action with no sharing
  * - Inside a reactive scope, [Signal.await] starts the whole system listening and sharing the calculation.
  */
-fun <T> sharedSuspending(coroutineContext: CoroutineContext = Dispatchers.Unconfined, useLastWhileLoading: Boolean = false, action: suspend CalculationContext.() -> T): Signal<T> {
+fun <T> rememberSuspending(coroutineContext: CoroutineContext = Dispatchers.Unconfined, useLastWhileLoading: Boolean = false, action: suspend CalculationContext.() -> T): Signal<T> {
     return RememberSuspendingSignal(coroutineContext = coroutineContext, useLastWhileLoading = useLastWhileLoading, action = action)
 }

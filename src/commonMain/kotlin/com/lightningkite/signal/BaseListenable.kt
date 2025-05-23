@@ -69,20 +69,16 @@ class BasicListenable : BaseListenable() {
     }
 }
 
-class BasicSignal<T>(startValue: T) : MutableValueSignal<T>, BaseValueSignal<T>(startValue) {
-    override suspend infix fun set(value: T) {
-        this.value = value
-    }
-}
+class BasicSignal<T>(startValue: T) : MutableValueSignal<T>, BaseValueSignal<T>(startValue)
 
-class LateInitSignal<T>() : MutableSignal<T>, ImmediateMutable<T>, BaseSignal<T>() {
+class LateInitSignal<T>() : MutableSignal<T>, MutableValue<T>, BaseSignal<T>() {
     var value: T
         get() = state.get()
         set(value) {
             state = SignalState(value)
         }
 
-    override fun setImmediate(value: T) {
+    override fun setValue(value: T) {
         this.value = value
     }
 

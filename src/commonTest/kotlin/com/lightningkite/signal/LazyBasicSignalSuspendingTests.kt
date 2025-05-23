@@ -7,7 +7,7 @@ class LazyBasicSignalSuspendingSharedBehaviorTests {
     @Test
     fun sharedPassesNulls() {
         val a = LateInitSignal<Int?>()
-        val b = LazyPropertySuspending{ a() }
+        val b = MutableRememberSuspendingSignal{ a() }
         var hits = 0
         testContext {
             reactiveScope {
@@ -24,7 +24,7 @@ class LazyBasicSignalSuspendingSharedBehaviorTests {
 
     @Test fun sharedDoesNotEmitSameValue() {
         val a = LateInitSignal<Int?>()
-        val b = LazyPropertySuspending{ a() }
+        val b = MutableRememberSuspendingSignal{ a() }
         var hits = 0
         testContext {
             reactiveScope {
@@ -42,7 +42,7 @@ class LazyBasicSignalSuspendingSharedBehaviorTests {
     @Test fun sharedTerminatesWhenNoOneIsListening() {
         var onRemoveCalled = 0
         var scopeCalled = 0
-        val shared = LazyPropertySuspending{
+        val shared = MutableRememberSuspendingSignal{
             scopeCalled++
             onRemove { onRemoveCalled++ }
             42
@@ -60,7 +60,7 @@ class LazyBasicSignalSuspendingSharedBehaviorTests {
     @Test fun sharedSharesCalculations() {
         var hits = 0
         val basicSignal = BasicSignal(1)
-        val a = LazyPropertySuspending{
+        val a = MutableRememberSuspendingSignal{
             hits++
             basicSignal()
         }
@@ -102,7 +102,7 @@ class LazyBasicSignalSuspendingSharedBehaviorTests {
         val late = LateInitSignal<Int>()
         var starts = 0
         var hits = 0
-        val a = LazyPropertySuspending{
+        val a = MutableRememberSuspendingSignal{
             starts++
             val r = late()
             hits++
@@ -127,7 +127,7 @@ class LazyBasicSignalSuspendingSharedBehaviorTests {
 class LazyBasicSignalSuspendingTests {
     @Test fun sharedIsOverridden() {
         val late = LateInitSignal<Int>()
-        val test = LazyPropertySuspending{
+        val test = MutableRememberSuspendingSignal{
             println("In initial value")
             late()
         }
@@ -147,7 +147,7 @@ class LazyBasicSignalSuspendingTests {
     @Test fun stopsListeningWhenOverridden() {
         var hits: Int = 0
         val prop = BasicSignal(1)
-        val test = LazyPropertySuspending{
+        val test = MutableRememberSuspendingSignal{
             hits++
             prop()
         }
@@ -173,7 +173,7 @@ class LazyBasicSignalSuspendingTests {
     @Test fun startsListeningAgainOnceReset() {
         var hits: Int = 0
         val prop = BasicSignal(1)
-        val test = LazyPropertySuspending{
+        val test = MutableRememberSuspendingSignal{
             hits++
             prop()
         }
@@ -204,7 +204,7 @@ class LazyBasicSignalSuspendingTests {
 
     @Test fun useLastWhileLoadingWorks() {
         val late = LateInitSignal<Int>()
-        val test = RememberBasicSignal(useLastWhileLoading = true) {
+        val test = MutableRememberSignal(useLastWhileLoading = true) {
             late()
         }
 
@@ -233,7 +233,7 @@ class LazyBasicSignalSuspendingTests {
     @Test fun keepsListeningIfTold() {
         var hits = 0
         val prop = BasicSignal(0)
-        val test = RememberBasicSignal(stopListeningWhenOverridden = false) {
+        val test = MutableRememberSignal(stopListeningWhenOverridden = false) {
             println("Calculation")
             hits++
             prop()
@@ -273,7 +273,7 @@ class LazyBasicSignalSuspendingTests {
 
     @Test fun testStupidCase() {
         val basis = BasicSignal("Test")
-        val lazy = RememberBasicSignal(stopListeningWhenOverridden = false) { basis() }
+        val lazy = MutableRememberSignal(stopListeningWhenOverridden = false) { basis() }
         val lensed = lazy.lens { it.take(3) }
         val lensed2 = lazy.lens(get = { it.take(3) }, modify = { o, it -> it })
         testContext {
@@ -289,7 +289,7 @@ class LazyBasicSignalSuspendingTests {
 
     @Test fun testStupidCase2() {
         val basis = BasicSignal("Test")
-        val lazy = RememberBasicSignal(stopListeningWhenOverridden = false) { basis() }
+        val lazy = MutableRememberSignal(stopListeningWhenOverridden = false) { basis() }
         val lensed = lazy.lens { it.take(3) }
         val lensed2 = lazy.lens(get = { it.take(3) }, modify = { o, it -> it })
         var value = ""

@@ -1,25 +1,29 @@
 package com.lightningkite.signal
 
+import kotlinx.coroutines.Dispatchers
+import kotlin.coroutines.CoroutineContext
+
 /**
- * Suspending version of `LazyProperty`. See [RememberBasicSignal] for documentation.
+ * Suspending version of `LazyProperty`. See [MutableRememberSignal] for documentation.
  * */
-class LazyPropertySuspending<T>(
+class MutableRememberSuspendingSignal<T>(
     private val stopListeningWhenOverridden: Boolean = true,
     private val useLastWhileLoading: Boolean = false,
+    coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     initialValue: suspend CalculationContext.() -> T
-) : ImmediateMutableSignal<T>, BaseSignal<T>() {
+) : SignalWithMutableValue<T>, BaseSignal<T>() {
     var overridden: Boolean = false
         private set
 
-    private val remember = RememberSuspendingSignal(useLastWhileLoading = useLastWhileLoading, action = initialValue)
+    private val remember = RememberSuspendingSignal(coroutineContext, useLastWhileLoading, initialValue)
     private var forget: (()->Unit)? = null
 
     private fun clearMemo() {
         forget = remember.addListener {
             if (!overridden) state = remember.state
         }
-        val currentSharedState = remember.state
-        if(!overridden && (!useLastWhileLoading || currentSharedState.ready)) state = currentSharedState
+        val currentRememberedState = remember.state
+        if(!overridden && (!useLastWhileLoading || currentRememberedState.ready)) state = currentRememberedState
     }
 
     private fun stopListeningToShared() {
@@ -47,7 +51,7 @@ class LazyPropertySuspending<T>(
             state = SignalState(value)
         }
 
-    override fun setImmediate(value: T) { this.value = value }
+    override fun setValue(value: T) { this.value = value }
 
     fun reset() {
         if (overridden) {
@@ -62,3 +66,10 @@ class LazyPropertySuspending<T>(
         }
     }
 }
+
+fun <T> mutableRememberSuspending(
+    stopListeningWhenOverridden: Boolean = true,
+    useLastWhileLoading: Boolean = false,
+    coroutineContext: CoroutineContext = Dispatchers.Unconfined,
+    initialValue: suspend CalculationContext.() -> T
+) = MutableRememberSuspendingSignal(stopListeningWhenOverridden, useLastWhileLoading, coroutineContext, initialValue)

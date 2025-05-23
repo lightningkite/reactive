@@ -90,7 +90,7 @@ class ReactivitySuspendingTests {
     @Test fun sharedShutdownTest() {
         var onRemoveCalled = 0
         var scopeCalled = 0
-        val shared = sharedSuspending(Dispatchers.Unconfined) {
+        val shared = rememberSuspending(Dispatchers.Unconfined) {
             scopeCalled++
             onRemove { onRemoveCalled++ }
             42
@@ -119,7 +119,7 @@ class ReactivitySuspendingTests {
 
     @Test fun basics() {
         val a = BasicSignal(1)
-        val b = sharedSuspending(Dispatchers.Unconfined) { println("CALC a"); a.await() }
+        val b = rememberSuspending(Dispatchers.Unconfined) { println("CALC a"); a.await() }
 //        val c = sharedSuspending(Dispatchers.Unconfined) { println("CALC b"); b.await() }
         var hits = 0
 
@@ -166,13 +166,13 @@ class ReactivitySuspendingTests {
         val a = BasicSignal(1)
         val b = BasicSignal(2)
         var cInvocations = 0
-        val c = sharedSuspending(Dispatchers.Unconfined) { cInvocations++; println("cInvocations: $cInvocations"); a.await() + b.await() }
+        val c = rememberSuspending(Dispatchers.Unconfined) { cInvocations++; println("cInvocations: $cInvocations"); a.await() + b.await() }
         println("$c: c")
         var dInvocations = 0
-        val d = sharedSuspending(Dispatchers.Unconfined) { dInvocations++; println("dInvocations: $dInvocations"); c.await() + c.await() }
+        val d = rememberSuspending(Dispatchers.Unconfined) { dInvocations++; println("dInvocations: $dInvocations"); c.await() + c.await() }
         println("$d: d")
         var eInvocations = 0
-        val e = sharedSuspending(Dispatchers.Unconfined) { eInvocations++; println("eInvocations: $eInvocations"); d.await() / 2 }
+        val e = rememberSuspending(Dispatchers.Unconfined) { eInvocations++; println("eInvocations: $eInvocations"); d.await() / 2 }
         println("$e: e")
 
         testContext {
@@ -200,13 +200,13 @@ class ReactivitySuspendingTests {
         val a = BasicSignal(1)
         val b = BasicSignal(2)
         var cInvocations = 0
-        val c = sharedSuspending(Dispatchers.Unconfined) { cInvocations++; println("cInvocations: $cInvocations"); a.await() + b.await() }
+        val c = rememberSuspending(Dispatchers.Unconfined) { cInvocations++; println("cInvocations: $cInvocations"); a.await() + b.await() }
         println("$c: c")
         var dInvocations = 0
-        val d = sharedSuspending(Dispatchers.Unconfined) { dInvocations++; println("dInvocations: $dInvocations"); c.await() + b.await() }
+        val d = rememberSuspending(Dispatchers.Unconfined) { dInvocations++; println("dInvocations: $dInvocations"); c.await() + b.await() }
         println("$d: d")
         var eInvocations = 0
-        val e = sharedSuspending(Dispatchers.Unconfined) { eInvocations++; println("eInvocations: $eInvocations"); d.await() / 2 }
+        val e = rememberSuspending(Dispatchers.Unconfined) { eInvocations++; println("eInvocations: $eInvocations"); d.await() / 2 }
         println("$e: e")
 
         testContext {
@@ -231,8 +231,8 @@ class ReactivitySuspendingTests {
 
     @Test fun sharedTest3() {
         val a = VirtualDelay { 1 }
-        val c = sharedSuspending(Dispatchers.Unconfined) { a.await() }
-        val d = sharedSuspending(Dispatchers.Unconfined) { c.await() }
+        val c = rememberSuspending(Dispatchers.Unconfined) { a.await() }
+        val d = rememberSuspending(Dispatchers.Unconfined) { c.await() }
         testContext {
             load { println("launch got " + d.await()) }
             reactiveSuspending { println("reactiveScope got " + d.await()) }
@@ -243,7 +243,7 @@ class ReactivitySuspendingTests {
 
     @Test fun sharedTest4() {
         val property = LateInitSignal<LateInitSignal<Int>>()
-        val shared = sharedSuspending(Dispatchers.Unconfined) { property.await().await() }
+        val shared = rememberSuspending(Dispatchers.Unconfined) { property.await().await() }
         var completions = 0
         testContext {
             reactiveSuspending { println("reactiveScope got " + shared.await()); completions++ }
@@ -258,7 +258,7 @@ class ReactivitySuspendingTests {
 
     @Test fun sharedTest5() {
         val property = LateInitSignal<Int>()
-        val shared = sharedSuspending(Dispatchers.Unconfined) { property.await() }
+        val shared = rememberSuspending(Dispatchers.Unconfined) { property.await() }
         var completions = 0
         testContext {
             load { println("launchA got " + shared.await()); completions++ }
@@ -271,8 +271,8 @@ class ReactivitySuspendingTests {
 
     @Test fun websocketLikeTest() {
         val source = LateInitSignal<LateInitSignal<String>>()
-        val socket = sharedSuspending(Dispatchers.Unconfined) { source.await() }
-        val sublistener = sharedSuspending(Dispatchers.Unconfined) { socket.await().await() }
+        val socket = rememberSuspending(Dispatchers.Unconfined) { source.await() }
+        val sublistener = rememberSuspending(Dispatchers.Unconfined) { socket.await().await() }
         testContext {
             reactiveSuspending { println(sublistener.await()) }
             println("Ready")
