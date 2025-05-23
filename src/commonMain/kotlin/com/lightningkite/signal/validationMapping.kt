@@ -1,6 +1,5 @@
 package com.lightningkite.signal
 
-
 private open class ModifyValidationLens<O, T>(
     val source: MutableSignal<O>,
     val get: (O) -> T,

@@ -85,7 +85,7 @@ inline fun <T> signalState(action: () -> T): SignalState<T> {
     }
 }
 
-inline fun <T> Result<T>.toReadableState(): SignalState<T> {
+inline fun <T> Result<T>.toSignalState(): SignalState<T> {
     @Suppress("UNCHECKED_CAST")
     return if(this.isFailure) SignalState.exception(this.exceptionOrNull() as Exception)
     else SignalState.wrap(this.getOrNull() as T)
