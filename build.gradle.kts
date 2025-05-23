@@ -82,9 +82,9 @@ mavenPublishing {
     signAllPublications()
     coordinates(group.toString(), name, version.toString())
     pom {
-        name.set("Readable")
+        name.set("Signals")
         description.set("A lightweight reactivity platform for Kotlin Multiplatform")
-        github("lightningkite", "readable")
+        github("lightningkite", "signals")
 
         licenses {
             mit()

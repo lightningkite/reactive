@@ -1,3 +1,3 @@
-# Readable
+# Signal
 
 Kotlin Multiplatform reactivity tools.
