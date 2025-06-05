@@ -1,20 +1,17 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import com.lightningkite.deployhelpers.*
-import com.vanniktech.maven.publish.SonatypeHost
-import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 
 group = "com.lightningkite"
 version = "1.0-SNAPSHOT"
 
 buildscript {
     repositories {
-        mavenLocal()
-        maven("https://lightningkite-maven.s3.us-west-2.amazonaws.com")
         google()
+        mavenLocal()
         mavenCentral()
+        maven("https://lightningkite-maven.s3.us-west-2.amazonaws.com")
         maven("https://jitpack.io")
     }
+
     dependencies {
         classpath("com.lightningkite:lk-gradle-helpers:1.1.3")
         classpath("org.jetbrains.dokka:dokka-gradle-plugin:2.0.0")
@@ -25,7 +22,6 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.comLightningkiteTestingManual)
     alias(libs.plugins.vanniktechMaven)
-//    id("org.jetbrains.dokka")
     signing
 }
 
@@ -53,12 +49,12 @@ kotlin {
         }
     }
 
-//    explicitApi = ExplicitApiMode.Warning
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
         freeCompilerArgs.add("-opt-in=kotlinx.cinterop.BetaInteropApi")
         freeCompilerArgs.add("-opt-in=kotlinx.cinterop.ExperimentalForeignApi")
     }
+
     sourceSets {
         applyDefaultHierarchyTemplate()
 
