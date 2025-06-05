@@ -82,7 +82,7 @@ class MutableRememberSignal<T>(
             state = SignalState(value)
         }
 
-    override fun setValue(value: T) { this.value = value }
+    override fun setSignalValue(value: T) { this.value = value }
 
     /**
      * Resets the MutableSignal to the initial value calculation.

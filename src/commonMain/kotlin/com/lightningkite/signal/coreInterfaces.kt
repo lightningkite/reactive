@@ -53,8 +53,8 @@ interface ValueSignal<out T> : Signal<T>, ReadOnlyProperty<Any?, T> {
 }
 
 interface MutableValue<T>: Mutable<T> {
-    fun setValue(value: T)
-    override suspend fun set(value: T) { setValue(value) }
+    fun setSignalValue(value: T)
+    override suspend fun set(value: T) { setSignalValue(value) }
 }
 
 interface MutableWithValueSignal<T> : MutableSignal<T>, ValueSignal<T>
@@ -62,7 +62,7 @@ interface SignalWithMutableValue<T> : MutableSignal<T>, MutableValue<T>
 
 interface MutableValueSignal<T> : MutableValue<T>, ValueSignal<T>, MutableSignal<T>, ReadWriteProperty<Any?, T> {
     override var value: T
-    override fun setValue(value: T) { this.value = value }
+    override fun setSignalValue(value: T) { this.value = value }
     override suspend fun set(value: T) { this.value = value }
     override fun getValue(thisRef: Any?, property: KProperty<*>): T = value
     override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {

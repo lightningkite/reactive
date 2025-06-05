@@ -78,7 +78,7 @@ class LateInitSignal<T>() : MutableSignal<T>, MutableValue<T>, BaseSignal<T>() {
             state = SignalState(value)
         }
 
-    override fun setValue(value: T) {
+    override fun setSignalValue(value: T) {
         this.value = value
     }
 
