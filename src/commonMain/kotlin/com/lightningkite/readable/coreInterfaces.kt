@@ -26,6 +26,7 @@ fun Listenable.addAndRunListener(listener: () -> Unit): () -> Unit {
     return remover
 }
 
+//Reactive data stream
 interface Readable<out T> : Listenable {
     val state: ReadableState<T>
     object Never: Readable<Nothing> {
