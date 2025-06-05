@@ -26,6 +26,7 @@ fun Listenable.addAndRunListener(listener: () -> Unit): () -> Unit {
     return remover
 }
 
+// Reactive state.
 interface Signal<out T> : Listenable {
     val state: SignalState<T>
     object Never: Signal<Nothing> {
