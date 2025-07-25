@@ -59,10 +59,18 @@ interface MutableValue<T>: Mutable<T> {
 interface MutableWithValueSignal<T> : MutableSignal<T>, ValueSignal<T>
 interface SignalWithMutableValue<T> : MutableSignal<T>, MutableValue<T>
 
-interface MutableValueSignal<T> : MutableValue<T>, ValueSignal<T>, MutableSignal<T>, ReadWriteProperty<Any?, T> {
+interface MutableValueSignal<T> : MutableValue<T>, ValueSignal<T>,
+    // Interfaces below are just for typing convenience, they are already implemented by intersection of MutableSignal and ValueSignal
+    MutableSignal<T>,
+    MutableWithValueSignal<T>,
+    SignalWithMutableValue<T>,
+    ReadWriteProperty<Any?, T>
+{
     override var value: T
+
     override fun setValue(value: T) { this.value = value }
     override suspend fun set(value: T) { this.value = value }
+
     override fun getValue(thisRef: Any?, property: KProperty<*>): T = value
     override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
         this.value = value

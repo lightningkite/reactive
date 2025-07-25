@@ -5,7 +5,7 @@ import kotlin.coroutines.CoroutineContext
 
 
 /**
- * Essentially RememberSignal but can be set.
+ * Essentially [RememberSignal] but can be set.
  *
  * @property stopListeningWhenOverridden When true, the MutableSignal stops listening to its initial value calculation
  * when set. It's recommended this be set `false` when the mutable signal is likely to be reset.
