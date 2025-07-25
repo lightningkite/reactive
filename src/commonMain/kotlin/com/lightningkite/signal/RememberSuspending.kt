@@ -8,16 +8,16 @@ import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.random.Random
 
-class RememberSuspendingSignal<T>(
+class RememberSuspending<T>(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     val useLastWhileLoading: Boolean = false,
     private val action: suspend CalculationContext.() -> T
-) : BaseSignal<T>(), CalculationContext {
+) : BaseReactive<T>(), CalculationContext {
     private var job = SupervisorJob()
     private val restOfContext = (coroutineContext ?: EmptyCoroutineContext) +
             CoroutineExceptionHandler { coroutineContext, throwable ->
                 if (throwable !is CancellationException) {
-                    Signal.reportException(throwable)
+                    Reactive.reportException(throwable)
                 }
             }
     override val coroutineContext: CoroutineContext get() = restOfContext + job
@@ -28,18 +28,18 @@ class RememberSuspendingSignal<T>(
         super.activate()
         reactiveSuspending(action = {
             try {
-                val result = SignalState(action(this))
+                val result = ReactiveState(action(this))
                 if (result == state) return@reactiveSuspending
                 state = result
             } catch (e: CancellationException) {
                 // just bail, since either we're already rerunning or this stuff doesn't matter anymore
                 return@reactiveSuspending
             } catch (e: Exception) {
-                state = SignalState.exception(e)
+                state = ReactiveState.exception(e)
             }
         }, onLoad = {
             if(!useLastWhileLoading) {
-                state = SignalState.notReady
+                state = ReactiveState.notReady
             }
         })
     }
@@ -48,15 +48,15 @@ class RememberSuspendingSignal<T>(
         super.deactivate()
         job.cancel()
         job = SupervisorJob()
-        state = SignalState.notReady
+        state = ReactiveState.notReady
     }
 }
 /**
  * Desired behavior for shared:
  *
- * - Outside a reactive scope, [Signal.await] invokes the action with no sharing
- * - Inside a reactive scope, [Signal.await] starts the whole system listening and sharing the calculation.
+ * - Outside a reactive scope, [Reactive.await] invokes the action with no sharing
+ * - Inside a reactive scope, [Reactive.await] starts the whole system listening and sharing the calculation.
  */
-fun <T> rememberSuspending(coroutineContext: CoroutineContext = Dispatchers.Unconfined, useLastWhileLoading: Boolean = false, action: suspend CalculationContext.() -> T): Signal<T> {
-    return RememberSuspendingSignal(coroutineContext = coroutineContext, useLastWhileLoading = useLastWhileLoading, action = action)
+fun <T> rememberSuspending(coroutineContext: CoroutineContext = Dispatchers.Unconfined, useLastWhileLoading: Boolean = false, action: suspend CalculationContext.() -> T): Reactive<T> {
+    return RememberSuspending(coroutineContext = coroutineContext, useLastWhileLoading = useLastWhileLoading, action = action)
 }

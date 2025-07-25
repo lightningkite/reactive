@@ -15,8 +15,8 @@ operator fun Listenable.plus(other: Listenable): Listenable = object: Listenable
     }
 }
 
-private open class SignalLens<S : Signal<O>, O, T>(val source: S, val get: (O) -> T) : BaseSignal<T>() {
-    override var state: SignalState<T>
+private open class ReactiveLens<S : Reactive<O>, O, T>(val source: S, val get: (O) -> T) : BaseReactive<T>() {
+    override var state: ReactiveState<T>
         get() {
             if (myListen == null) super.state = source.state.map(get)
             return super.state
@@ -40,22 +40,22 @@ private open class SignalLens<S : Signal<O>, O, T>(val source: S, val get: (O) -
     }
 }
 
-private open class SetLens<O, T>(source: MutableSignal<O>, get: (O) -> T, val set: (T) -> O) :
-    SignalLens<MutableSignal<O>, O, T>(source, get), MutableSignal<T> {
+private open class SetLens<O, T>(source: MutableReactive<O>, get: (O) -> T, val set: (T) -> O) :
+    ReactiveLens<MutableReactive<O>, O, T>(source, get), MutableReactive<T> {
     override suspend fun set(value: T) {
         source.set(set.invoke(value))
     }
 }
 
-private open class ModifyLens<O, T>(source: MutableSignal<O>, get: (O) -> T, val modify: (O, T) -> O) :
-    SignalLens<MutableSignal<O>, O, T>(source, get), MutableSignal<T> {
+private open class ModifyLens<O, T>(source: MutableReactive<O>, get: (O) -> T, val modify: (O, T) -> O) :
+    ReactiveLens<MutableReactive<O>, O, T>(source, get), MutableReactive<T> {
     override suspend fun set(value: T) {
         source.set(modify(source.awaitOnce(), value))
     }
 }
 
-private open class ValueSignalLens<S : ValueSignal<O>, O, T>(val source: S, val get: (O) -> T) :
-    BaseValueSignal<T>(source.value.let(get)) {
+private open class ReactiveValueLens<S : ReactiveValue<O>, O, T>(val source: S, val get: (O) -> T) :
+    BaseReactiveValue<T>(source.value.let(get)) {
     override var value: T
         get() {
             if (myListen == null) super.value = source.value.let(get)
@@ -79,8 +79,8 @@ private open class ValueSignalLens<S : ValueSignal<O>, O, T>(val source: S, val 
     }
 }
 
-private open class SetLensValue<O, T>(source: MutableValueSignal<O>, get: (O) -> T, val set: (T) -> O) :
-    ValueSignalLens<MutableValueSignal<O>, O, T>(source, get), MutableValueSignal<T> {
+private open class SetLensValue<O, T>(source: MutableReactiveValue<O>, get: (O) -> T, val set: (T) -> O) :
+    ReactiveValueLens<MutableReactiveValue<O>, O, T>(source, get), MutableReactiveValue<T> {
     override var value: T
         get() = super.value
         set(value) {
@@ -88,8 +88,8 @@ private open class SetLensValue<O, T>(source: MutableValueSignal<O>, get: (O) ->
         }
 }
 
-private open class ModifyLensValue<O, T>(source: MutableValueSignal<O>, get: (O) -> T, val modify: (O, T) -> O) :
-    ValueSignalLens<MutableValueSignal<O>, O, T>(source, get), MutableValueSignal<T> {
+private open class ModifyLensValue<O, T>(source: MutableReactiveValue<O>, get: (O) -> T, val modify: (O, T) -> O) :
+    ReactiveValueLens<MutableReactiveValue<O>, O, T>(source, get), MutableReactiveValue<T> {
     override var value: T
         get() = super.value
         set(value) {
@@ -99,112 +99,112 @@ private open class ModifyLensValue<O, T>(source: MutableValueSignal<O>, get: (O)
 
 fun <T> Listenable.lensListenable(
     get: () -> T
-): Signal<T> = ValueSignalLens(object: ValueSignal<Unit>, Listenable by this{
+): Reactive<T> = ReactiveValueLens(object: ReactiveValue<Unit>, Listenable by this{
     override val value: Unit get() = Unit
 }, { get() })
 
-fun <O, T> Signal<O>.lens(
+fun <O, T> Reactive<O>.lens(
     get: (O) -> T
-): Signal<T> = SignalLens(this, get)
+): Reactive<T> = ReactiveLens(this, get)
 
 @Deprecated("use the new name, lens, instead", ReplaceWith("lens", "com.lightningkite.readable.lens"))
-fun <O, T> MutableSignal<O>.map(
+fun <O, T> MutableReactive<O>.map(
     get: (O) -> T,
     set: (O, T) -> O
-): MutableSignal<T> = lens(get, set)
+): MutableReactive<T> = lens(get, set)
 
-fun <O, T> MutableSignal<O>.lens(
+fun <O, T> MutableReactive<O>.lens(
     get: (O) -> T,
     modify: (O, T) -> O
-): MutableSignal<T> = ModifyLens(this, get, modify)
+): MutableReactive<T> = ModifyLens(this, get, modify)
 
-fun <O, T> MutableSignal<O>.lens(
+fun <O, T> MutableReactive<O>.lens(
     get: (O) -> T,
     set: (T) -> O
-): MutableSignal<T> = SetLens(this, get, set)
+): MutableReactive<T> = SetLens(this, get, set)
 
-fun <O, T> ValueSignal<O>.lens(
+fun <O, T> ReactiveValue<O>.lens(
     get: (O) -> T
-): ValueSignal<T> = ValueSignalLens(this, get)
+): ReactiveValue<T> = ReactiveValueLens(this, get)
 
-fun <O, T> MutableValueSignal<O>.lens(
+fun <O, T> MutableReactiveValue<O>.lens(
     get: (O) -> T,
     set: (T) -> O
-): MutableValueSignal<T> = SetLensValue(this, get, set)
+): MutableReactiveValue<T> = SetLensValue(this, get, set)
 
-fun <O, T> MutableValueSignal<O>.lens(
+fun <O, T> MutableReactiveValue<O>.lens(
     get: (O) -> T,
     modify: (O, T) -> O
-): MutableValueSignal<T> = ModifyLensValue(this, get, modify)
+): MutableReactiveValue<T> = ModifyLensValue(this, get, modify)
 
 @Deprecated("Be specific about what kind you need.")
-fun <E, ID, W> MutableSignal<List<E>>.lensByElement(identity: (E) -> ID, map: CalculationContext.(MutableWithValueSignal<E>) -> W) =
-    WritableList<E, ID, W>(this, identity = identity, elementLens = { it.map(it) })
+fun <E, ID, W> MutableReactive<List<E>>.lensByElement(identity: (E) -> ID, map: CalculationContext.(MutableWithReactiveValue<E>) -> W) =
+    MutableReactiveList<E, ID, W>(this, identity = identity, elementLens = { it.map(it) })
 
 @Deprecated("Be specific about what kind you need.")
-fun <E, ID> MutableSignal<List<E>>.lensByElement(identity: (E) -> ID) =
+fun <E, ID> MutableReactive<List<E>>.lensByElement(identity: (E) -> ID) =
     WritableListWithoutMap<E, ID>(this, identity = identity, elementLens = { it })
 
 @Deprecated("Be specific about what kind you need.")
 @JvmName("setLensByElement")
 @Suppress("Deprecation")
-fun <E, ID, W> MutableSignal<Set<E>>.lensByElement(identity: (E) -> ID, map: CalculationContext.(MutableWithValueSignal<E>) -> W) =
+fun <E, ID, W> MutableReactive<Set<E>>.lensByElement(identity: (E) -> ID, map: CalculationContext.(MutableWithReactiveValue<E>) -> W) =
     lens(get = { it.toList() }, set = { it.toSet() }).lensByElement(identity, map)
 
 @Deprecated("Be specific about what kind you need.")
 @JvmName("setLensByElement")
 @Suppress("Deprecation")
-fun <E, ID> MutableSignal<Set<E>>.lensByElement(identity: (E) -> ID) =
+fun <E, ID> MutableReactive<Set<E>>.lensByElement(identity: (E) -> ID) =
     lens(get = { it.toList() }, set = { it.toSet() }).lensByElement(identity)
 
-fun <E, ID, W> MutableSignal<List<E>>.lensByElementWithIdentity(
+fun <E, ID, W> MutableReactive<List<E>>.lensByElementWithIdentity(
     identity: (E) -> ID,
-    map: CalculationContext.(MutableWithValueSignal<E>) -> W
+    map: CalculationContext.(MutableWithReactiveValue<E>) -> W
 ) =
-    WritableList<E, ID, W>(this, identity = identity, elementLens = { it.map(it) })
+    MutableReactiveList<E, ID, W>(this, identity = identity, elementLens = { it.map(it) })
 
-fun <E, ID> MutableSignal<List<E>>.lensByElementWithIdentity(identity: (E) -> ID) =
+fun <E, ID> MutableReactive<List<E>>.lensByElementWithIdentity(identity: (E) -> ID) =
     WritableListWithoutMap<E, ID>(this, identity = identity, elementLens = { it })
 
 @JvmName("setLensByElementWithIdentity")
 @Suppress("Deprecation")
-fun <E, ID, W> MutableSignal<Set<E>>.lensByElementWithIdentity(
+fun <E, ID, W> MutableReactive<Set<E>>.lensByElementWithIdentity(
     identity: (E) -> ID,
-    map: CalculationContext.(MutableWithValueSignal<E>) -> W
+    map: CalculationContext.(MutableWithReactiveValue<E>) -> W
 ) =
     lens(get = { it.toList() }, set = { it.toSet() }).lensByElement(identity, map)
 
 @JvmName("setLensByElementWithIdentity")
 @Suppress("Deprecation")
-fun <E, ID> MutableSignal<Set<E>>.lensByElementWithIdentity(identity: (E) -> ID) =
+fun <E, ID> MutableReactive<Set<E>>.lensByElementWithIdentity(identity: (E) -> ID) =
     lens(get = { it.toList() }, set = { it.toSet() }).lensByElement(identity)
 
-interface ListItemMutableSignal<E> : MutableWithValueSignal<E> {
-    val index: ValueSignal<Int>
+interface ListItemMutableReactiveValue<E> : MutableWithReactiveValue<E> {
+    val index: ReactiveValue<Int>
 }
 
 /**
  * THIS ONLY WORKS IF THE `set` on the receiver *never* manipulates the input before notifying.
  */
-fun <E> MutableSignal<List<E>>.lensByElementAssumingSetNeverManipulates(): Signal<List<ListItemMutableSignal<E>>> =
+fun <E> MutableReactive<List<E>>.lensByElementAssumingSetNeverManipulates(): Reactive<List<ListItemMutableReactiveValue<E>>> =
     lensByElementAssumingSetNeverManipulates { it }
 
 /**
  * THIS ONLY WORKS IF THE `set` on the receiver *never* manipulates the input before notifying.
  */
-fun <E, W> MutableSignal<List<E>>.lensByElementAssumingSetNeverManipulates(map: CalculationContext.(ListItemMutableSignal<E>) -> W): Signal<List<W>> =
+fun <E, W> MutableReactive<List<E>>.lensByElementAssumingSetNeverManipulates(map: CalculationContext.(ListItemMutableReactiveValue<E>) -> W): Reactive<List<W>> =
     LensByElementAssumingSetNeverManipulates(this, map)
 
 private class LensByElementAssumingSetNeverManipulates<E, W>(
-    val source: MutableSignal<List<E>>,
-    private val map: CalculationContext.(ListItemMutableSignal<E>) -> W
+    val source: MutableReactive<List<E>>,
+    private val map: CalculationContext.(ListItemMutableReactiveValue<E>) -> W
 ) :
-    Signal<List<W>>, BaseListenable() {
+    Reactive<List<W>>, BaseListenable() {
 
-    inner class Instance(calculationContext: CalculationContext, index: Int, value: E) : ListItemMutableSignal<E>,
-        BaseValueSignal<E>(value) {
+    inner class Instance(calculationContext: CalculationContext, index: Int, value: E) : ListItemMutableReactiveValue<E>,
+        BaseReactiveValue<E>(value) {
         val mapped = map(calculationContext, this)
-        override val index: ValueSignal<Int> = Constant(index)
+        override val index: ReactiveValue<Int> = Constant(index)
         override suspend fun set(value: E) {
             this.value = value
             source.set(sources.map { it.value })
@@ -212,7 +212,7 @@ private class LensByElementAssumingSetNeverManipulates<E, W>(
     }
 
     val sources: ArrayList<Instance> = ArrayList()
-    var _state: SignalState<List<W>> = SignalState.notReady
+    var _state: ReactiveState<List<W>> = ReactiveState.notReady
     private var myListen: (() -> Unit)? = null
     override fun activate() {
         super.activate()
@@ -229,7 +229,7 @@ private class LensByElementAssumingSetNeverManipulates<E, W>(
         myListen = null
     }
 
-    override val state: SignalState<List<W>>
+    override val state: ReactiveState<List<W>>
         get() {
             if (myListen == null) refresh()
             return _state
@@ -250,19 +250,18 @@ private class LensByElementAssumingSetNeverManipulates<E, W>(
     }
 }
 
-typealias WritableListWithoutMap<E, ID> = WritableList<E, ID, WritableList<E, ID, *>.ElementMutableSignal>
+typealias WritableListWithoutMap<E, ID> = MutableReactiveList<E, ID, MutableReactiveList<E, ID, *>.Element>
 
-class WritableList<E, ID, T>(
-    val source: MutableSignal<List<E>>,
+class MutableReactiveList<E, ID, T>(
+    val source: MutableReactive<List<E>>,
     val identity: (E) -> ID,
-    val elementLens: (WritableList<E, ID, T>.ElementMutableSignal) -> T
-) : Signal<List<T>> {
-    inner class ElementMutableSignal internal constructor(valueInit: E) : MutableWithValueSignal<E>,
-        CalculationContext {
+    val elementLens: (MutableReactiveList<E, ID, T>.Element) -> T
+) : Reactive<List<T>> {
+    inner class Element internal constructor(valueInit: E) : MutableWithReactiveValue<E>, CalculationContext {
         private var job = Job()
         private val restOfContext = Dispatchers.Default + CoroutineExceptionHandler { coroutineContext, throwable ->
             if (throwable !is CancellationException) {
-                Signal.reportException(throwable)
+                Reactive.reportException(throwable)
             }
         }
         override val coroutineContext get() = restOfContext + job
@@ -277,8 +276,8 @@ class WritableList<E, ID, T>(
         var id: ID = identity(valueInit)
             private set
         private val listeners = ArrayList<() -> Unit>()
-        override val state: SignalState<E>
-            get() = SignalState(value)
+        override val state: ReactiveState<E>
+            get() = ReactiveState(value)
         override var value: E = valueInit
             set(value) {
                 if (field != value) {
@@ -287,7 +286,7 @@ class WritableList<E, ID, T>(
                     listeners.invokeAllSafe()
                 }
             }
-        internal var queuedSet: SignalState<E> = SignalState.notReady
+        internal var queuedSet: ReactiveState<E> = ReactiveState.notReady
         internal val queuedOrValue: E
             get() {
                 val qs = queuedSet
@@ -296,14 +295,14 @@ class WritableList<E, ID, T>(
         internal var usedFlag = false
 
         override suspend fun set(value: E) {
-            queuedSet = SignalState(value)
+            queuedSet = ReactiveState(value)
             val allWritables = elements.awaitOnce()
             val newList = allWritables.map { it.queuedOrValue }
             if (allWritables.contains(this)) {
                 try {
                     source.set(newList)
                 } finally {
-                    queuedSet = SignalState.notReady
+                    queuedSet = ReactiveState.notReady
                 }
                 if (elements.myListen == null) {
                     this.value = value
@@ -324,18 +323,18 @@ class WritableList<E, ID, T>(
         val view = elementLens(this)
     }
 
-    inner class Elements : MutableSignal<List<ElementMutableSignal>> {
-        override suspend fun set(value: List<ElementMutableSignal>) {
+    inner class Elements : MutableReactive<List<Element>> {
+        override suspend fun set(value: List<Element>) {
             source.set(value.map { it.queuedOrValue })
         }
 
-        private var lastElements: List<ElementMutableSignal> = listOf()
-        private var _state: SignalState<List<ElementMutableSignal>> = SignalState.notReady
+        private var lastElements: List<Element> = listOf()
+        private var _state: ReactiveState<List<Element>> = ReactiveState.notReady
             set(value) {
                 if (value.success) lastElements = value.get()
                 field = value
             }
-        override var state: SignalState<List<ElementMutableSignal>>
+        override var state: ReactiveState<List<Element>>
             get() {
                 if (myListen == null || !_state.ready) _state = getStateFromSource()
                 return _state.map { it }
@@ -386,7 +385,7 @@ class WritableList<E, ID, T>(
 
     val elements = Elements()
 
-    fun newElement(e: E): ElementMutableSignal = ElementMutableSignal(e)
+    fun newElement(e: E): Element = Element(e)
     suspend fun add(index: Int, value: E): T {
         val newly = newElement(value)
         elements.set(elements.awaitOnce().toMutableList().apply { add(index, newly) })
@@ -417,7 +416,7 @@ class WritableList<E, ID, T>(
         elements.set(elements.awaitOnce().filter { it.id != id })
     }
 
-    override val state: SignalState<List<T>>
+    override val state: ReactiveState<List<T>>
         get() = elements.state.map { it.map { it.view } }
 
     override fun addListener(listener: () -> Unit): () -> Unit = elements.addListener(listener)

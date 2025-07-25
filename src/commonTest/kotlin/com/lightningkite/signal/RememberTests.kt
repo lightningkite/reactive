@@ -1,21 +1,18 @@
 package com.lightningkite.signal
 
-import kotlinx.coroutines.Dispatchers
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class SharedSuspendingTest {
+class RememberTests {
     @Test
     fun sharedPassesNulls() {
-        val a = LateInitSignal<Int?>()
-        val b = rememberSuspending(Dispatchers.Unconfined) { a() }
+        val a = LateInitReactiveValue<Int?>()
+        val b = remember { a() }
         var hits = 0
         testContext {
-            reactiveSuspending {
-                Exception("Calculating...").printStackTrace()
+            reactiveScope {
                 b()
                 hits++
-                println("Calculated")
             }
             assertEquals(0, hits)
             a.value = null
@@ -26,11 +23,11 @@ class SharedSuspendingTest {
     }
 
     @Test fun sharedDoesNotEmitSameValue() {
-        val a = LateInitSignal<Int?>()
-        val b = rememberSuspending(Dispatchers.Unconfined) { a() }
+        val a = LateInitReactiveValue<Int?>()
+        val b = remember { a() }
         var hits = 0
         testContext {
-            reactiveSuspending {
+            reactiveScope {
                 b()
                 hits++
             }
@@ -45,14 +42,14 @@ class SharedSuspendingTest {
     @Test fun sharedTerminatesWhenNoOneIsListening() {
         var onRemoveCalled = 0
         var scopeCalled = 0
-        val sharedSuspending = rememberSuspending(Dispatchers.Unconfined) {
+        val shared = remember {
             scopeCalled++
             onRemove { onRemoveCalled++ }
             42
         }
         assertEquals(0, scopeCalled)
         assertEquals(0, onRemoveCalled)
-        val removeListener = sharedSuspending.addListener {  }
+        val removeListener = shared.addListener {  }
         assertEquals(1, scopeCalled)
         assertEquals(0, onRemoveCalled)
         removeListener()
@@ -60,21 +57,58 @@ class SharedSuspendingTest {
         assertEquals(1, onRemoveCalled)
     }
 
+    @Test fun sharedTerminatesWhenNoOneIsListeningCancelDeps() {
+        var onRemoveCalled = 0
+        var scopeCalled = 0
+        var dependencyListeners = 0
+        val listener = object: Listenable {
+            override fun addListener(listener: () -> Unit): () -> Unit {
+                dependencyListeners++
+                return { dependencyListeners-- }
+            }
+        }
+        val shared = remember {
+            rerunOn(listener)
+            scopeCalled++
+            onRemove { onRemoveCalled++ }
+            42
+        }
+        assertEquals(0, scopeCalled)
+        assertEquals(0, onRemoveCalled)
+        assertEquals(0, dependencyListeners)
+        var removeListener = shared.addListener {  }
+        assertEquals(1, dependencyListeners)
+        assertEquals(1, scopeCalled)
+        assertEquals(0, onRemoveCalled)
+        removeListener()
+        assertEquals(0, dependencyListeners)
+        assertEquals(1, scopeCalled)
+        assertEquals(1, onRemoveCalled)
+        removeListener = shared.addListener {  }
+        assertEquals(1, dependencyListeners)
+        assertEquals(2, scopeCalled)
+        assertEquals(1, onRemoveCalled)
+        removeListener()
+        assertEquals(0, dependencyListeners)
+        assertEquals(2, scopeCalled)
+        assertEquals(2, onRemoveCalled)
+    }
+
     @Test fun sharedSharesCalculations() {
         var hits = 0
-        val basicSignal = BasicSignal(1)
-        val a = rememberSuspending(Dispatchers.Unconfined) {
+        val basicSignal = Signal(1)
+        val a = remember {
             hits++
             basicSignal()
         }
         testContext {
-            reactiveSuspending {
+            reactiveScope {
                 a()
             }
             load {
                 a.await()
             }
-            reactiveSuspending {
+            reactiveScope {
                 a()
             }
             assertEquals(1, hits)
@@ -88,13 +122,13 @@ class SharedSuspendingTest {
         assertEquals(2, hits)
 
         testContext {
-            reactiveSuspending {
+            reactiveScope {
                 a()
             }
             load {
                 a.await()
             }
-            reactiveSuspending {
+            reactiveScope {
                 a()
             }
         }
@@ -102,10 +136,10 @@ class SharedSuspendingTest {
     }
 
     @Test fun sharedReloads() {
-        val late = LateInitSignal<Int>()
+        val late = LateInitReactiveValue<Int>()
         var starts = 0
         var hits = 0
-        val a = RememberSuspendingSignal(coroutineContext = Dispatchers.Unconfined, useLastWhileLoading = false) {
+        val a = remember {
             starts++
             val r = late()
             hits++
@@ -115,20 +149,14 @@ class SharedSuspendingTest {
             late.addListener {}
             a.addListener {}
 
-            println("listeners added")
-
-            println("late.value = 1")
             late.value = 1
-            println("late.value = 1 done")
-            assertEquals(SignalState(1), a.state)
+            assertEquals(ReactiveState(1), a.state)
 
-            println("late.unset()")
             late.unset()
-            println("late.unset() done")
-            assertEquals(SignalState.notReady, a.state)
+            assertEquals(ReactiveState.notReady, a.state)
 
             late.value = 2
-            assertEquals(SignalState(2), a.state)
+            assertEquals(ReactiveState(2), a.state)
         }
     }
 

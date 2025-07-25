@@ -10,8 +10,8 @@ public interface StatusListener : CoroutineContext.Element {
      */
     public companion object Key : CoroutineContext.Key<StatusListener>
 
-    fun loading(signal: Signal<*>)
-    fun working(signal: Signal<*>) = loading(signal)
+    fun loading(reactive: Reactive<*>)
+    fun working(reactive: Reactive<*>) = loading(reactive)
 }
 
 fun CoroutineScope.onRemove(action: () -> Unit) {
@@ -33,7 +33,7 @@ inline fun CoroutineScope.onThread(crossinline action: ()->Unit) {
 }
 
 @DslMarker
-annotation class Reactive
+annotation class ReactiveDsl
 
 @Deprecated("Only exists to not break imports", level = DeprecationLevel.ERROR)
 fun <T> Nothing.invoke(): Nothing = TODO()

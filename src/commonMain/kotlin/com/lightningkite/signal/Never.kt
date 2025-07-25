@@ -1,7 +1,7 @@
 package com.lightningkite.signal
 
 
-object Never: Signal<Nothing> {
-    override val state: SignalState<Nothing> get() = SignalState.notReady
+object Never: Reactive<Nothing> {
+    override val state: ReactiveState<Nothing> get() = ReactiveState.notReady
     override fun addListener(listener: () -> Unit): () -> Unit = {}
 }

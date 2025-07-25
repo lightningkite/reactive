@@ -25,14 +25,14 @@ abstract class BaseListenable : Listenable {
                 it()
             } catch (e: Exception) {
                 if (e is CancellationException) return@forEach
-                Signal.reportException(e)
+                Reactive.reportException(e)
             }
         }
     }
 }
 
-abstract class BaseSignal<T>(start: SignalState<T> = SignalState.notReady) : Signal<T>, BaseListenable() {
-    override var state: SignalState<T> = start
+abstract class BaseReactive<T>(start: ReactiveState<T> = ReactiveState.notReady) : Reactive<T>, BaseListenable() {
+    override var state: ReactiveState<T> = start
         protected set(value) {
             if (field.raw !== value.raw && field != value) {
                 field = value
@@ -41,13 +41,13 @@ abstract class BaseSignal<T>(start: SignalState<T> = SignalState.notReady) : Sig
         }
 }
 
-class RawSignal<T>(start: SignalState<T> = SignalState.notReady) : BaseSignal<T>(start) {
-    override var state: SignalState<T>
+class RawReactive<T>(start: ReactiveState<T> = ReactiveState.notReady) : BaseReactive<T>(start) {
+    override var state: ReactiveState<T>
         get() = super.state
         public set(value) { super.state = value }
 }
 
-abstract class BaseValueSignal<T>(start: T) : ValueSignal<T>, BaseListenable() {
+abstract class BaseReactiveValue<T>(start: T) : ReactiveValue<T>, BaseListenable() {
     override var value: T = start
         set(value) {
             @Suppress("SuspiciousEqualsCombination")
@@ -69,25 +69,19 @@ class BasicListenable : BaseListenable() {
     }
 }
 
-class BasicSignal<T>(startValue: T) : MutableValueSignal<T>, BaseValueSignal<T>(startValue)
+class Signal<T>(startValue: T) : MutableReactiveValue<T>, BaseReactiveValue<T>(startValue)
 
-class LateInitSignal<T>() : MutableSignal<T>, MutableValue<T>, BaseSignal<T>() {
-    var value: T
-        get() = state.get()
-        set(value) {
-            state = SignalState(value)
-        }
-
+class LateInitReactiveValue<T>() : ReactiveWithMutableValue<T>, BaseReactive<T>() {
     override fun setValue(value: T) {
-        this.value = value
+        state = ReactiveState(value)
     }
 
     fun unset() {
-        state = SignalState.notReady
+        state = ReactiveState.notReady
     }
 }
 
-class Constant<T>(override val value: T) : ValueSignal<T> {
+class Constant<T>(override val value: T) : ReactiveValue<T> {
     companion object {
         private val NOOP = {}
     }

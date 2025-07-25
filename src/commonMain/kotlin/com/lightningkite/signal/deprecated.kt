@@ -4,69 +4,73 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlin.coroutines.CoroutineContext
 
-@Deprecated("Use new name: Signal", ReplaceWith("Signal", "com.lightningkite.signal"))
-typealias Readable<T> = Signal<T>
+@Deprecated("Only exists to not break imports", level = DeprecationLevel.ERROR)
+fun <T> Nothing.bind(): Nothing = TODO()
 
-@Deprecated("Use new name: MutableSignal", ReplaceWith("MutableSignal", "com.lightningkite.signal"))
-typealias Writable<T> = MutableSignal<T>
+// Naming deprecations
 
-@Deprecated("Use new name: SharedReadable", ReplaceWith("RememberSignal", "com.lightningkite.signal"))
-typealias SharedReadable<T> = RememberSignal<T>
+@Deprecated("Use Reactive", ReplaceWith("Reactive", "com.lightningkite.signal"))
+typealias Readable<T> = Reactive<T>
 
-@Deprecated("Use new name: ValueSignal", ReplaceWith("ValueSignal", "com.lightningkite.signal"))
-typealias ImmediateReadable<T> = ValueSignal<T>
+@Deprecated("Use MutableReactive", ReplaceWith("MutableReactive", "com.lightningkite.signal"))
+typealias Writable<T> = MutableReactive<T>
 
-@Deprecated("Use new name: MutableValueSignal", ReplaceWith("MutableValueSignal", "com.lightningkite.signal"))
-typealias ImmediateWritable<T> = MutableValueSignal<T>
+@Deprecated("Use Remember", ReplaceWith("Remember", "com.lightningkite.signal"))
+typealias SharedReadable<T> = Remember<T>
 
-@Deprecated("Use new name: BasicSignal", ReplaceWith("BasicSignal", "com.lightningkite.signal"))
-typealias Property<T> = BasicSignal<T>
+@Deprecated("Use ReactiveValue", ReplaceWith("ReactiveValue", "com.lightningkite.signal"))
+typealias ImmediateReadable<T> = ReactiveValue<T>
 
-@Deprecated("Use new name: RememberBasicSignal", ReplaceWith("RememberBasicSignal", "com.lightningkite.signal"))
-typealias LazyProperty<T> = MutableRememberSignal<T>
+@Deprecated("Use MutableReactiveValue", ReplaceWith("MutableReactiveValue", "com.lightningkite.signal"))
+typealias ImmediateWritable<T> = MutableReactiveValue<T>
 
-@Deprecated("Use new name: DebounceSignal", ReplaceWith("DebounceSignal", "com.lightningkite.signal"))
-typealias DebounceReadable<T> = DebounceSignal<T>
+@Deprecated("Use MutableReactiveValue", ReplaceWith("MutableReactiveValue", "com.lightningkite.signal"))
+typealias Property<T> = MutableReactiveValue<T>
 
-@Deprecated("Use new name: InternalSignalWrapper", ReplaceWith("InternalSignalWrapper", "com.lightningkite.signal"))
-typealias InternalReadableWrapper<T> = InternalSignalWrapper<T>
+@Deprecated("Use MutableRemember", ReplaceWith("MutableRemember", "com.lightningkite.signal"))
+typealias LazyProperty<T> = MutableRemember<T>
 
-@Deprecated("Use new name: RawSignal", ReplaceWith("RawSignal", "com.lightningkite.signal"))
-typealias RawReadable<T> = RawSignal<T>
+@Deprecated("Use DebounceReactive", ReplaceWith("DebounceReactive", "com.lightningkite.signal"))
+typealias DebounceReadable<T> = DebounceReactive<T>
 
-@Deprecated("Use new name: SignalState", ReplaceWith("SignalState", "com.lightningkite.signal"))
-typealias ReadableState<T> = SignalState<T>
+@Deprecated("Use InternalSignalWrapper", ReplaceWith("InternalSignalWrapper", "com.lightningkite.signal"))
+typealias InternalReadableWrapper<T> = InternalReactiveWrapper<T>
 
-@Deprecated("Use new name: SignalEmitter", ReplaceWith("SignalEmitter", "com.lightningkite.signal"))
-typealias ReadableEmitter<T> = SignalEmitter<T>
+@Deprecated("Use RawReactive", ReplaceWith("RawReactive", "com.lightningkite.signal"))
+typealias RawReadable<T> = RawReactive<T>
 
-@Deprecated("Use new name: ImmediateMutable", ReplaceWith("ImmediateMutable", "com.lightningkite.signal"))
+@Deprecated("Use ReactiveState", ReplaceWith("ReactiveState", "com.lightningkite.signal"))
+typealias ReadableState<T> = ReactiveState<T>
+
+@Deprecated("Use SignalEmitter", ReplaceWith("SignalEmitter", "com.lightningkite.signal"))
+typealias ReadableEmitter<T> = Emitter<T>
+
+@Deprecated("Use MutableValue", ReplaceWith("MutableValue", "com.lightningkite.signal"))
 typealias ImmediateWriteOnly<T> = MutableValue<T>
 
-@Deprecated("Use new name: BaseValueSignal", ReplaceWith("BaseValueSignal", "com.lightningkite.signal"))
-typealias BaseImmediateReadable<T> = BaseValueSignal<T>
+@Deprecated("Use BaseReactiveValue", ReplaceWith("BaseReactiveValue", "com.lightningkite.signal"))
+typealias BaseImmediateReadable<T> = BaseReactiveValue<T>
 
-@Deprecated("Use new name: BaseSignal", ReplaceWith("BaseSignal", "com.lightningkite.signal"))
-typealias BaseReadable<T> = BaseSignal<T>
+@Deprecated("Use BaseReactive", ReplaceWith("BaseReactive", "com.lightningkite.signal"))
+typealias BaseReadable<T> = BaseReactive<T>
 
-@Deprecated("Use new name: BaseSignal", ReplaceWith("BaseSignal", "com.lightningkite.signal"))
-typealias BaseWritable<T> = BaseSignal<T>
+@Deprecated("Use BaseReactive", ReplaceWith("BaseReactive", "com.lightningkite.signal"))
+typealias BaseWritable<T> = BaseReactive<T>
 
-@Deprecated("Use new name: BaseValueSignal", ReplaceWith("BaseValueSignal", "com.lightningkite.signal"))
-typealias BaseReadWrite<T> = BaseValueSignal<T>
+@Deprecated("Use BaseReactiveValue", ReplaceWith("BaseReactiveValue", "com.lightningkite.signal"))
+typealias BaseReadWrite<T> = BaseReactiveValue<T>
 
-@Deprecated("Use new name: LateInitSignal", ReplaceWith("LateInitSignal", "com.lightningkite.signal"))
-typealias LateInitProperty<T> = LateInitSignal<T>
+@Deprecated("Use LateInitReactiveValue", ReplaceWith("LateInitReactiveValue", "com.lightningkite.signal"))
+typealias LateInitProperty<T> = LateInitReactiveValue<T>
 
-@Deprecated("Use new name: remember", ReplaceWith("remember", "com.lightningkite.signal"))
-fun <T> shared(coroutineContext: CoroutineContext = Dispatchers.Unconfined, useLastWhileLoading: Boolean = false, action: ReactiveContext.() -> T): Signal<T> = remember(coroutineContext, useLastWhileLoading, action)
+@Deprecated("Use remember", ReplaceWith("remember", "com.lightningkite.signal"))
+fun <T> shared(coroutineContext: CoroutineContext = Dispatchers.Unconfined, useLastWhileLoading: Boolean = false, action: ReactiveContext.() -> T): Reactive<T> = remember(coroutineContext, useLastWhileLoading, action)
 
-@Deprecated("User new name: rememberProcess", ReplaceWith("rememberProcess", "com.lightningkite.signal"))
-fun <T> sharedProcess(scope: CoroutineScope = AppScope, emitter: suspend SignalEmitter<T>.() -> Unit): Signal<T> = rememberProcess(scope, emitter)
+@Deprecated("Use rememberProcess", ReplaceWith("rememberProcess", "com.lightningkite.signal"))
+fun <T> sharedProcess(scope: CoroutineScope = AppScope, emitter: suspend Emitter<T>.() -> Unit): Reactive<T> = reactiveProcess(scope, emitter)
 
-@Deprecated("Use new name: signalState", ReplaceWith("signalState", "com.lightningkite.signal"))
-inline fun <T> readableState(action: () -> T): SignalState<T> = signalState(action)
+@Deprecated("Use reactiveState", ReplaceWith("reactiveState", "com.lightningkite.signal"))
+inline fun <T> readableState(action: () -> T): ReactiveState<T> = reactiveState(action)
 
-@Deprecated("Use new name: toSignalState", ReplaceWith("toSignalState", "com.lightningkite.signal"))
-inline fun <T> Result<T>.toReadableState(): SignalState<T> = toSignalState()
-
+@Deprecated("Use toReactiveState", ReplaceWith("toReactiveState", "com.lightningkite.signal"))
+inline fun <T> Result<T>.toReadableState(): ReactiveState<T> = toReactiveState()

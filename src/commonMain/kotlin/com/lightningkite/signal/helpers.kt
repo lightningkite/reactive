@@ -13,295 +13,189 @@ fun List<() -> Unit>.invokeAllSafe() = forEach {
         it()
     } catch (e: Exception) {
         if (e is CancellationException) return@forEach
-        Signal.reportException(e)
+        Reactive.reportException(e)
     }
 }
 
-@Deprecated("Only exists to not break imports", level = DeprecationLevel.ERROR)
-fun <T> Nothing.bind(): Nothing = TODO()
+var <T> MutableValue<T>.value: T
+    @Deprecated("This is syntax sugar for SETTING values. Retrieving will always throw an exception.", level = DeprecationLevel.ERROR)
+    get() = throw IllegalStateException("Attempted to retrieve value for set-only property")
+    set(value) { setValue(value) }
 
-//infix fun <T> ImmediateWritable<T>.bind(master: Writable<T>) {
-//    with(CoroutineScopeStack.current()) {
-//        var setting = false
-//        launch(key = this@bind) {
-//            this@bind.set(master.await())
-//            master.addListener {
-//                if (setting) return@addListener
-//                master.state.onSuccess {
-//                    setting = true
-//                    this@with.reporting(key = this@bind) {
-//                        try {
-//                            this@bind.value = (it)
-//                        } finally {
-//                            setting = false
-//                        }
-//                    }
-//                }
-//            }.also { onRemove(it) }
-//            this@bind.addListener {
-//                if (setting) return@addListener
-//                this@bind.state.onSuccess {
-//                    setting = true
-//                    this@with.launch(key = this@bind) {
-//                        try {
-//                            master.set(it)
-//                        } finally {
-//                            setting = false
-//                        }
-//                    }
-//                }
-//            }.also { onRemove(it) }
-//        }
-//
-//    }
-//}
-//
-//infix fun <T> Writable<T>.bind(master: ImmediateWritable<T>) {
-//    with(CoroutineScopeStack.current()) {
-//        var setting = false
-//        launch(key = this@bind) {
-//            this@bind.set(master.value)
-//            master.addListener {
-//                if (setting) return@addListener
-//                master.state.onSuccess {
-//                    setting = true
-//                    this@with.launch(key = this@bind) {
-//                        try {
-//                            this@bind.set(it)
-//                        } finally {
-//                            setting = false
-//                        }
-//                    }
-//
-//                }
-//            }.also { onRemove(it) }
-//            this@bind.addListener {
-//                if (setting) return@addListener
-//                this@bind.state.onSuccess {
-//                    setting = true
-//                    this@with.reporting(key = this@bind) {
-//                        try {
-//                            master.value = it
-//                        } finally {
-//                            setting = false
-//                        }
-//                    }
-//                }
-//            }.also { onRemove(it) }
-//        }
-//    }
-//}
-//
-//infix fun <T> ImmediateWritable<T>.bind(master: ImmediateWritable<T>) {
-//    with(CoroutineScopeStack.current()) {
-//        var setting = false
-//        this@bind.value = master.value
-//        master.addListener {
-//            if (setting) {
-//                return@addListener
-//            }
-//            master.state.onSuccess {
-//                setting = true
-//                this@with.reporting(key = this@bind) {
-//                    try {
-//                        this@bind.value = it
-//                    } finally {
-//                        setting = false
-//                    }
-//                }
-//            }
-//        }.also { onRemove(it) }
-//        this@bind.addListener {
-//            if (setting) {
-//                return@addListener
-//            }
-//            this@bind.state.onSuccess {
-//                setting = true
-//                this@with.reporting(key = this@bind) {
-//                    try {
-//                        master.value = it
-//                    } finally {
-//                        setting = false
-//                    }
-//                }
-//            }
-//        }.also { onRemove(it) }
-//    }
-//}
 
-fun <T> Signal<T>.withWrite(action: suspend Signal<T>.(T) -> Unit): MutableSignal<T> =
-    object : MutableSignal<T>, Signal<T> by this {
+fun <T> Reactive<T>.withWrite(action: suspend Reactive<T>.(T) -> Unit): MutableReactive<T> =
+    object : MutableReactive<T>, Reactive<T> by this {
         override suspend fun set(value: T) {
             action(this@withWrite, value)
         }
     }
 
 // Lenses
-infix fun <T> MutableSignal<T>.equalTo(value: T): MutableSignal<Boolean> = lens(
+infix fun <T> MutableReactive<T>.equalTo(value: T): MutableReactive<Boolean> = lens(
     get = { it == value },
     modify = { o, it -> if (it) value else o }
 )
 
-infix fun <T> MutableSignal<Set<T>>.contains(value: T): MutableSignal<Boolean> = remember { value in this@contains() }.withWrite { on ->
+infix fun <T> MutableReactive<Set<T>>.contains(value: T): MutableReactive<Boolean> = remember { value in this@contains() }.withWrite { on ->
     if (on) this@contains.set(this@contains.await() + value)
     else this@contains.set(this@contains.await() - value)
 }
 
-fun <T : Any> MutableSignal<T>.nullable(): MutableSignal<T?> =
-    object : MutableSignal<T?>, Signal<T?> by this {
+fun <T : Any> MutableReactive<T>.nullable(): MutableReactive<T?> =
+    object : MutableReactive<T?>, Reactive<T?> by this {
         override suspend fun set(value: T?) {
             if (value != null) this@nullable.set(value)
         }
     }
 
-fun <T : Any> MutableSignal<T?>.notNull(default: T): MutableSignal<T> = lens(
+fun <T : Any> MutableReactive<T?>.notNull(default: T): MutableReactive<T> = lens(
     get = { it ?: default },
     set = { it }
 )
 
-val <T : Any> MutableSignal<T?>.waitForNotNull: MutableSignal<T>
+val <T : Any> MutableReactive<T?>.waitForNotNull: MutableReactive<T>
     get() =
-        object : MutableSignal<T>, Signal<T> by (this as Signal<T?>).waitForNotNull {
+        object : MutableReactive<T>, Reactive<T> by (this as Reactive<T?>).waitForNotNull {
             override suspend fun set(value: T) = this@waitForNotNull.set(value)
         }
 
-fun MutableSignal<String?>.nullToBlank(): MutableSignal<String> = lens(
+fun MutableReactive<String?>.nullToBlank(): MutableReactive<String> = lens(
     get = { it ?: "" },
     set = { it.takeUnless { it.isBlank() } }
 )
 
 @JvmName("writableStringAsDouble")
-fun MutableSignal<String>.asDouble(): MutableSignal<Double?> = lens(get = { it.filter { it.isDigit() || it == '.' }.toDoubleOrNull() }, set = { it?.commaString() ?: "" })
+fun MutableReactive<String>.asDouble(): MutableReactive<Double?> = lens(get = { it.filter { it.isDigit() || it == '.' }.toDoubleOrNull() }, set = { it?.commaString() ?: "" })
 
 @JvmName("writableStringAsFloat")
-fun MutableSignal<String>.asFloat(): MutableSignal<Float?> = lens(get = { it.filter { it.isDigit() || it == '.' }.toFloatOrNull() }, set = { it?.toDouble()?.commaString() ?: "" })
+fun MutableReactive<String>.asFloat(): MutableReactive<Float?> = lens(get = { it.filter { it.isDigit() || it == '.' }.toFloatOrNull() }, set = { it?.toDouble()?.commaString() ?: "" })
 
 @JvmName("writableStringAsByte")
-fun MutableSignal<String>.asByte(): MutableSignal<Byte?> = lens(get = { it.filter { it.isDigit() || it == '.' }.toByteOrNull() }, set = { it?.toInt()?.commaString() ?: "" })
+fun MutableReactive<String>.asByte(): MutableReactive<Byte?> = lens(get = { it.filter { it.isDigit() || it == '.' }.toByteOrNull() }, set = { it?.toInt()?.commaString() ?: "" })
 
 @JvmName("writableStringAsShort")
-fun MutableSignal<String>.asShort(): MutableSignal<Short?> = lens(get = { it.filter { it.isDigit() || it == '.' }.toShortOrNull() }, set = { it?.toInt()?.commaString() ?: "" })
+fun MutableReactive<String>.asShort(): MutableReactive<Short?> = lens(get = { it.filter { it.isDigit() || it == '.' }.toShortOrNull() }, set = { it?.toInt()?.commaString() ?: "" })
 
 @JvmName("writableStringAsInt")
-fun MutableSignal<String>.asInt(): MutableSignal<Int?> = lens(get = { it.filter { it.isDigit() || it == '.' }.toIntOrNull() }, set = { it?.commaString() ?: "" })
+fun MutableReactive<String>.asInt(): MutableReactive<Int?> = lens(get = { it.filter { it.isDigit() || it == '.' }.toIntOrNull() }, set = { it?.commaString() ?: "" })
 
 @JvmName("writableStringAsLong")
-fun MutableSignal<String>.asLong(): MutableSignal<Long?> = lens(get = { it.filter { it.isDigit() || it == '.' }.toLongOrNull() }, set = { it?.commaString() ?: "" })
+fun MutableReactive<String>.asLong(): MutableReactive<Long?> = lens(get = { it.filter { it.isDigit() || it == '.' }.toLongOrNull() }, set = { it?.commaString() ?: "" })
 
 @JvmName("writableStringAsByteHex")
-fun MutableSignal<String>.asByteHex(): MutableSignal<Byte?> = lens(get = { it.toByteOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactive<String>.asByteHex(): MutableReactive<Byte?> = lens(get = { it.toByteOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableStringAsUByteHex")
-fun MutableSignal<String>.asUByteHex(): MutableSignal<UByte?> = lens(get = { it.toUByteOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactive<String>.asUByteHex(): MutableReactive<UByte?> = lens(get = { it.toUByteOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableStringAsShortHex")
-fun MutableSignal<String>.asShortHex(): MutableSignal<Short?> = lens(get = { it.toShortOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactive<String>.asShortHex(): MutableReactive<Short?> = lens(get = { it.toShortOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableStringAsUShortHex")
-fun MutableSignal<String>.asUShortHex(): MutableSignal<UShort?> = lens(get = { it.toUShortOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactive<String>.asUShortHex(): MutableReactive<UShort?> = lens(get = { it.toUShortOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableStringAsIntHex")
-fun MutableSignal<String>.asIntHex(): MutableSignal<Int?> = lens(get = { it.toIntOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactive<String>.asIntHex(): MutableReactive<Int?> = lens(get = { it.toIntOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableStringAsUIntHex")
-fun MutableSignal<String>.asUIntHex(): MutableSignal<UInt?> = lens(get = { it.toUIntOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactive<String>.asUIntHex(): MutableReactive<UInt?> = lens(get = { it.toUIntOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableStringAsLongHex")
-fun MutableSignal<String>.asLongHex(): MutableSignal<Long?> = lens(get = { it.toLongOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactive<String>.asLongHex(): MutableReactive<Long?> = lens(get = { it.toLongOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableStringAsULongHex")
-fun MutableSignal<String>.asULongHex(): MutableSignal<ULong?> = lens(get = { it.toULongOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactive<String>.asULongHex(): MutableReactive<ULong?> = lens(get = { it.toULongOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableIntAsDoubleNullable")
-fun MutableSignal<Int?>.asDouble(): MutableSignal<Double?> = lens(get = { it?.toDouble() }, set = { it?.toInt() })
+fun MutableReactive<Int?>.asDouble(): MutableReactive<Double?> = lens(get = { it?.toDouble() }, set = { it?.toInt() })
 
-fun MutableSignal<Double>.nullToZero(): MutableSignal<Double?> =
-    object : MutableSignal<Double?>, Signal<Double?> by this {
+fun MutableReactive<Double>.nullToZero(): MutableReactive<Double?> =
+    object : MutableReactive<Double?>, Reactive<Double?> by this {
         override suspend fun set(value: Double?) {
             this@nullToZero.set(value ?: 0.0)
         }
     }
 
 @JvmName("writableStringAsDouble")
-fun MutableValueSignal<String>.asDouble(): MutableValueSignal<Double?> = lens(get = { it.filter { it.isDigit() || it == '-' || it == '.'}.toDoubleOrNull() }, set = { it?.commaString() ?: "" })
+fun MutableReactiveValue<String>.asDouble(): MutableReactiveValue<Double?> = lens(get = { it.filter { it.isDigit() || it == '-' || it == '.'}.toDoubleOrNull() }, set = { it?.commaString() ?: "" })
 
 @JvmName("writableStringAsFloat")
-fun MutableValueSignal<String>.asFloat(): MutableValueSignal<Float?> = lens(get = { it.filter { it.isDigit() || it == '-' || it == '.'}.toFloatOrNull() }, set = { it?.toDouble()?.commaString() ?: "" })
+fun MutableReactiveValue<String>.asFloat(): MutableReactiveValue<Float?> = lens(get = { it.filter { it.isDigit() || it == '-' || it == '.'}.toFloatOrNull() }, set = { it?.toDouble()?.commaString() ?: "" })
 
 @JvmName("writableStringAsByte")
-fun MutableValueSignal<String>.asByte(): MutableValueSignal<Byte?> = lens(get = { it.filter { it.isDigit() || it == '-' || it == '.'}.toByteOrNull() }, set = { it?.toInt()?.commaString() ?: "" })
+fun MutableReactiveValue<String>.asByte(): MutableReactiveValue<Byte?> = lens(get = { it.filter { it.isDigit() || it == '-' || it == '.'}.toByteOrNull() }, set = { it?.toInt()?.commaString() ?: "" })
 
 @JvmName("writableStringAsShort")
-fun MutableValueSignal<String>.asShort(): MutableValueSignal<Short?> = lens(get = { it.filter { it.isDigit() || it == '-' || it == '.'}.toShortOrNull() }, set = { it?.toInt()?.commaString() ?: "" })
+fun MutableReactiveValue<String>.asShort(): MutableReactiveValue<Short?> = lens(get = { it.filter { it.isDigit() || it == '-' || it == '.'}.toShortOrNull() }, set = { it?.toInt()?.commaString() ?: "" })
 
 @JvmName("writableStringAsInt")
-fun MutableValueSignal<String>.asInt(): MutableValueSignal<Int?> = lens(get = { it.filter { it.isDigit() || it == '-' || it == '.'}.toIntOrNull() }, set = { it?.commaString() ?: "" })
+fun MutableReactiveValue<String>.asInt(): MutableReactiveValue<Int?> = lens(get = { it.filter { it.isDigit() || it == '-' || it == '.'}.toIntOrNull() }, set = { it?.commaString() ?: "" })
 
 @JvmName("writableStringAsLong")
-fun MutableValueSignal<String>.asLong(): MutableValueSignal<Long?> = lens(get = { it.filter { it.isDigit() || it == '-' || it == '.'}.toLongOrNull() }, set = { it?.commaString() ?: "" })
+fun MutableReactiveValue<String>.asLong(): MutableReactiveValue<Long?> = lens(get = { it.filter { it.isDigit() || it == '-' || it == '.'}.toLongOrNull() }, set = { it?.commaString() ?: "" })
 
 @JvmName("writableStringAsByteHex")
-fun MutableValueSignal<String>.asByteHex(): MutableValueSignal<Byte?> = lens(get = { it.toByteOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactiveValue<String>.asByteHex(): MutableReactiveValue<Byte?> = lens(get = { it.toByteOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableStringAsUByteHex")
-fun MutableValueSignal<String>.asUByteHex(): MutableValueSignal<UByte?> = lens(get = { it.toUByteOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactiveValue<String>.asUByteHex(): MutableReactiveValue<UByte?> = lens(get = { it.toUByteOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableStringAsShortHex")
-fun MutableValueSignal<String>.asShortHex(): MutableValueSignal<Short?> = lens(get = { it.toShortOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactiveValue<String>.asShortHex(): MutableReactiveValue<Short?> = lens(get = { it.toShortOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableStringAsUShortHex")
-fun MutableValueSignal<String>.asUShortHex(): MutableValueSignal<UShort?> = lens(get = { it.toUShortOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactiveValue<String>.asUShortHex(): MutableReactiveValue<UShort?> = lens(get = { it.toUShortOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableStringAsIntHex")
-fun MutableValueSignal<String>.asIntHex(): MutableValueSignal<Int?> = lens(get = { it.toIntOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactiveValue<String>.asIntHex(): MutableReactiveValue<Int?> = lens(get = { it.toIntOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableStringAsUIntHex")
-fun MutableValueSignal<String>.asUIntHex(): MutableValueSignal<UInt?> = lens(get = { it.toUIntOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactiveValue<String>.asUIntHex(): MutableReactiveValue<UInt?> = lens(get = { it.toUIntOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableStringAsLongHex")
-fun MutableValueSignal<String>.asLongHex(): MutableValueSignal<Long?> = lens(get = { it.toLongOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactiveValue<String>.asLongHex(): MutableReactiveValue<Long?> = lens(get = { it.toLongOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableStringAsULongHex")
-fun MutableValueSignal<String>.asULongHex(): MutableValueSignal<ULong?> = lens(get = { it.toULongOrNull(16) }, set = { it?.toString(16) ?: "" })
+fun MutableReactiveValue<String>.asULongHex(): MutableReactiveValue<ULong?> = lens(get = { it.toULongOrNull(16) }, set = { it?.toString(16) ?: "" })
 
 @JvmName("writableIntAsDoubleNullable")
-fun MutableValueSignal<Int?>.asDouble(): MutableValueSignal<Double?> = lens(get = { it?.toDouble() }, set = { it?.toInt() })
+fun MutableReactiveValue<Int?>.asDouble(): MutableReactiveValue<Double?> = lens(get = { it?.toDouble() }, set = { it?.toInt() })
 
-suspend infix fun <T> MutableSignal<T>.modify(action: suspend (T) -> T) {
+suspend infix fun <T> MutableReactive<T>.modify(action: suspend (T) -> T) {
     set(action(await()))
 }
 
-suspend infix fun <T> MutableValueSignal<T>.modify(action: suspend (T) -> T) {
+suspend infix fun <T> MutableReactiveValue<T>.modify(action: suspend (T) -> T) {
     value = action(value)
 }
 
-suspend fun MutableSignal<Boolean>.toggle() { set(!awaitOnce()) }
-fun MutableValueSignal<Boolean>.toggle() { value = !value }
+suspend fun MutableReactive<Boolean>.toggle() { set(!awaitOnce()) }
+fun MutableReactiveValue<Boolean>.toggle() { value = !value }
 
 fun CalculationContext.use(resourceUse: ResourceUse) {
     val x = resourceUse.beginUse()
     onRemove { x() }
 }
 
-fun <T, WRITE : MutableSignal<T>> WRITE.interceptWrite(action: suspend WRITE.(T) -> Unit): MutableSignal<T> =
-    object : MutableSignal<T>, Signal<T> by this {
+fun <T, WRITE : MutableReactive<T>> WRITE.interceptWrite(action: suspend WRITE.(T) -> Unit): MutableReactive<T> =
+    object : MutableReactive<T>, Reactive<T> by this {
         override suspend fun set(value: T) {
             action(this@interceptWrite, value)
         }
     }
 
-fun <T> Signal<MutableSignal<T>>.flatten(): MutableSignal<T> = remember { this@flatten()() }
+fun <T> Reactive<MutableReactive<T>>.flatten(): MutableReactive<T> = remember { this@flatten()() }
     .withWrite { this@flatten.state.onSuccess { s -> s set it } }
 
 
-interface SignalEmitter<T>: CoroutineScope {
+interface Emitter<T>: CoroutineScope {
     fun emit(value: T)
 }
 
-fun <T> CoroutineScope.signal(emitter: suspend SignalEmitter<T>.() -> Unit): Signal<T> {
-    val prop = LateInitSignal<T>()
+fun <T> CoroutineScope.reactiveProcess(emitter: suspend Emitter<T>.() -> Unit): Reactive<T> {
+    val prop = LateInitReactiveValue<T>()
     launch {
-        emitter(object : SignalEmitter<T>, CoroutineScope by this {
+        emitter(object : Emitter<T>, CoroutineScope by this {
             override fun emit(value: T) {
                 prop.value = value
             }
@@ -309,16 +203,15 @@ fun <T> CoroutineScope.signal(emitter: suspend SignalEmitter<T>.() -> Unit): Sig
     }
     return prop
 }
-
-fun <T> rememberProcess(scope: CoroutineScope = AppScope, emitter: suspend SignalEmitter<T>.() -> Unit): Signal<T> {
-    return object: BaseSignal<T>() {
+fun <T> reactiveProcess(scope: CoroutineScope = AppScope, emitter: suspend Emitter<T>.() -> Unit): Reactive<T> {
+    return object: BaseReactive<T>() {
         var job: Job? = null
         override fun activate() {
-            state = SignalState.notReady
+            state = ReactiveState.notReady
             job = scope.launch {
-                emitter(object : SignalEmitter<T>, CoroutineScope by this@launch {
+                emitter(object : Emitter<T>, CoroutineScope by this@launch {
                     override fun emit(value: T) {
-                        state = SignalState(value)
+                        state = ReactiveState(value)
                     }
                 })
             }
@@ -329,13 +222,13 @@ fun <T> rememberProcess(scope: CoroutineScope = AppScope, emitter: suspend Signa
         }
     }
 }
-fun <T> sharedProcessRaw(scope: CoroutineScope = AppScope, emitter: suspend SignalEmitter<SignalState<T>>.() -> Unit): Signal<T> {
-    return object: BaseSignal<T>() {
+fun <T> rawReactiveProcess(scope: CoroutineScope = AppScope, emitter: suspend Emitter<ReactiveState<T>>.() -> Unit): Reactive<T> {
+    return object: BaseReactive<T>() {
         var job: Job? = null
         override fun activate() {
             job = scope.launch {
-                emitter(object : SignalEmitter<SignalState<T>>, CoroutineScope by this@launch {
-                    override fun emit(value: SignalState<T>) {
+                emitter(object : Emitter<ReactiveState<T>>, CoroutineScope by this@launch {
+                    override fun emit(value: ReactiveState<T>) {
                         state = value
                     }
                 })
@@ -348,8 +241,8 @@ fun <T> sharedProcessRaw(scope: CoroutineScope = AppScope, emitter: suspend Sign
     }
 }
 
-fun <T> CoroutineScope.asyncReadable(action: suspend () -> T): Signal<T> {
-    val prop = LateInitSignal<T>()
+fun <T> CoroutineScope.asyncReadable(action: suspend () -> T): Reactive<T> {
+    val prop = LateInitReactiveValue<T>()
     launch {
         prop.value = action()
     }
@@ -357,10 +250,10 @@ fun <T> CoroutineScope.asyncReadable(action: suspend () -> T): Signal<T> {
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-fun <T> Deferred<T>.signal() = object : BaseSignal<T>() {
+fun <T> Deferred<T>.signal() = object : BaseReactive<T>() {
     init {
         this@signal[Job]?.invokeOnCompletion {
-            state = if (it == null) SignalState(getCompleted()) else SignalState.exception(it as? Exception ?: Exception("Must be exception, not throwable", it))
+            state = if (it == null) ReactiveState(getCompleted()) else ReactiveState.exception(it as? Exception ?: Exception("Must be exception, not throwable", it))
         }
     }
 }

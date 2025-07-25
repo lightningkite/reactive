@@ -9,22 +9,22 @@ import kotlin.reflect.KMutableProperty0
 
 abstract class CoroutineScopeHelpers : CoroutineScope {
 
-    @Reactive
+    @ReactiveDsl
     inline operator fun <T, IGNORED> ((T) -> IGNORED).invoke(crossinline actionToCalculate: ReactiveContext.() -> T) = reactiveScope {
         this@invoke(actionToCalculate(this))
     }
 
-    @Reactive
+    @ReactiveDsl
     inline operator fun <T> KMutableProperty0<T>.invoke(crossinline actionToCalculate: ReactiveContext.() -> T) = reactiveScope {
         this@invoke.set(actionToCalculate(this))
     }
 
-    infix fun <T> MutableSignal<T>.bind(master: MutableSignal<T>) {
-        var reportTo = RawSignal(SignalState(Unit))
+    infix fun <T> MutableReactive<T>.bind(master: MutableReactive<T>) {
+        var reportTo = RawReactive(ReactiveState(Unit))
         coroutineContext[StatusListener]?.loading(reportTo)
         launch {
-            reportTo.state = SignalState.notReady
-            reportTo.state = signalState {
+            reportTo.state = ReactiveState.notReady
+            reportTo.state = reactiveState {
                 var intendedValue: T = master.await()
                 this@bind.set(intendedValue)
                 val setReplica = this@CoroutineScopeHelpers.oneAtATime(false) { value: T ->
@@ -56,7 +56,7 @@ abstract class CoroutineScopeHelpers : CoroutineScope {
 @OptIn(ExperimentalStdlibApi::class)
 private fun <A> CalculationContext.oneAtATime(work: Boolean, action: suspend (A) -> Unit): (A) -> Unit {
     var lastJob: Job? = null
-    var reportTo = RawSignal(SignalState(Unit))
+    var reportTo = RawReactive(ReactiveState(Unit))
     if (work)
         coroutineContext[StatusListener]?.working(reportTo)
     else
@@ -72,7 +72,7 @@ private fun <A> CalculationContext.oneAtATime(work: Boolean, action: suspend (A)
                     ) == false
                 ) CoroutineStart.UNDISPATCHED else CoroutineStart.DEFAULT
             ) {
-                val result = signalState {
+                val result = reactiveState {
                     action(it)
                 }
                 done = true
@@ -83,7 +83,7 @@ private fun <A> CalculationContext.oneAtATime(work: Boolean, action: suspend (A)
                 return@let null
             } else {
                 // start load
-                reportTo.state = SignalState.notReady
+                reportTo.state = ReactiveState.notReady
                 return@let job
             }
         }

@@ -16,11 +16,11 @@ import kotlin.coroutines.resumeWithException
 
 @OptIn(ExperimentalStdlibApi::class)
 fun CoroutineScope.load(context: CoroutineContext = EmptyCoroutineContext, action: suspend () -> Unit): Job {
-    val state = RawSignal<Unit>()
+    val state = RawReactive<Unit>()
     val result = launch(
         context,
         block = {
-            val r = signalState { action() }
+            val r = reactiveState { action() }
             state.state = r
         },
         start = if (coroutineContext[CoroutineDispatcher.Key]?.isDispatchNeeded(

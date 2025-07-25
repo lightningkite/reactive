@@ -10,7 +10,7 @@ abstract class DependencyChangeListener : DependencyTracker(), CoroutineContext.
     open fun onDependencyNotReady() = onDependencyChange()
 }
 
-private fun <T> Continuation<T>.resumeState(state: SignalState<T>) {
+private fun <T> Continuation<T>.resumeState(state: ReactiveState<T>) {
     state.handle(
         success = { resume(it) },
         exception = { resumeWithException(it) },
@@ -26,11 +26,11 @@ suspend fun rerunOn(listenable: Listenable) {
     }
 }
 
-suspend inline operator fun <T> Signal<T>.invoke(): T = await()
-suspend inline operator fun <T> ValueSignal<T>.invoke(): T = await()
-suspend inline fun <T> Signal<T>.exception(): Exception? = state { it.exception }
+suspend inline operator fun <T> Reactive<T>.invoke(): T = await()
+suspend inline operator fun <T> ReactiveValue<T>.invoke(): T = await()
+suspend inline fun <T> Reactive<T>.exception(): Exception? = state { it.exception }
 
-suspend fun <T, V> Signal<T>.state(get: (SignalState<T>) -> V): V {
+suspend fun <T, V> Reactive<T>.state(get: (ReactiveState<T>) -> V): V {
     coroutineContext[DependencyChangeListener.Key]?.let {
         // and the value is ready to go, just add the listener and proceed with the value.
         var last = state.let(get)
@@ -49,7 +49,7 @@ suspend fun <T, V> Signal<T>.state(get: (SignalState<T>) -> V): V {
     } ?: return state.let(get)
 }
 
-suspend fun <T> Signal<T>.state(): SignalState<T> {
+suspend fun <T> Reactive<T>.state(): ReactiveState<T> {
     coroutineContext[DependencyChangeListener.Key]?.let {
         // and the value is ready to go, just add the listener and proceed with the value.
         var last = state
@@ -68,7 +68,7 @@ suspend fun <T> Signal<T>.state(): SignalState<T> {
     } ?: return state
 }
 
-suspend fun <T> ValueSignal<T>.await(): T {
+suspend fun <T> ReactiveValue<T>.await(): T {
     coroutineContext[DependencyChangeListener.Key]?.let {
         // and the value is ready to go, just add the listener and proceed with the value.
         var last = value
@@ -87,7 +87,7 @@ suspend fun <T> ValueSignal<T>.await(): T {
     } ?: return value
 }
 
-suspend fun <T> Signal<T>.await(): T {
+suspend fun <T> Reactive<T>.await(): T {
     coroutineContext[DependencyChangeListener.Key]?.let {
         var cont: Continuation<T>? = null
         if (it.existingDependency(this) == null) {
@@ -126,9 +126,9 @@ suspend fun <T> Signal<T>.await(): T {
 }
 
 @Deprecated("Replace with 'awaitOnce'", ReplaceWith("this.awaitOnce()", "com.lightningkite.readable.awaitOnce"))
-suspend fun <T> Signal<T>.awaitRaw(): T = awaitOnce()
+suspend fun <T> Reactive<T>.awaitRaw(): T = awaitOnce()
 
-suspend fun <T> Signal<T>.awaitOnce(): T {
+suspend fun <T> Reactive<T>.awaitOnce(): T {
     val state = state
     return if (state.ready) state.get()
     else suspendCancellableCoroutine {
@@ -152,7 +152,7 @@ suspend fun <T> Signal<T>.awaitOnce(): T {
 }
 
 @Deprecated("STAHP")
-fun <T> Signal<Signal<T>>.flatten(): Signal<T> {
+fun <T> Reactive<Reactive<T>>.flatten(): Reactive<T> {
     val first = remember { this@flatten() }
     return remember { first()() }
 }

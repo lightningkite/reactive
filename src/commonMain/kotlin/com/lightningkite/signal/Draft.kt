@@ -1,17 +1,17 @@
 package com.lightningkite.signal
 
 class Draft<T> private constructor(
-    val published: MutableSignal<T>,
-    private val draft: MutableRememberSignal<T>
-): SignalWithMutableValue<T> by draft {
-    constructor(published: MutableSignal<T>) : this(published, MutableRememberSignal(stopListeningWhenOverridden = false) { published() })
+    val published: MutableReactive<T>,
+    private val draft: MutableRemember<T>
+): ReactiveWithMutableValue<T> by draft {
+    constructor(published: MutableReactive<T>) : this(published, MutableRemember(stopListeningWhenOverridden = false) { published() })
     constructor(initialValue: ReactiveContext.() -> T) : this(
-        MutableRememberSignal(
+        MutableRemember(
             useLastWhileLoading = true,
             initialValue = initialValue
         )
     )
-    constructor(initialValue: T) : this(BasicSignal(initialValue))
+    constructor(initialValue: T) : this(Signal(initialValue))
 
     val changesMade = remember { draft() != published() }
 

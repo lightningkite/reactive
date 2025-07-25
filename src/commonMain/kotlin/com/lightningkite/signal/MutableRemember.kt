@@ -5,7 +5,7 @@ import kotlin.coroutines.CoroutineContext
 
 
 /**
- * Essentially [RememberSignal] but can be set.
+ * Essentially [Remember] but can be set.
  *
  * @property stopListeningWhenOverridden When true, the MutableSignal stops listening to its initial value calculation
  * when set. It's recommended this be set `false` when the mutable signal is likely to be reset.
@@ -13,14 +13,14 @@ import kotlin.coroutines.CoroutineContext
  * @property useLastWhileLoading When true, the most recent set value or calculated result is used while new results
  * are being calculated
  * */
-class MutableRememberSignal<T>(
+class MutableRemember<T>(
     private val stopListeningWhenOverridden: Boolean = true,
     private val useLastWhileLoading: Boolean = false,
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     initialValue: ReactiveContext.() -> T
-): SignalWithMutableValue<T> {
+): ReactiveWithMutableValue<T> {
 
-    private val shared = RememberSignal(coroutineContext, useLastWhileLoading, initialValue)
+    private val shared = Remember(coroutineContext, useLastWhileLoading, initialValue)
 
     private val listeners = ArrayList<() -> Unit>()
     override fun addListener(listener: () -> Unit): () -> Unit {
@@ -37,7 +37,7 @@ class MutableRememberSignal<T>(
         }
     }
 
-    override var state: SignalState<T> = SignalState.notReady
+    override var state: ReactiveState<T> = ReactiveState.notReady
         private set(value) {
             if(field != value) {
                 field = value
@@ -69,7 +69,7 @@ class MutableRememberSignal<T>(
         if (listeners.isNotEmpty()) return
         if (sharedRemover == null) return
         stopListeningToShared()
-        if (!overridden && !useLastWhileLoading) state = SignalState.notReady
+        if (!overridden && !useLastWhileLoading) state = ReactiveState.notReady
     }
 
     var value: T
@@ -79,7 +79,7 @@ class MutableRememberSignal<T>(
                 overridden = true
                 if (stopListeningWhenOverridden) stopListeningToShared()
             }
-            state = SignalState(value)
+            state = ReactiveState(value)
         }
 
     override fun setValue(value: T) { this.value = value }
@@ -108,8 +108,7 @@ class MutableRememberSignal<T>(
 }
 
 fun <T> mutableRemember(
-    stopListeningWhenOverridden: Boolean = true,
     useLastWhileLoading: Boolean = false,
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     initialValue: ReactiveContext.() -> T
-) = MutableRememberSignal(stopListeningWhenOverridden, useLastWhileLoading, coroutineContext, initialValue)
+): ReactiveWithMutableValue<T> = MutableRemember(true, useLastWhileLoading, coroutineContext, initialValue)

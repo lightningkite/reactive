@@ -5,12 +5,12 @@ import kotlinx.coroutines.*
 class SuspendingReactiveContext<T> constructor(
     val scope: CoroutineScope,
     var action: suspend () -> T,
-    private val reportTo: RawSignal<T> = RawSignal<T>(),
-) : DependencyChangeListener(), Signal<T> by reportTo {
+    private val reportTo: RawReactive<T> = RawReactive<T>(),
+) : DependencyChangeListener(), Reactive<T> by reportTo {
     internal var lastJob: Job? = null
 
     override fun onDependencyNotReady() {
-        reportTo.state = SignalState.notReady
+        reportTo.state = ReactiveState.notReady
     }
 
     @OptIn(ExperimentalStdlibApi::class)
@@ -26,7 +26,7 @@ class SuspendingReactiveContext<T> constructor(
                     ) == false
                 ) CoroutineStart.UNDISPATCHED else CoroutineStart.DEFAULT
             ) {
-                val result = signalState {
+                val result = reactiveState {
                     action()
                 }
                 dependencyBlockEnd()
@@ -38,7 +38,7 @@ class SuspendingReactiveContext<T> constructor(
                 return@let null
             } else {
                 // start load
-                reportTo.state = SignalState.notReady
+                reportTo.state = ReactiveState.notReady
                 return@let job
             }
         }

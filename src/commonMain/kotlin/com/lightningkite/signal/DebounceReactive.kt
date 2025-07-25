@@ -5,8 +5,8 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
-data class DebounceSignal<T>(val source: Signal<T>, val duration: Duration) : Signal<T>, Listenable by DebounceListenable(source, duration) {
-    override val state: SignalState<T> get() = source.state
+data class DebounceReactive<T>(val source: Reactive<T>, val duration: Duration) : Reactive<T>, Listenable by DebounceListenable(source, duration) {
+    override val state: ReactiveState<T> get() = source.state
 }
 data class DebounceListenable(val source: Listenable, val duration: Duration) : Listenable {
     override fun addListener(listener: () -> Unit): () -> Unit {
@@ -21,12 +21,12 @@ data class DebounceListenable(val source: Listenable, val duration: Duration) : 
     }
 }
 
-fun <T> Signal<T>.debounce(timeMs: Long): Signal<T> = DebounceSignal(this, timeMs.milliseconds)
-fun <T> Signal<T>.debounce(duration: Duration): Signal<T> = DebounceSignal(this, duration)
+fun <T> Reactive<T>.debounce(timeMs: Long): Reactive<T> = DebounceReactive(this, timeMs.milliseconds)
+fun <T> Reactive<T>.debounce(duration: Duration): Reactive<T> = DebounceReactive(this, duration)
 fun Listenable.debounce(timeMs: Long): Listenable = DebounceListenable(this, timeMs.milliseconds)
 fun Listenable.debounce(duration: Duration): Listenable = DebounceListenable(this, duration)
 
-fun <T> MutableSignal<T>.debounceWrite(duration: Duration): MutableSignal<T> = object: MutableSignal<T> by this {
+fun <T> MutableReactive<T>.debounceWrite(duration: Duration): MutableReactive<T> = object: MutableReactive<T> by this {
     var setIndex = 0
     override suspend fun set(value: T) {
         val mine = ++setIndex

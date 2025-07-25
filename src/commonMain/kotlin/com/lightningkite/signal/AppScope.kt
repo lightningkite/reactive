@@ -8,5 +8,5 @@ import kotlinx.coroutines.SupervisorJob
 
 val AppJob = SupervisorJob()
 val AppScope = CoroutineScope(AppJob + CoroutineExceptionHandler { coroutineContext, throwable ->
-    Signal.reportException(throwable)
+    Reactive.reportException(throwable)
 } + Dispatchers.Main.immediate)

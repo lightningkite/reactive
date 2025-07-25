@@ -26,10 +26,10 @@ fun Listenable.addAndRunListener(listener: () -> Unit): () -> Unit {
     return remover
 }
 
-interface Signal<out T> : Listenable {
-    val state: SignalState<T>
-    object Never: Signal<Nothing> {
-        override val state: SignalState<Nothing> get() = SignalState.notReady
+interface Reactive<out T> : Listenable {
+    val state: ReactiveState<T>
+    object Never: Reactive<Nothing> {
+        override val state: ReactiveState<Nothing> get() = ReactiveState.notReady
         override fun addListener(listener: () -> Unit): () -> Unit = {}
     }
 
@@ -43,11 +43,11 @@ interface Mutable<T> {
     suspend infix fun set(value: T)
 }
 
-interface MutableSignal<T> : Signal<T>, Mutable<T>
+interface MutableReactive<T> : Reactive<T>, Mutable<T>
 
-interface ValueSignal<out T> : Signal<T>, ReadOnlyProperty<Any?, T> {
+interface ReactiveValue<out T> : Reactive<T>, ReadOnlyProperty<Any?, T> {
     val value: T
-    override val state: SignalState<T> get() = SignalState(value)
+    override val state: ReactiveState<T> get() = ReactiveState(value)
     override fun getValue(thisRef: Any?, property: KProperty<*>): T = value
 }
 
@@ -56,14 +56,17 @@ interface MutableValue<T>: Mutable<T> {
     override suspend fun set(value: T) { setValue(value) }
 }
 
-interface MutableWithValueSignal<T> : MutableSignal<T>, ValueSignal<T>
-interface SignalWithMutableValue<T> : MutableSignal<T>, MutableValue<T>
 
-interface MutableValueSignal<T> : MutableValue<T>, ValueSignal<T>,
+
+interface MutableWithReactiveValue<T> : MutableReactive<T>, ReactiveValue<T>
+interface ReactiveWithMutableValue<T> : MutableReactive<T>, MutableValue<T>
+
+
+interface MutableReactiveValue<T> : MutableValue<T>, ReactiveValue<T>,
     // Interfaces below are just for typing convenience, they are already implemented by intersection of MutableSignal and ValueSignal
-    MutableSignal<T>,
-    MutableWithValueSignal<T>,
-    SignalWithMutableValue<T>,
+    MutableReactive<T>,
+    MutableWithReactiveValue<T>,
+    ReactiveWithMutableValue<T>,
     ReadWriteProperty<Any?, T>
 {
     override var value: T
@@ -79,3 +82,10 @@ interface MutableValueSignal<T> : MutableValue<T>, ValueSignal<T>,
 
 class NotReadyException(message: String? = null) : IllegalStateException(message)
 
+fun test() {
+    val obj = object : MutableValue<Int> {
+        override fun setValue(value: Int) {
+            println("Setting value $value")
+        }
+    }
+}

@@ -3,11 +3,11 @@ package com.lightningkite.signal
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class LazyBasicSignalSharedBehaviorTests {
+class MutableRememberRememberTests {
     @Test
     fun sharedPassesNulls() {
-        val a = LateInitSignal<Int?>()
-        val b = MutableRememberSignal { a() }
+        val a = LateInitReactiveValue<Int?>()
+        val b = MutableRemember { a() }
         var hits = 0
         testContext {
             reactiveScope {
@@ -23,8 +23,8 @@ class LazyBasicSignalSharedBehaviorTests {
     }
 
     @Test fun sharedDoesNotEmitSameValue() {
-        val a = LateInitSignal<Int?>()
-        val b = MutableRememberSignal { a() }
+        val a = LateInitReactiveValue<Int?>()
+        val b = MutableRemember { a() }
         var hits = 0
         testContext {
             reactiveScope {
@@ -42,7 +42,7 @@ class LazyBasicSignalSharedBehaviorTests {
     @Test fun sharedTerminatesWhenNoOneIsListening() {
         var onRemoveCalled = 0
         var scopeCalled = 0
-        val shared = MutableRememberSignal {
+        val shared = MutableRemember {
             scopeCalled++
             onRemove { onRemoveCalled++ }
             42
@@ -59,8 +59,8 @@ class LazyBasicSignalSharedBehaviorTests {
 
     @Test fun sharedSharesCalculations() {
         var hits = 0
-        val basicSignal = BasicSignal(1)
-        val a = MutableRememberSignal {
+        val basicSignal = Signal(1)
+        val a = MutableRemember {
             hits++
             basicSignal()
         }
@@ -99,10 +99,10 @@ class LazyBasicSignalSharedBehaviorTests {
     }
 
     @Test fun sharedReloads() {
-        val late = LateInitSignal<Int>()
+        val late = LateInitReactiveValue<Int>()
         var starts = 0
         var hits = 0
-        val a = MutableRememberSignal {
+        val a = MutableRemember {
             starts++
             val r = late()
             hits++
@@ -113,41 +113,41 @@ class LazyBasicSignalSharedBehaviorTests {
             a.addListener {}
 
             late.value = 1
-            assertEquals(SignalState(1), a.state)
+            assertEquals(ReactiveState(1), a.state)
 
             late.unset()
-            assertEquals(SignalState.notReady, a.state)
+            assertEquals(ReactiveState.notReady, a.state)
 
             late.value = 2
-            assertEquals(SignalState(2), a.state)
+            assertEquals(ReactiveState(2), a.state)
         }
     }
 }
 
-class LazyBasicSignalTests {
+class MutableRememberTests {
     @Test fun sharedIsOverridden() {
-        val late = LateInitSignal<Int>()
-        val test = MutableRememberSignal {
+        val late = LateInitReactiveValue<Int>()
+        val test = MutableRemember {
             println("In initial value")
             late()
         }
         testContext {
             test.addListener {  }
 
-            assertEquals(SignalState.notReady, test.state)
+            assertEquals(ReactiveState.notReady, test.state)
 
             late.value = 1
-            assertEquals(SignalState(1), test.state)
+            assertEquals(ReactiveState(1), test.state)
 
             test.value = 2
-            assertEquals(SignalState(2), test.state)
+            assertEquals(ReactiveState(2), test.state)
         }
     }
 
     @Test fun stopsListeningWhenOverridden() {
         var hits: Int = 0
-        val prop = BasicSignal(1)
-        val test = MutableRememberSignal {
+        val prop = Signal(1)
+        val test = MutableRemember {
             hits++
             prop()
         }
@@ -158,22 +158,22 @@ class LazyBasicSignalTests {
             assertEquals(1, hits)
 
             prop.value = 2
-            assertEquals(SignalState(2), test.state)
+            assertEquals(ReactiveState(2), test.state)
             assertEquals(2, hits)
 
             test.value = 0
-            assertEquals(SignalState(0), test.state)
+            assertEquals(ReactiveState(0), test.state)
 
             prop.value = 3
-            assertEquals(SignalState(0), test.state)
+            assertEquals(ReactiveState(0), test.state)
             assertEquals(2, hits)
         }
     }
 
     @Test fun startsListeningAgainOnceReset() {
         var hits: Int = 0
-        val prop = BasicSignal(1)
-        val test = MutableRememberSignal {
+        val prop = Signal(1)
+        val test = MutableRemember {
             hits++
             prop()
         }
@@ -184,56 +184,56 @@ class LazyBasicSignalTests {
             assertEquals(1, hits)
 
             prop.value = 2
-            assertEquals(SignalState(2), test.state)
+            assertEquals(ReactiveState(2), test.state)
             assertEquals(2, hits)
 
             test.value = 0
-            assertEquals(SignalState(0), test.state)
+            assertEquals(ReactiveState(0), test.state)
             assertEquals(2, hits)
 
             prop.value = 3
             assertEquals(2, hits)
 
             test.reset()
-            assertEquals(SignalState(3), test.state)
+            assertEquals(ReactiveState(3), test.state)
 
             prop.value = 4
-            assertEquals(SignalState(4), test.state)
+            assertEquals(ReactiveState(4), test.state)
         }
     }
 
     @Test fun useLastWhileLoadingWorks() {
-        val late = LateInitSignal<Int>()
-        val test = MutableRememberSignal(useLastWhileLoading = true) {
+        val late = LateInitReactiveValue<Int>()
+        val test = MutableRemember(useLastWhileLoading = true) {
             late()
         }
 
         testContext {
             test.addListener {  }
 
-            assertEquals(SignalState.notReady, test.state)
+            assertEquals(ReactiveState.notReady, test.state)
 
             late.value = 1
-            assertEquals(SignalState(1), test.state)
+            assertEquals(ReactiveState(1), test.state)
 
             test.value = 10
-            assertEquals(SignalState(10), test.state)
+            assertEquals(ReactiveState(10), test.state)
 
             late.unset()
-            assertEquals(SignalState(10), test.state)
+            assertEquals(ReactiveState(10), test.state)
 
             test.reset()
-            assertEquals(SignalState(10), test.state)
+            assertEquals(ReactiveState(10), test.state)
 
             late.value = 1
-            assertEquals(SignalState(1), test.state)
+            assertEquals(ReactiveState(1), test.state)
         }
     }
 
     @Test fun keepsListeningIfTold() {
         var hits = 0
-        val prop = BasicSignal(0)
-        val test = MutableRememberSignal(stopListeningWhenOverridden = false) {
+        val prop = Signal(0)
+        val test = MutableRemember(stopListeningWhenOverridden = false) {
             println("Calculation")
             hits++
             prop()
@@ -247,33 +247,33 @@ class LazyBasicSignalTests {
             println("Added listener.")
 
             assertEquals(1, hits)
-            assertEquals(SignalState(0), test.state)
+            assertEquals(ReactiveState(0), test.state)
 
             prop.value = 1
 
             assertEquals(2, hits)
-            assertEquals(SignalState(1), test.state)
+            assertEquals(ReactiveState(1), test.state)
 
             test.value = 10
 
             assertEquals(2, hits)
-            assertEquals(SignalState(10), test.state)
+            assertEquals(ReactiveState(10), test.state)
 
             prop.value = 2
 
             assertEquals(3, hits)
-            assertEquals(SignalState(10), test.state)
+            assertEquals(ReactiveState(10), test.state)
 
             test.reset()
 
             assertEquals(3, hits)
-            assertEquals(SignalState(2), test.state)
+            assertEquals(ReactiveState(2), test.state)
         }
     }
 
     @Test fun testStupidCase() {
-        val basis = BasicSignal("Test")
-        val lazy = MutableRememberSignal(stopListeningWhenOverridden = false) { basis() }
+        val basis = Signal("Test")
+        val lazy = MutableRemember(stopListeningWhenOverridden = false) { basis() }
         val lensed = lazy.lens { it.take(3) }
         val lensed2 = lazy.lens(get = { it.take(3) }, modify = { o, it -> it })
         testContext {
@@ -288,8 +288,8 @@ class LazyBasicSignalTests {
     }
 
     @Test fun testStupidCase2() {
-        val basis = BasicSignal("Test")
-        val lazy = MutableRememberSignal(stopListeningWhenOverridden = false) { basis() }
+        val basis = Signal("Test")
+        val lazy = MutableRemember(stopListeningWhenOverridden = false) { basis() }
         val lensed = lazy.lens { it.take(3) }
         val lensed2 = lazy.lens(get = { it.take(3) }, modify = { o, it -> it })
         var value = ""

@@ -1,15 +1,15 @@
 package com.lightningkite.signal
 
 private open class ModifyValidationLens<O, T>(
-    val source: MutableSignal<O>,
+    val source: MutableReactive<O>,
     val get: (O) -> T,
     val check: (O) -> Unit,
     val modify: (O, T) -> O,
 ) :
-    BaseSignal<T>(), MutableSignal<T> {
+    BaseReactive<T>(), MutableReactive<T> {
 
-    private var lastParentState: SignalState<O>? = null
-    override var state: SignalState<T>
+    private var lastParentState: ReactiveState<O>? = null
+    override var state: ReactiveState<T>
         get() {
             if (myListen == null && super.state != lastParentState) super.state = source.state.map(get)
             return super.state
@@ -41,15 +41,15 @@ private open class ModifyValidationLens<O, T>(
     }
 
     override suspend fun set(value: T) {
-        super.state = SignalState(value)
+        super.state = ReactiveState(value)
         val v = modify(source.awaitOnce(), value)
         check(v)
         source.set(v)
     }
 }
 
-fun <O, T> MutableSignal<O>.validationLens(
+fun <O, T> MutableReactive<O>.validationLens(
     get: (O) -> T,
     check: (O) -> Unit,
     modify: (O, T) -> O
-): MutableSignal<T> = ModifyValidationLens(this, get, check, modify)
+): MutableReactive<T> = ModifyValidationLens(this, get, check, modify)

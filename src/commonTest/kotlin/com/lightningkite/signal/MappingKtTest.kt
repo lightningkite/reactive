@@ -12,13 +12,13 @@ class MappingKtTest {
     )
 
     @Test fun readableLenses() {
-        val source = BasicSignal(42)
+        val source = Signal(42)
         val lenses = listOf(
             source.lens(
                 get = { it + 1 },
                 set = { it - 1 }
             ),
-            (source as MutableSignal<Int>).lens(
+            (source as MutableReactive<Int>).lens(
                 get = { it + 1 },
                 set = { it - 1 }
             ),
@@ -26,20 +26,20 @@ class MappingKtTest {
                 get = { it + 1 },
                 modify = { _, it -> it - 1 }
             ),
-            (source as MutableSignal<Int>).lens(
+            (source as MutableReactive<Int>).lens(
                 get = { it + 1 },
                 modify = { _, it -> it - 1 }
             ),
-            (source as Signal<Int>).lens(
+            (source as Reactive<Int>).lens(
                 get = { it + 1 },
             ),
-            (source as ValueSignal<Int>).lens(
+            (source as ReactiveValue<Int>).lens(
                 get = { it + 1 },
             )
         )
         for (view in lenses) {
             source.value = 41
-            assertEquals(SignalState(42), view.state)
+            assertEquals(ReactiveState(42), view.state)
             testContext {
                 var seen = -1
                 var sets = 0
@@ -64,13 +64,13 @@ class MappingKtTest {
 
     @Test
     fun writableLenses() {
-        val source = BasicSignal(42)
+        val source = Signal(42)
         val lenses = listOf(
             source.lens(
                 get = { it + 1 },
                 set = { it - 1 }
             ),
-            (source as MutableSignal<Int>).lens(
+            (source as MutableReactive<Int>).lens(
                 get = { it + 1 },
                 set = { it - 1 }
             ),
@@ -78,14 +78,14 @@ class MappingKtTest {
                 get = { it + 1 },
                 modify = { _, it -> it - 1 }
             ),
-            (source as MutableSignal<Int>).lens(
+            (source as MutableReactive<Int>).lens(
                 get = { it + 1 },
                 modify = { _, it -> it - 1 }
             )
         )
         for (view in lenses) {
             source.value = 41
-            assertEquals(SignalState(42), view.state)
+            assertEquals(ReactiveState(42), view.state)
             testContext {
                 var seen = -1
                 var sets = 0
@@ -110,20 +110,20 @@ class MappingKtTest {
 
     @Test
     fun subfield() {
-        val source = BasicSignal(Sample(42, listOf(1, 2, 3)))
+        val source = Signal(Sample(42, listOf(1, 2, 3)))
         val lenses = listOf(
             source.lens(
                 get = { it.x },
                 modify = { old, it -> old.copy(x = it) }
             ),
-            (source as MutableSignal<Sample>).lens(
+            (source as MutableReactive<Sample>).lens(
                 get = { it.x },
                 modify = { old, it -> old.copy(x = it) }
             )
         )
         for (view in lenses) {
             source.value = Sample(42, listOf(1, 2, 3))
-            assertEquals(SignalState(42), view.state)
+            assertEquals(ReactiveState(42), view.state)
             testContext {
                 var seen = -1
                 var sets = 0
@@ -151,7 +151,7 @@ class MappingKtTest {
 
     @Test
     fun subfieldLate() {
-        val source = LateInitSignal<Sample>()
+        val source = LateInitReactiveValue<Sample>()
         val view = source.lens(
             get = { it.x },
             modify = { old, it ->
@@ -165,7 +165,7 @@ class MappingKtTest {
 //        view.addListener {
 //            println("View raw: ${view.state}")
 //        }
-        assertEquals(SignalState.notReady, view.state)
+        assertEquals(ReactiveState.notReady, view.state)
         testContext {
             var seen = -1
             var sets = 0
@@ -196,13 +196,13 @@ class MappingKtTest {
         }
     }
 
-    fun perElementTest(action: CalculationContext.(source: BasicSignal<List<Int>>, view: WritableList<Int, Int, WritableList<Int, Int, *>.ElementMutableSignal>) -> Unit) {
-        val source = BasicSignal(listOf(1, 2, 3)).apply {
+    fun perElementTest(action: CalculationContext.(source: MutableReactiveValue<List<Int>>, view: MutableReactiveList<Int, Int, MutableReactiveList<Int, Int, *>.Element>) -> Unit) {
+        val source = Signal(listOf(1, 2, 3)).apply {
             addListener {
                 println("source: $value")
             }
         }
-        val view = WritableList<Int, Int, WritableList<Int, Int, *>.ElementMutableSignal>(
+        val view = MutableReactiveList<Int, Int, MutableReactiveList<Int, Int, *>.Element>(
             source,
             identity = { it },
             elementLens = { it })
@@ -333,13 +333,13 @@ class MappingKtTest {
 
     @Test
     fun listSetWaitsForCompletion() {
-        val backing = BasicSignal(listOf(1, 2, 3)).apply {
+        val backing = Signal(listOf(1, 2, 3)).apply {
             addListener {
                 println("backing: $value")
             }
         }
         val setGate = WaitGate()
-        val source = object : ValueSignal<List<Int>>, MutableSignal<List<Int>> {
+        val source = object : ReactiveValue<List<Int>>, MutableReactive<List<Int>> {
             override val value: List<Int> get() = backing.value
             override fun addListener(listener: () -> Unit): () -> Unit = backing.addListener(listener)
 
@@ -348,7 +348,7 @@ class MappingKtTest {
                 backing.value = value
             }
         }
-        val view = WritableList<Int, Int, WritableList<Int, Int, *>.ElementMutableSignal>(
+        val view = MutableReactiveList<Int, Int, MutableReactiveList<Int, Int, *>.Element>(
             source,
             identity = { it },
             elementLens = { it })
@@ -373,13 +373,13 @@ class MappingKtTest {
 
     @Test
     fun listConcurrentWorks() {
-        val backing = BasicSignal(listOf(1, 2, 3)).apply {
+        val backing = Signal(listOf(1, 2, 3)).apply {
             addListener {
                 println("backing: $value")
             }
         }
         val setGate = WaitGate()
-        val source = object : ValueSignal<List<Int>>, MutableSignal<List<Int>> {
+        val source = object : ReactiveValue<List<Int>>, MutableReactive<List<Int>> {
             override val value: List<Int> get() = backing.value
             override fun addListener(listener: () -> Unit): () -> Unit = backing.addListener(listener)
 
@@ -388,7 +388,7 @@ class MappingKtTest {
                 backing.value = value
             }
         }
-        val view = WritableList<Int, Int, WritableList<Int, Int, *>.ElementMutableSignal>(
+        val view = MutableReactiveList<Int, Int, MutableReactiveList<Int, Int, *>.Element>(
             source,
             identity = { it },
             elementLens = { it })

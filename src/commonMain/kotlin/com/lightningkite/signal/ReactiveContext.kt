@@ -13,11 +13,11 @@ var reactiveContext: ReactiveContext? = null
 typealias ReactiveContext = TypedReactiveContext<*>
 class TypedReactiveContext<T>(
     val scope: CalculationContext,
-    private val reportTo: RawSignal<T> = RawSignal<T>(),
+    val useLastWhileLoading: Boolean = true,
+    private val reportTo: RawReactive<T> = RawReactive(),
     val action: TypedReactiveContext<T>.() -> T
-): DependencyTracker(), CalculationContext by scope, Signal<T> by reportTo {
-    companion object {
-    }
+): DependencyTracker(), CalculationContext by scope, Reactive<T> by reportTo {
+    companion object
 
     var active = false
         private set
@@ -37,14 +37,15 @@ class TypedReactiveContext<T>(
             val old = reactiveContext
             reactiveContext = this
             dependencyBlockStart()
-            reportTo.state = signalState { action(this@TypedReactiveContext) }
+            val state = reactiveState { action(this@TypedReactiveContext) }
+            if (!useLastWhileLoading || state.ready) reportTo.state = state
             dependencyBlockEnd()
             reactiveContext = old
         }
     }
 
     fun runOnceWhileDead() {
-        reportTo.state = signalState { action(this) }
+        reportTo.state = reactiveState { action(this) }
     }
 
     init {
@@ -68,7 +69,7 @@ class TypedReactiveContext<T>(
         registerDependency(listenable, listenable.addListener(rerun))
     }
 
-    operator fun <R> Signal<R>.invoke(): R {
+    operator fun <R> Reactive<R>.invoke(): R {
         if (existingDependency(this) == null) {
             registerDependency(this, addListener(rerun))
         }
@@ -79,7 +80,7 @@ class TypedReactiveContext<T>(
         )
     }
 
-    fun <R> Signal<R?>.awaitNotNull(): R {
+    fun <R> Reactive<R?>.awaitNotNull(): R {
         if (existingDependency(this) == null) {
             registerDependency(this, addListener(rerun))
         }
@@ -90,16 +91,16 @@ class TypedReactiveContext<T>(
         )
     }
 
-    fun <R> Signal<R>.state(): SignalState<R> {
+    fun <R> Reactive<R>.state(): ReactiveState<R> {
         if (existingDependency(this) == null) {
             registerDependency(this, addListener(rerun))
         }
         return state
     }
 
-    private data class Once<T>(val wraps: Signal<T>)
+    private data class Once<T>(val wraps: Reactive<T>)
 
-    fun <T> Signal<T>.once(): T {
+    fun <T> Reactive<T>.once(): T {
         val key = Once(this)
         if (existingDependency(key) == null) {
             var remover: () -> Unit = {}
@@ -127,16 +128,16 @@ class TypedReactiveContext<T>(
     inline operator fun <A, B, T> (ReactiveContext.(A, B) -> T).invoke(a: A, b: B): T = invoke(this@TypedReactiveContext, a, b)
 
     @Deprecated("Just use the invoke operator", ReplaceWith("this()"))
-    fun <T> Signal<T>.await(): T = invoke()
+    fun <T> Reactive<T>.await(): T = invoke()
 
     @Deprecated("Just use the once function", ReplaceWith("this.once()"))
-    fun <T> Signal<T>.awaitOnce(): T = once()
+    fun <T> Reactive<T>.awaitOnce(): T = once()
 
 
     // Suspending calculations
 
-    private class SuspendCalculation<T>(val key: Any) : BaseSignal<T>() {
-        override var state: SignalState<T>
+    private class SuspendCalculation<T>(val key: Any) : BaseReactive<T>() {
+        override var state: ReactiveState<T>
             get() = super.state
             public set(value) {
                 super.state = value
@@ -154,7 +155,7 @@ class TypedReactiveContext<T>(
             return it.invoke()
         }
         scope.launch {
-            calc.state = signalState { action() }
+            calc.state = reactiveState { action() }
         }
         registerDependency(calc, calc.addListener(rerun))
         return calc.state.handle(
@@ -170,7 +171,7 @@ class TypedReactiveContext<T>(
             return it.invoke()
         }
         scope.launch {
-            calc.state = signalState { this@invoke.await() }
+            calc.state = reactiveState { this@invoke.await() }
         }
         registerDependency(calc, calc.addListener(rerun))
         return calc.state.handle(
@@ -184,7 +185,7 @@ class TypedReactiveContext<T>(
     // Flows
 
     private class FlowLoader<T>(val flow: Flow<T>) {
-        var state: SignalState<T> = SignalState.notReady
+        var state: ReactiveState<T> = ReactiveState.notReady
         override fun hashCode(): Int = flow.hashCode()
         override fun equals(other: Any?): Boolean = other is FlowLoader<*> && flow == other.flow
         override fun toString(): String = "${super.toString()}/$flow"
@@ -200,10 +201,10 @@ class TypedReactiveContext<T>(
             job = scope.launch {
                 collect { v ->
                     try {
-                        new.state = SignalState(v)
+                        new.state = ReactiveState(v)
                         rerun()
                     } catch (e: Exception) {
-                        new.state = SignalState.exception<T>(e)
+                        new.state = ReactiveState.exception<T>(e)
                     }
                 }
             }

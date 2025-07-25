@@ -4,18 +4,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlin.coroutines.CoroutineContext
 
 /**
- * Suspending version of `LazyProperty`. See [MutableRememberSignal] for documentation.
+ * Suspending version of `LazyProperty`. See [MutableRemember] for documentation.
  * */
-class MutableRememberSuspendingSignal<T>(
+class MutableRememberSuspending<T>(
     private val stopListeningWhenOverridden: Boolean = true,
     private val useLastWhileLoading: Boolean = false,
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     initialValue: suspend CalculationContext.() -> T
-) : SignalWithMutableValue<T>, BaseSignal<T>() {
+) : ReactiveWithMutableValue<T>, BaseReactive<T>() {
     var overridden: Boolean = false
         private set
 
-    private val remember = RememberSuspendingSignal(coroutineContext, useLastWhileLoading, initialValue)
+    private val remember = RememberSuspending(coroutineContext, useLastWhileLoading, initialValue)
     private var forget: (()->Unit)? = null
 
     private fun clearMemo() {
@@ -38,7 +38,7 @@ class MutableRememberSuspendingSignal<T>(
     override fun deactivate() {
         if (forget == null) return
         stopListeningToShared()
-        if (!overridden && !useLastWhileLoading) state = SignalState.notReady
+        if (!overridden && !useLastWhileLoading) state = ReactiveState.notReady
     }
 
     var value: T
@@ -48,7 +48,7 @@ class MutableRememberSuspendingSignal<T>(
                 overridden = true
                 if (stopListeningWhenOverridden) stopListeningToShared()
             }
-            state = SignalState(value)
+            state = ReactiveState(value)
         }
 
     override fun setValue(value: T) { this.value = value }
@@ -68,8 +68,7 @@ class MutableRememberSuspendingSignal<T>(
 }
 
 fun <T> mutableRememberSuspending(
-    stopListeningWhenOverridden: Boolean = true,
     useLastWhileLoading: Boolean = false,
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     initialValue: suspend CalculationContext.() -> T
-) = MutableRememberSuspendingSignal(stopListeningWhenOverridden, useLastWhileLoading, coroutineContext, initialValue)
+): ReactiveWithMutableValue<T> = MutableRememberSuspending(true, useLastWhileLoading, coroutineContext, initialValue)
