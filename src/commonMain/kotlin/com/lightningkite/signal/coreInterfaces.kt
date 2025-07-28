@@ -56,11 +56,8 @@ interface MutableValue<T>: Mutable<T> {
     override suspend fun set(value: T) { valueSet(value) }
 }
 
-
-
 interface MutableWithReactiveValue<T> : MutableReactive<T>, ReactiveValue<T>
 interface ReactiveWithMutableValue<T> : MutableReactive<T>, MutableValue<T>
-
 
 interface MutableReactiveValue<T> : MutableValue<T>, ReactiveValue<T>,
     // Interfaces below are just for typing convenience, they are already implemented by intersection of MutableSignal and ValueSignal

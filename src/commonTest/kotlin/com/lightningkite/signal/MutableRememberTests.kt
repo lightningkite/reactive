@@ -147,7 +147,7 @@ class MutableRememberTests {
     @Test fun stopsListeningWhenOverridden() {
         var hits: Int = 0
         val prop = Signal(1)
-        val test = MutableRemember {
+        val test = mutableRemember {
             hits++
             prop()
         }
