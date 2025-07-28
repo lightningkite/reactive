@@ -11,7 +11,7 @@ class ReactivityTests {
 
     @Test
     fun waitingTest() {
-        val basicSignal = MutableReactiveValue<Int?>(null)
+        val basicSignal = Signal<Int?>(null)
         val emissions = ArrayList<Int>()
         testContext {
             reactiveScope {
@@ -46,7 +46,7 @@ class ReactivityTests {
     @Test
     fun launchReadableAwait() {
         testContext {
-            val a = LateInitReactiveValue<Int>()
+            val a = LateInitSignal<Int>()
             var received = -1
             onRemove { println("Shutting down...") }
             launch {
@@ -55,7 +55,7 @@ class ReactivityTests {
             }
             println("Setting...")
             a.value = 42
-            assertEquals(a.value, received)
+            assertEquals(a.state.get(), received)
         }
     }
 
@@ -116,7 +116,7 @@ class ReactivityTests {
 
     @Test
     fun lateinit() {
-        val a = LateInitReactiveValue<Int>()
+        val a = LateInitSignal<Int>()
         var hits = 0
 
         testContext {
@@ -222,14 +222,14 @@ class ReactivityTests {
 
     @Test
     fun sharedTest4() {
-        val property = LateInitReactiveValue<LateInitReactiveValue<Int>>()
+        val property = LateInitSignal<LateInitSignal<Int>>()
         val shared = remember(Dispatchers.Unconfined) { property()() }
         var completions = 0
         testContext {
             reactiveScope { println("reactiveScope got " + shared()); completions++ }
             launch { println("launch got " + shared.await()); completions++ }
             println("Ready... GO!")
-            val lp2 = LateInitReactiveValue<Int>()
+            val lp2 = LateInitSignal<Int>()
             property.value = lp2
             lp2.value = 1
         }
@@ -238,7 +238,7 @@ class ReactivityTests {
 
     @Test
     fun sharedTest5() {
-        val property = LateInitReactiveValue<Int>()
+        val property = LateInitSignal<Int>()
         val shared = remember(Dispatchers.Unconfined) { property() }
         var completions = 0
         testContext {
@@ -252,13 +252,13 @@ class ReactivityTests {
 
     @Test
     fun websocketLikeTest() {
-        val source = LateInitReactiveValue<LateInitReactiveValue<String>>()
+        val source = LateInitSignal<LateInitSignal<String>>()
         val socket = remember(Dispatchers.Unconfined) { source() }
         val sublistener = remember(Dispatchers.Unconfined) { socket()() }
         testContext {
             reactiveScope { println(sublistener()) }
             println("Ready")
-            val s2 = LateInitReactiveValue<String>()
+            val s2 = LateInitSignal<String>()
             source.value = s2
             s2.value = "A"
             s2.value = "B"
@@ -268,8 +268,8 @@ class ReactivityTests {
 
     @Test
     fun bindTest() {
-        val master = LateInitReactiveValue<Int>()
-        val secondary = MutableReactiveValue<Int>(0)
+        val master = LateInitSignal<Int>()
+        val secondary = Signal<Int>(0)
         testContext {
             reactiveScope { println("master: ${master()}") }
             reactiveScope { println("secondary: ${secondary()}") }
@@ -282,8 +282,8 @@ class ReactivityTests {
 
     @Test
     fun dumbtest() {
-        val listItem = LateInitReactiveValue<Int>()
-        val selected = MutableReactiveValue<Int>(0)
+        val listItem = LateInitSignal<Int>()
+        val selected = Signal<Int>(0)
         testContext {
             reactiveScope { println(listItem() == selected()) }
             listItem.value = 1

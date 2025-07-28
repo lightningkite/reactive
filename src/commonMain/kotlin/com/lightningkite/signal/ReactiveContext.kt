@@ -13,7 +13,7 @@ var reactiveContext: ReactiveContext? = null
 typealias ReactiveContext = TypedReactiveContext<*>
 class TypedReactiveContext<T>(
     val scope: CalculationContext,
-    val useLastWhileLoading: Boolean = true,
+    val useLastWhileLoading: Boolean = false,
     private val reportTo: RawReactive<T> = RawReactive(),
     val action: TypedReactiveContext<T>.() -> T
 ): DependencyTracker(), CalculationContext by scope, Reactive<T> by reportTo {
@@ -45,7 +45,8 @@ class TypedReactiveContext<T>(
     }
 
     fun runOnceWhileDead() {
-        reportTo.state = reactiveState { action(this) }
+        val state = reactiveState { action(this) }
+        if (!useLastWhileLoading || state.ready) reportTo.state = state
     }
 
     init {

@@ -52,8 +52,8 @@ interface ReactiveValue<out T> : Reactive<T>, ReadOnlyProperty<Any?, T> {
 }
 
 interface MutableValue<T>: Mutable<T> {
-    fun setValue(value: T)
-    override suspend fun set(value: T) { setValue(value) }
+    infix fun valueSet(value: T)
+    override suspend fun set(value: T) { valueSet(value) }
 }
 
 
@@ -71,7 +71,7 @@ interface MutableReactiveValue<T> : MutableValue<T>, ReactiveValue<T>,
 {
     override var value: T
 
-    override fun setValue(value: T) { this.value = value }
+    override fun valueSet(value: T) { this.value = value }
     override suspend fun set(value: T) { this.value = value }
 
     override fun getValue(thisRef: Any?, property: KProperty<*>): T = value
@@ -84,7 +84,7 @@ class NotReadyException(message: String? = null) : IllegalStateException(message
 
 fun test() {
     val obj = object : MutableValue<Int> {
-        override fun setValue(value: Int) {
+        override fun valueSet(value: Int) {
             println("Setting value $value")
         }
     }

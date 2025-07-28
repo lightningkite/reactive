@@ -71,8 +71,8 @@ class BasicListenable : BaseListenable() {
 
 class Signal<T>(startValue: T) : MutableReactiveValue<T>, BaseReactiveValue<T>(startValue)
 
-class LateInitReactiveValue<T>() : ReactiveWithMutableValue<T>, BaseReactive<T>() {
-    override fun setValue(value: T) {
+class LateInitSignal<T>() : ReactiveWithMutableValue<T>, BaseReactive<T>() {
+    override fun valueSet(value: T) {
         state = ReactiveState(value)
     }
 

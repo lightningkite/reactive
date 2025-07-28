@@ -18,71 +18,50 @@ class MutableRemember<T>(
     private val useLastWhileLoading: Boolean = false,
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     initialValue: ReactiveContext.() -> T
-): ReactiveWithMutableValue<T> {
-
-    private val shared = Remember(coroutineContext, useLastWhileLoading, initialValue)
-
-    private val listeners = ArrayList<() -> Unit>()
-    override fun addListener(listener: () -> Unit): () -> Unit {
-        listeners.add(listener)
-
-        if (!overridden && sharedRemover == null) startListeningToShared()
-
-        return {
-            val pos = listeners.indexOfFirst { it === listener }
-            if (pos != -1) {
-                listeners.removeAt(pos)
-                shutdownIfNotNeeded()
-            }
-        }
-    }
-
-    override var state: ReactiveState<T> = ReactiveState.notReady
-        private set(value) {
-            if(field != value) {
-                field = value
-                listeners.invokeAllSafe()
-                shutdownIfNotNeeded()
-            }
-        }
-
+): ReactiveWithMutableValue<T>, BaseReactive<T>() {
     var overridden: Boolean = false
         private set
 
-    private var sharedRemover: (() -> Unit)? = null
+    private val remember = Remember(coroutineContext, useLastWhileLoading, initialValue)
+    private var forget: (()->Unit)? = null
 
-    private fun startListeningToShared() {
-        sharedRemover = shared.addListener {
-            if (!overridden) {
-                state = shared.state
-            }
+    private fun startListening() {
+        forget = remember.addListener {
+            if (!overridden) state = remember.state
         }
-        val currentSharedState = shared.state
-        if(!overridden && (!useLastWhileLoading || currentSharedState.ready)) state = shared.state
+        val currentRememberedState = remember.state
+        if(!overridden && (!useLastWhileLoading || currentRememberedState.ready)) state = currentRememberedState
     }
 
-    private fun stopListeningToShared() {
-        sharedRemover?.invoke()
-        sharedRemover = null
+    private fun stopListening() {
+        forget?.invoke()
+        forget = null
     }
-    private fun shutdownIfNotNeeded() {
-        if (listeners.isNotEmpty()) return
-        if (sharedRemover == null) return
-        stopListeningToShared()
+
+    override var state: ReactiveState<T>
+        get() =
+            if (!overridden && forget == null && !(useLastWhileLoading && super.state.ready)) remember.state
+            else super.state
+        set(value) {
+            super.state = value
+        }
+
+    override fun activate() {
+        if (!overridden && forget == null) startListening()
+    }
+    override fun deactivate() {
+        if (forget == null) return
+        stopListening()
         if (!overridden && !useLastWhileLoading) state = ReactiveState.notReady
     }
 
-    var value: T
-        get() = state.get()
-        set(value) {
-            if (!overridden) {
-                overridden = true
-                if (stopListeningWhenOverridden) stopListeningToShared()
-            }
-            state = ReactiveState(value)
+    override fun valueSet(value: T) {
+        if (!overridden) {
+            overridden = true
+            if (stopListeningWhenOverridden) stopListening()
         }
-
-    override fun setValue(value: T) { this.value = value }
+        state = ReactiveState(value)
+    }
 
     /**
      * Resets the MutableSignal to the initial value calculation.
@@ -92,13 +71,12 @@ class MutableRemember<T>(
      * If [useLastWhileLoading] then the MutableSignal will continue to use the last set value until the
      * calculation is finished
      * */
-
     fun reset() {
         if (overridden) {
             overridden = false
-            if (stopListeningWhenOverridden) startListeningToShared()
+            if (stopListeningWhenOverridden) startListening()
 
-            val currentSharedState = shared.state
+            val currentSharedState = remember.state
             if (!useLastWhileLoading || currentSharedState.ready) {
                 state = currentSharedState
                 // useLastWhileLoading = true: If shared is not ready, the state will remain as the previously set value until shared is ready.

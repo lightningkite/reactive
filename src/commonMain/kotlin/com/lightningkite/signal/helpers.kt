@@ -20,7 +20,11 @@ fun List<() -> Unit>.invokeAllSafe() = forEach {
 var <T> MutableValue<T>.value: T
     @Deprecated("This is syntax sugar for SETTING values. Retrieving will always throw an exception.", level = DeprecationLevel.ERROR)
     get() = throw IllegalStateException("Attempted to retrieve value for set-only property")
-    set(value) { setValue(value) }
+    @JvmName("setValue2")
+    set(value) {
+        println("Setting outer value: $value")
+        valueSet(value)
+    }
 
 
 fun <T> Reactive<T>.withWrite(action: suspend Reactive<T>.(T) -> Unit): MutableReactive<T> =
@@ -192,8 +196,9 @@ interface Emitter<T>: CoroutineScope {
     fun emit(value: T)
 }
 
+@JvmName("reactiveProcessImplicit")
 fun <T> CoroutineScope.reactiveProcess(emitter: suspend Emitter<T>.() -> Unit): Reactive<T> {
-    val prop = LateInitReactiveValue<T>()
+    val prop = LateInitSignal<T>()
     launch {
         emitter(object : Emitter<T>, CoroutineScope by this {
             override fun emit(value: T) {
@@ -242,7 +247,7 @@ fun <T> rawReactiveProcess(scope: CoroutineScope = AppScope, emitter: suspend Em
 }
 
 fun <T> CoroutineScope.asyncReadable(action: suspend () -> T): Reactive<T> {
-    val prop = LateInitReactiveValue<T>()
+    val prop = LateInitSignal<T>()
     launch {
         prop.value = action()
     }

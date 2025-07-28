@@ -1,12 +1,13 @@
 package com.lightningkite.signal
 
+import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class MutableRememberSuspendingRememberTests {
     @Test
     fun sharedPassesNulls() {
-        val a = LateInitReactiveValue<Int?>()
+        val a = LateInitSignal<Int?>()
         val b = MutableRememberSuspending{ a() }
         var hits = 0
         testContext {
@@ -23,7 +24,7 @@ class MutableRememberSuspendingRememberTests {
     }
 
     @Test fun sharedDoesNotEmitSameValue() {
-        val a = LateInitReactiveValue<Int?>()
+        val a = LateInitSignal<Int?>()
         val b = MutableRememberSuspending{ a() }
         var hits = 0
         testContext {
@@ -99,7 +100,7 @@ class MutableRememberSuspendingRememberTests {
     }
 
     @Test fun sharedReloads() {
-        val late = LateInitReactiveValue<Int>()
+        val late = LateInitSignal<Int>()
         var starts = 0
         var hits = 0
         val a = MutableRememberSuspending{
@@ -126,7 +127,7 @@ class MutableRememberSuspendingRememberTests {
 
 class MutableRememberSuspendingTests {
     @Test fun sharedIsOverridden() {
-        val late = LateInitReactiveValue<Int>()
+        val late = LateInitSignal<Int>()
         val test = MutableRememberSuspending{
             println("In initial value")
             late()
@@ -203,7 +204,7 @@ class MutableRememberSuspendingTests {
     }
 
     @Test fun useLastWhileLoadingWorks() {
-        val late = LateInitReactiveValue<Int>()
+        val late = LateInitSignal<Int>()
         val test = MutableRemember(useLastWhileLoading = true) {
             late()
         }
@@ -223,10 +224,10 @@ class MutableRememberSuspendingTests {
             assertEquals(ReactiveState(10), test.state)
 
             test.reset()
-            assertEquals(ReactiveState(10), test.state)
-
-            late.value = 1
             assertEquals(ReactiveState(1), test.state)
+
+            late.value = 2
+            assertEquals(ReactiveState(2), test.state)
         }
     }
 
@@ -278,10 +279,10 @@ class MutableRememberSuspendingTests {
         val lensed2 = lazy.lens(get = { it.take(3) }, modify = { o, it -> it })
         testContext {
             println(lensed.state)
-            load {
+            launch {
                 assertEquals("Tes", lensed())
             }
-            load {
+            launch {
                 assertEquals("Tes", lensed2())
             }
         }
@@ -302,7 +303,7 @@ class MutableRememberSuspendingTests {
                 println(value)
             }
             reactive {
-                println("Starting")
+                println("Starting2")
                 value2 = lensed2()
                 println(value2)
             }

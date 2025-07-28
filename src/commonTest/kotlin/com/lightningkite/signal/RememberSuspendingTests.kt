@@ -7,7 +7,7 @@ import kotlin.test.assertEquals
 class RememberSuspendingTests {
     @Test
     fun sharedPassesNulls() {
-        val a = LateInitReactiveValue<Int?>()
+        val a = LateInitSignal<Int?>()
         val b = rememberSuspending(Dispatchers.Unconfined) { a() }
         var hits = 0
         testContext {
@@ -26,7 +26,7 @@ class RememberSuspendingTests {
     }
 
     @Test fun sharedDoesNotEmitSameValue() {
-        val a = LateInitReactiveValue<Int?>()
+        val a = LateInitSignal<Int?>()
         val b = rememberSuspending(Dispatchers.Unconfined) { a() }
         var hits = 0
         testContext {
@@ -102,7 +102,7 @@ class RememberSuspendingTests {
     }
 
     @Test fun sharedReloads() {
-        val late = LateInitReactiveValue<Int>()
+        val late = LateInitSignal<Int>()
         var starts = 0
         var hits = 0
         val a = RememberSuspending(coroutineContext = Dispatchers.Unconfined, useLastWhileLoading = false) {

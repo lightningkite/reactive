@@ -23,7 +23,7 @@ class ReactivitySuspendingTests {
     }
     @Test fun invokeAdapterSlow() {
         testContext {
-            val value = LateInitReactiveValue<Int>()
+            val value = LateInitSignal<Int>()
             val runner: ReactiveContext.()->Int = {
                 value()
             }
@@ -33,13 +33,13 @@ class ReactivitySuspendingTests {
             }
             assertEquals(read, -1)
             value.value = 1
-            assertEquals(read, value.value)
+            assertEquals(read, value.state.get())
         }
     }
 
     @Test
     fun waitingTest() {
-        val basicSignal = MutableReactiveValue<Int?>(null)
+        val basicSignal = Signal<Int?>(null)
         val emissions = ArrayList<Int>()
         testContext {
             reactiveSuspending {
@@ -74,7 +74,7 @@ class ReactivitySuspendingTests {
 
     @Test fun launchReadableAwait() {
         testContext {
-            val a = LateInitReactiveValue<Int>()
+            val a = LateInitSignal<Int>()
             var received = -1
             onRemove { println("Shutting down...") }
             load {
@@ -83,7 +83,7 @@ class ReactivitySuspendingTests {
             }
             println("Setting...")
             a.value = 42
-            assertEquals(a.value, received)
+            assertEquals(a.state.get(), received)
         }
     }
 
@@ -140,7 +140,7 @@ class ReactivitySuspendingTests {
     }
 
     @Test fun lateinit() {
-        val a = LateInitReactiveValue<Int>()
+        val a = LateInitSignal<Int>()
         var hits = 0
 
         testContext {
@@ -242,14 +242,14 @@ class ReactivitySuspendingTests {
     }
 
     @Test fun sharedTest4() {
-        val property = LateInitReactiveValue<LateInitReactiveValue<Int>>()
+        val property = LateInitSignal<LateInitSignal<Int>>()
         val shared = rememberSuspending(Dispatchers.Unconfined) { property.await().await() }
         var completions = 0
         testContext {
             reactiveSuspending { println("reactiveScope got " + shared.await()); completions++ }
             load { println("launch got " + shared.await()); completions++ }
             println("Ready... GO!")
-            val lp2 = LateInitReactiveValue<Int>()
+            val lp2 = LateInitSignal<Int>()
             property.value = lp2
             lp2.value = 1
         }
@@ -257,7 +257,7 @@ class ReactivitySuspendingTests {
     }
 
     @Test fun sharedTest5() {
-        val property = LateInitReactiveValue<Int>()
+        val property = LateInitSignal<Int>()
         val shared = rememberSuspending(Dispatchers.Unconfined) { property.await() }
         var completions = 0
         testContext {
@@ -270,13 +270,13 @@ class ReactivitySuspendingTests {
     }
 
     @Test fun websocketLikeTest() {
-        val source = LateInitReactiveValue<LateInitReactiveValue<String>>()
+        val source = LateInitSignal<LateInitSignal<String>>()
         val socket = rememberSuspending(Dispatchers.Unconfined) { source.await() }
         val sublistener = rememberSuspending(Dispatchers.Unconfined) { socket.await().await() }
         testContext {
             reactiveSuspending { println(sublistener.await()) }
             println("Ready")
-            val s2 = LateInitReactiveValue<String>()
+            val s2 = LateInitSignal<String>()
             source.value = s2
             s2.value = "A"
             s2.value = "B"
@@ -285,7 +285,7 @@ class ReactivitySuspendingTests {
     }
 
     @Test fun scopeSkippedIfLoading() {
-        val source = LateInitReactiveValue<Int>()
+        val source = LateInitSignal<Int>()
         var starts = 0
         var hits = 0
         testContext {
@@ -309,8 +309,8 @@ class ReactivitySuspendingTests {
     }
 
     @Test fun bindTest() {
-        val master = LateInitReactiveValue<Int>()
-        val secondary = MutableReactiveValue<Int>(0)
+        val master = LateInitSignal<Int>()
+        val secondary = Signal<Int>(0)
         testContext {
             reactiveSuspending { println("master: ${master()}") }
             reactiveSuspending { println("secondary: ${secondary()}") }
@@ -322,8 +322,8 @@ class ReactivitySuspendingTests {
     }
 
     @Test fun dumbtest() {
-        val listItem = LateInitReactiveValue<Int>()
-        val selected = MutableReactiveValue<Int>(0)
+        val listItem = LateInitSignal<Int>()
+        val selected = Signal<Int>(0)
         testContext {
             reactiveSuspending { println(listItem() == selected()) }
             listItem.value = 1

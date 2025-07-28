@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 class RememberTests {
     @Test
     fun sharedPassesNulls() {
-        val a = LateInitReactiveValue<Int?>()
+        val a = LateInitSignal<Int?>()
         val b = remember { a() }
         var hits = 0
         testContext {
@@ -23,17 +23,27 @@ class RememberTests {
     }
 
     @Test fun sharedDoesNotEmitSameValue() {
-        val a = LateInitReactiveValue<Int?>()
-        val b = remember { a() }
+        val a = LateInitSignal<Int?>()
+        val b = remember {
+            println("remember running")
+            val result = a()
+            println("remember finished")
+            result
+        }
         var hits = 0
         testContext {
+//            a.addListener { println("Listener") }.also(::onRemove)
             reactiveScope {
+                println("running")
                 b()
                 hits++
             }
+            println("first")
             assertEquals(0, hits)
+            println("setting null")
             a.value = null
             assertEquals(1, hits)
+            println("setting null again")
             a.value = null
             assertEquals(1, hits)
         }
@@ -136,7 +146,7 @@ class RememberTests {
     }
 
     @Test fun sharedReloads() {
-        val late = LateInitReactiveValue<Int>()
+        val late = LateInitSignal<Int>()
         var starts = 0
         var hits = 0
         val a = remember {

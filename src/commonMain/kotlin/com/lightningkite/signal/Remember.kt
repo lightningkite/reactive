@@ -33,12 +33,15 @@ class Remember<T>(
             return scope.state
         }
 
+    private var remover: (() -> Unit)? = null
     override fun activate() {
         scope.startCalculation()
+        remover = scope.addListener { invokeAllListeners() }
     }
     override fun deactivate() {
         job.cancel()
         job = Job()
+        remover?.invoke()
         scope.cancel()
     }
 }

@@ -61,7 +61,7 @@ typealias BaseWritable<T> = BaseReactive<T>
 typealias BaseReadWrite<T> = BaseReactiveValue<T>
 
 @Deprecated("Use LateInitReactiveValue", ReplaceWith("LateInitReactiveValue", "com.lightningkite.signal"))
-typealias LateInitProperty<T> = LateInitReactiveValue<T>
+typealias LateInitProperty<T> = LateInitSignal<T>
 
 @Deprecated("Use remember", ReplaceWith("remember", "com.lightningkite.signal"))
 fun <T> shared(coroutineContext: CoroutineContext = Dispatchers.Unconfined, useLastWhileLoading: Boolean = false, action: ReactiveContext.() -> T): Reactive<T> = remember(coroutineContext, useLastWhileLoading, action)

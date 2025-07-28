@@ -22,5 +22,5 @@ class Draft<T> private constructor(
     }
     fun cancel() { draft.reset() }
 
-    override suspend fun set(value: T) { draft.setValue(value) }
+    override suspend fun set(value: T) { draft.valueSet(value) }
 }

@@ -10,45 +10,37 @@ import kotlin.random.Random
 
 class RememberSuspending<T>(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
-    val useLastWhileLoading: Boolean = false,
+    useLastWhileLoading: Boolean = false,
     private val action: suspend CalculationContext.() -> T
-) : BaseReactive<T>(), CalculationContext {
+) : Reactive<T>, CalculationContext, BaseListenable() {
     private var job = SupervisorJob()
-    private val restOfContext = (coroutineContext ?: EmptyCoroutineContext) +
+    private val restOfContext = coroutineContext +
             CoroutineExceptionHandler { coroutineContext, throwable ->
                 if (throwable !is CancellationException) {
                     Reactive.reportException(throwable)
                 }
             }
     override val coroutineContext: CoroutineContext get() = restOfContext + job
-    private val me = Random.nextInt()
 
-    private var instanceNumber: Int = 1
+    private val scope = ReactiveContextSuspending(this, useLastWhileLoading) { this.action() }
+
+    override val state: ReactiveState<T>
+        get() {
+            if (!scope.active) scope.runOnceWhileDead()
+            return scope.state
+        }
+
+    private var remover: (() -> Unit)? = null
     override fun activate() {
-        super.activate()
-        reactiveSuspending(action = {
-            try {
-                val result = ReactiveState(action(this))
-                if (result == state) return@reactiveSuspending
-                state = result
-            } catch (e: CancellationException) {
-                // just bail, since either we're already rerunning or this stuff doesn't matter anymore
-                return@reactiveSuspending
-            } catch (e: Exception) {
-                state = ReactiveState.exception(e)
-            }
-        }, onLoad = {
-            if(!useLastWhileLoading) {
-                state = ReactiveState.notReady
-            }
-        })
+        scope.startCalculation()
+        remover = scope.addListener { invokeAllListeners() }
     }
-
     override fun deactivate() {
         super.deactivate()
         job.cancel()
         job = SupervisorJob()
-        state = ReactiveState.notReady
+        remover?.invoke()
+        scope.cancel()
     }
 }
 /**

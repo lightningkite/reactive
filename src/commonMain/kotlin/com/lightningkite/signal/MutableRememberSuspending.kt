@@ -18,7 +18,7 @@ class MutableRememberSuspending<T>(
     private val remember = RememberSuspending(coroutineContext, useLastWhileLoading, initialValue)
     private var forget: (()->Unit)? = null
 
-    private fun clearMemo() {
+    private fun startListening() {
         forget = remember.addListener {
             if (!overridden) state = remember.state
         }
@@ -26,37 +26,40 @@ class MutableRememberSuspending<T>(
         if(!overridden && (!useLastWhileLoading || currentRememberedState.ready)) state = currentRememberedState
     }
 
-    private fun stopListeningToShared() {
+    private fun stopListening() {
         forget?.invoke()
         forget = null
     }
 
-    override fun activate() {
-        if (!overridden && forget == null) clearMemo()
-    }
+    override var state: ReactiveState<T>
+        get() =
+            if (!overridden && forget == null && !(useLastWhileLoading && super.state.ready)) remember.state
+            else super.state
+        set(value) {
+            super.state = value
+        }
 
+    override fun activate() {
+        if (!overridden && forget == null) startListening()
+    }
     override fun deactivate() {
         if (forget == null) return
-        stopListeningToShared()
+        stopListening()
         if (!overridden && !useLastWhileLoading) state = ReactiveState.notReady
     }
 
-    var value: T
-        get() = state.get()
-        set(value) {
-            if (!overridden) {
-                overridden = true
-                if (stopListeningWhenOverridden) stopListeningToShared()
-            }
-            state = ReactiveState(value)
+    override fun valueSet(value: T) {
+        if (!overridden) {
+            overridden = true
+            if (stopListeningWhenOverridden) stopListening()
         }
-
-    override fun setValue(value: T) { this.value = value }
+        state = ReactiveState(value)
+    }
 
     fun reset() {
         if (overridden) {
             overridden = false
-            if (stopListeningWhenOverridden) clearMemo()
+            if (stopListeningWhenOverridden) startListening()
 
             val currentSharedState = remember.state
             if (!useLastWhileLoading || currentSharedState.ready) {

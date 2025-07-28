@@ -151,7 +151,7 @@ class MappingKtTest {
 
     @Test
     fun subfieldLate() {
-        val source = LateInitReactiveValue<Sample>()
+        val source = LateInitSignal<Sample>()
         val view = source.lens(
             get = { it.x },
             modify = { old, it ->
@@ -187,10 +187,14 @@ class MappingKtTest {
             load { view.set(44) }
             assertEquals(44, seen)
             assertEquals(3, sets)
-            source.value = source.value.copy(y = source.value.y + 4)
+            source.value = source.state.get().let {
+                it.copy(y = it.y + 4)
+            }
             assertEquals(44, seen)
             assertEquals(3, sets)
-            source.value = source.value.copy(x = source.value.x + 1)
+            source.value = source.state.get().let {
+                it.copy(x = it.x + 1)
+            }
             assertEquals(45, seen)
             assertEquals(4, sets)
         }

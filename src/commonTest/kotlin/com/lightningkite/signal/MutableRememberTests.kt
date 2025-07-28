@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 class MutableRememberRememberTests {
     @Test
     fun sharedPassesNulls() {
-        val a = LateInitReactiveValue<Int?>()
+        val a = LateInitSignal<Int?>()
         val b = MutableRemember { a() }
         var hits = 0
         testContext {
@@ -23,7 +23,7 @@ class MutableRememberRememberTests {
     }
 
     @Test fun sharedDoesNotEmitSameValue() {
-        val a = LateInitReactiveValue<Int?>()
+        val a = LateInitSignal<Int?>()
         val b = MutableRemember { a() }
         var hits = 0
         testContext {
@@ -99,7 +99,7 @@ class MutableRememberRememberTests {
     }
 
     @Test fun sharedReloads() {
-        val late = LateInitReactiveValue<Int>()
+        val late = LateInitSignal<Int>()
         var starts = 0
         var hits = 0
         val a = MutableRemember {
@@ -126,7 +126,7 @@ class MutableRememberRememberTests {
 
 class MutableRememberTests {
     @Test fun sharedIsOverridden() {
-        val late = LateInitReactiveValue<Int>()
+        val late = LateInitSignal<Int>()
         val test = MutableRemember {
             println("In initial value")
             late()
@@ -203,7 +203,7 @@ class MutableRememberTests {
     }
 
     @Test fun useLastWhileLoadingWorks() {
-        val late = LateInitReactiveValue<Int>()
+        val late = LateInitSignal<Int>()
         val test = MutableRemember(useLastWhileLoading = true) {
             late()
         }
@@ -223,10 +223,10 @@ class MutableRememberTests {
             assertEquals(ReactiveState(10), test.state)
 
             test.reset()
-            assertEquals(ReactiveState(10), test.state)
-
-            late.value = 1
             assertEquals(ReactiveState(1), test.state)
+
+            late.value = 2
+            assertEquals(ReactiveState(2), test.state)
         }
     }
 
