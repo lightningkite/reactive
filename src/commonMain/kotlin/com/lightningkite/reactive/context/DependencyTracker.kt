@@ -1,5 +1,4 @@
-package com.lightningkite.reactive
-
+package com.lightningkite.reactive.context
 
 abstract class DependencyTracker{
     protected val dependencies = ArrayList<Pair<Any, () -> Unit>>()

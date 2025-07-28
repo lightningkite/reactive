@@ -1,5 +1,23 @@
 package com.lightningkite.reactive
 
+import com.lightningkite.reactive.context.ReactiveContext
+import com.lightningkite.reactive.core.AppScope
+import com.lightningkite.reactive.core.InternalReactiveWrapper
+import com.lightningkite.reactive.core.MutableReactive
+import com.lightningkite.reactive.core.MutableReactiveValue
+import com.lightningkite.reactive.core.MutableValue
+import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.ReactiveState
+import com.lightningkite.reactive.core.ReactiveValue
+import com.lightningkite.reactive.core.reactiveState
+import com.lightningkite.reactive.core.toReactiveState
+import com.lightningkite.reactive.impl.BaseReactive
+import com.lightningkite.reactive.impl.BaseReactiveValue
+import com.lightningkite.reactive.impl.LateInitSignal
+import com.lightningkite.reactive.impl.MutableRemember
+import com.lightningkite.reactive.impl.RawReactive
+import com.lightningkite.reactive.impl.Remember
+import com.lightningkite.reactive.impl.remember
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlin.coroutines.CoroutineContext
@@ -64,7 +82,8 @@ typealias BaseReadWrite<T> = BaseReactiveValue<T>
 typealias LateInitProperty<T> = LateInitSignal<T>
 
 @Deprecated("Use remember", ReplaceWith("remember", "com.lightningkite.signal"))
-fun <T> shared(coroutineContext: CoroutineContext = Dispatchers.Unconfined, useLastWhileLoading: Boolean = false, action: ReactiveContext.() -> T): Reactive<T> = remember(coroutineContext, useLastWhileLoading, action)
+fun <T> shared(coroutineContext: CoroutineContext = Dispatchers.Unconfined, useLastWhileLoading: Boolean = false, action: ReactiveContext.() -> T): Reactive<T> =
+    remember(coroutineContext, useLastWhileLoading, action)
 
 @Deprecated("Use rememberProcess", ReplaceWith("rememberProcess", "com.lightningkite.signal"))
 fun <T> sharedProcess(scope: CoroutineScope = AppScope, emitter: suspend Emitter<T>.() -> Unit): Reactive<T> = reactiveProcess(scope, emitter)

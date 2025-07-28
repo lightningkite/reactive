@@ -1,10 +1,19 @@
-package com.lightningkite.reactive
+package com.lightningkite.reactive.core
 
+import com.lightningkite.reactive.context.ReactiveLoading
 import kotlinx.coroutines.CancellationException
 import kotlin.jvm.JvmInline
 
+/**
+ * Represents the state of a reactive value, including loading, success, and error conditions.
+ *
+ * - A [ReactiveState] can hold a ready value, a loading state, or an error state.
+ * - Use [ready] to check if the value is available, [success] to check if it is available and not an error, and [exception] to retrieve any error.
+ * - Listeners of [Reactive] are only notified when the [ReactiveState] changes.
+ * - [ReactiveState] provides methods for safely handling, mapping, and retrieving the underlying value.
+ */
 @JvmInline
-@OptIn(InternalSignalApi::class)
+@OptIn(InternalReactiveApi::class)
 value class ReactiveState<out T>(val raw: T) {
     inline val ready: Boolean get() = raw !is InternalReactiveNotReady
     inline val success: Boolean get() = ready && raw !is InternalReactiveThrownException
@@ -70,9 +79,12 @@ value class ReactiveState<out T>(val raw: T) {
         else -> "Ready($raw)"
     }
 }
-@InternalSignalApi data class InternalReactiveWrapper<T>(val other: T)
-@InternalSignalApi data class InternalReactiveThrownException(val exception: Exception)
-@InternalSignalApi object InternalReactiveNotReady
+@InternalReactiveApi
+data class InternalReactiveWrapper<T>(val other: T)
+@InternalReactiveApi
+data class InternalReactiveThrownException(val exception: Exception)
+@InternalReactiveApi
+object InternalReactiveNotReady
 
 inline fun <T> reactiveState(action: () -> T): ReactiveState<T> {
     return try {

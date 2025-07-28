@@ -1,5 +1,6 @@
-package com.lightningkite.reactive
+package com.lightningkite.reactive.context
 
+import com.lightningkite.reactive.core.Reactive
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 

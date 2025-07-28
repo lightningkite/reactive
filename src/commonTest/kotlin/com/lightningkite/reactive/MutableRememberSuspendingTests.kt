@@ -1,5 +1,14 @@
 package com.lightningkite.reactive
 
+import com.lightningkite.reactive.context.onRemove
+import com.lightningkite.reactive.context.reactive
+import com.lightningkite.reactive.context.reactiveScope
+import com.lightningkite.reactive.core.ReactiveState
+import com.lightningkite.reactive.impl.LateInitSignal
+import com.lightningkite.reactive.impl.MutableRemember
+import com.lightningkite.reactive.impl.MutableRememberSuspending
+import com.lightningkite.reactive.impl.Signal
+import com.lightningkite.reactive.impl.mutableRememberSuspending
 import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -8,7 +17,7 @@ class MutableRememberSuspendingRememberTests {
     @Test
     fun sharedPassesNulls() {
         val a = LateInitSignal<Int?>()
-        val b = MutableRememberSuspending{ a() }
+        val b = MutableRememberSuspending { a() }
         var hits = 0
         testContext {
             reactiveScope {
@@ -25,7 +34,7 @@ class MutableRememberSuspendingRememberTests {
 
     @Test fun sharedDoesNotEmitSameValue() {
         val a = LateInitSignal<Int?>()
-        val b = MutableRememberSuspending{ a() }
+        val b = MutableRememberSuspending { a() }
         var hits = 0
         testContext {
             reactiveScope {
@@ -43,7 +52,7 @@ class MutableRememberSuspendingRememberTests {
     @Test fun sharedTerminatesWhenNoOneIsListening() {
         var onRemoveCalled = 0
         var scopeCalled = 0
-        val shared = MutableRememberSuspending{
+        val shared = MutableRememberSuspending {
             scopeCalled++
             onRemove { onRemoveCalled++ }
             42
@@ -103,7 +112,7 @@ class MutableRememberSuspendingRememberTests {
         val late = LateInitSignal<Int>()
         var starts = 0
         var hits = 0
-        val a = MutableRememberSuspending{
+        val a = MutableRememberSuspending {
             starts++
             val r = late()
             hits++
@@ -128,7 +137,7 @@ class MutableRememberSuspendingRememberTests {
 class MutableRememberSuspendingTests {
     @Test fun sharedIsOverridden() {
         val late = LateInitSignal<Int>()
-        val test = MutableRememberSuspending{
+        val test = MutableRememberSuspending {
             println("In initial value")
             late()
         }
@@ -148,7 +157,7 @@ class MutableRememberSuspendingTests {
     @Test fun stopsListeningWhenOverridden() {
         var hits: Int = 0
         val prop = Signal(1)
-        val test = MutableRememberSuspending{
+        val test = MutableRememberSuspending {
             hits++
             prop()
         }
@@ -174,7 +183,7 @@ class MutableRememberSuspendingTests {
     @Test fun startsListeningAgainOnceReset() {
         var hits: Int = 0
         val prop = Signal(1)
-        val test = MutableRememberSuspending{
+        val test = MutableRememberSuspending {
             hits++
             prop()
         }

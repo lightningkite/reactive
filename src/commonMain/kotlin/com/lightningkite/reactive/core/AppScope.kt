@@ -1,4 +1,4 @@
-package com.lightningkite.reactive
+package com.lightningkite.reactive.core
 
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope

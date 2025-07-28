@@ -1,5 +1,10 @@
-package com.lightningkite.reactive
+package com.lightningkite.reactive.context
 
+import com.lightningkite.reactive.core.Listenable
+import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.ReactiveState
+import com.lightningkite.reactive.core.ReactiveValue
+import com.lightningkite.reactive.core.addAndRunListener
 import kotlinx.coroutines.*
 import kotlin.coroutines.*
 
@@ -125,9 +130,6 @@ suspend fun <T> Reactive<T>.await(): T {
     return awaitOnce()
 }
 
-@Deprecated("Replace with 'awaitOnce'", ReplaceWith("this.awaitOnce()", "com.lightningkite.readable.awaitOnce"))
-suspend fun <T> Reactive<T>.awaitRaw(): T = awaitOnce()
-
 suspend fun <T> Reactive<T>.awaitOnce(): T {
     val state = state
     return if (state.ready) state.get()
@@ -149,23 +151,4 @@ suspend fun <T> Reactive<T>.awaitOnce(): T {
         if (alreadyRun) remover.invoke()
         it.invokeOnCancellation {  remover.invoke() }
     }
-}
-
-@Deprecated("STAHP")
-fun <T> Reactive<Reactive<T>>.flatten(): Reactive<T> {
-    val first = remember { this@flatten() }
-    return remember { first()() }
-}
-
-suspend operator fun <R> (ReactiveContext.()->R).invoke(): R {
-    return remember { this@invoke() }.awaitOnce()
-}
-suspend operator fun <A, R> (ReactiveContext.(A)->R).invoke(a: A): R {
-    return remember { this@invoke(a) }.awaitOnce()
-}
-suspend operator fun <A, B, R> (ReactiveContext.(A, B)->R).invoke(a: A, b: B): R {
-    return remember { this@invoke(a, b) }.awaitOnce()
-}
-suspend operator fun <A, B, C, R> (ReactiveContext.(A, B, C)->R).invoke(a: A, b: B, c: C): R {
-    return remember { this@invoke(a, b, c) }.awaitOnce()
 }

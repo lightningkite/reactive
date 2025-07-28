@@ -1,5 +1,14 @@
 package com.lightningkite.reactive
 
+import com.lightningkite.reactive.context.CalculationContext
+import com.lightningkite.reactive.context.reactiveScope
+import com.lightningkite.reactive.core.MutableReactive
+import com.lightningkite.reactive.core.MutableReactiveValue
+import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.ReactiveState
+import com.lightningkite.reactive.core.ReactiveValue
+import com.lightningkite.reactive.impl.LateInitSignal
+import com.lightningkite.reactive.impl.Signal
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame

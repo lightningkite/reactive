@@ -1,5 +1,7 @@
 package com.lightningkite.reactive
 
+import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.ReactiveState
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 internal class WaitForNotNull<T : Any>(val wraps: Reactive<T?>) : Reactive<T> {

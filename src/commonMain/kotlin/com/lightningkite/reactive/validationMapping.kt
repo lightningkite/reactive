@@ -1,5 +1,9 @@
 package com.lightningkite.reactive
 
+import com.lightningkite.reactive.core.MutableReactive
+import com.lightningkite.reactive.core.ReactiveState
+import com.lightningkite.reactive.impl.BaseReactive
+
 private open class ModifyValidationLens<O, T>(
     val source: MutableReactive<O>,
     val get: (O) -> T,

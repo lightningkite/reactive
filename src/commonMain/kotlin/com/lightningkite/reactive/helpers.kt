@@ -1,5 +1,20 @@
 package com.lightningkite.reactive
 
+import com.lightningkite.reactive.context.CalculationContext
+import com.lightningkite.reactive.context.ReactiveContext
+import com.lightningkite.reactive.context.await
+import com.lightningkite.reactive.context.awaitOnce
+import com.lightningkite.reactive.context.onRemove
+import com.lightningkite.reactive.core.AppScope
+import com.lightningkite.reactive.core.MutableReactive
+import com.lightningkite.reactive.core.MutableReactiveValue
+import com.lightningkite.reactive.core.MutableValue
+import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.ReactiveState
+import com.lightningkite.reactive.core.ResourceUse
+import com.lightningkite.reactive.impl.BaseReactive
+import com.lightningkite.reactive.impl.LateInitSignal
+import com.lightningkite.reactive.impl.remember
 import kotlinx.coroutines.*
 import kotlinx.coroutines.launch
 import kotlin.js.JsName
@@ -261,4 +276,18 @@ fun <T> Deferred<T>.signal() = object : BaseReactive<T>() {
             state = if (it == null) ReactiveState(getCompleted()) else ReactiveState.exception(it as? Exception ?: Exception("Must be exception, not throwable", it))
         }
     }
+}
+
+
+suspend operator fun <R> (ReactiveContext.()->R).invoke(): R {
+    return remember { this@invoke() }.awaitOnce()
+}
+suspend operator fun <A, R> (ReactiveContext.(A)->R).invoke(a: A): R {
+    return remember { this@invoke(a) }.awaitOnce()
+}
+suspend operator fun <A, B, R> (ReactiveContext.(A, B)->R).invoke(a: A, b: B): R {
+    return remember { this@invoke(a, b) }.awaitOnce()
+}
+suspend operator fun <A, B, C, R> (ReactiveContext.(A, B, C)->R).invoke(a: A, b: B, c: C): R {
+    return remember { this@invoke(a, b, c) }.awaitOnce()
 }
