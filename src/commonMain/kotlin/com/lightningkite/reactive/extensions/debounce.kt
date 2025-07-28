@@ -1,4 +1,4 @@
-package com.lightningkite.reactive
+package com.lightningkite.reactive.extensions
 
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Listenable

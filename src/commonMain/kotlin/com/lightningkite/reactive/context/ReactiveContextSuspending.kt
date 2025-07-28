@@ -1,6 +1,6 @@
 package com.lightningkite.reactive.context
 
-import com.lightningkite.reactive.impl.RawReactive
+import com.lightningkite.reactive.core.RawReactive
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.reactiveState

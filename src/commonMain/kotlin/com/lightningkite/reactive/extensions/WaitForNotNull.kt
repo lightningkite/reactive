@@ -1,11 +1,12 @@
-package com.lightningkite.reactive
+package com.lightningkite.reactive.extensions
 
+import com.lightningkite.reactive.context.await
+import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 internal class WaitForNotNull<T : Any>(val wraps: Reactive<T?>) : Reactive<T> {
-
     @Suppress("UNCHECKED_CAST")
     override val state: ReactiveState<T>
         get() = if(wraps.state.raw == null) ReactiveState.notReady else wraps.state as ReactiveState<T>
@@ -20,8 +21,12 @@ internal class WaitForNotNull<T : Any>(val wraps: Reactive<T?>) : Reactive<T> {
 }
 val <T : Any> Reactive<T?>.waitForNotNull: Reactive<T> get() = WaitForNotNull(this)
 
+val <T : Any> MutableReactive<T?>.waitForNotNull: MutableReactive<T> get() =
+    object : MutableReactive<T>, Reactive<T> by this.waitForNotNull {
+        override suspend fun set(value: T) = this@waitForNotNull.set(value)
+    }
+
 suspend fun <T : Any> Reactive<T?>.awaitNotNull(): T {
     val basis = await()
-    return if (basis == null) suspendCancellableCoroutine<T> {  }
-    else basis
+    return basis ?: suspendCancellableCoroutine<T> {  }
 }

@@ -1,86 +1,35 @@
-package com.lightningkite.reactive
+package com.lightningkite.reactive.extensions
 
-import com.lightningkite.reactive.context.CalculationContext
-import com.lightningkite.reactive.context.ReactiveContext
-import com.lightningkite.reactive.context.await
-import com.lightningkite.reactive.context.awaitOnce
-import com.lightningkite.reactive.context.onRemove
-import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.MutableReactiveValue
-import com.lightningkite.reactive.core.MutableValue
 import com.lightningkite.reactive.core.Reactive
-import com.lightningkite.reactive.core.ReactiveState
-import com.lightningkite.reactive.core.ResourceUse
-import com.lightningkite.reactive.impl.BaseReactive
-import com.lightningkite.reactive.impl.LateInitSignal
-import com.lightningkite.reactive.impl.remember
-import kotlinx.coroutines.*
-import kotlinx.coroutines.launch
-import kotlin.js.JsName
+import com.lightningkite.reactive.lensing.lens
+import kotlin.collections.plus
 import kotlin.jvm.JvmName
 
-@JsName("invokeAllSafeMutable")
-@JvmName("invokeAllSafeMutable")
-fun MutableList<() -> Unit>.invokeAllSafe() = toList().invokeAllSafe()
-fun List<() -> Unit>.invokeAllSafe() = forEach {
-    try {
-        it()
-    } catch (e: Exception) {
-        if (e is CancellationException) return@forEach
-        Reactive.reportException(e)
-    }
-}
-
-var <T> MutableValue<T>.value: T
-    @Deprecated("This is syntax sugar for SETTING values. Retrieving will always throw an exception.", level = DeprecationLevel.ERROR)
-    get() = throw IllegalStateException("Attempted to retrieve value for set-only property")
-    @JvmName("setValue2")
-    set(value) {
-        println("Setting outer value: $value")
-        valueSet(value)
-    }
-
-
-fun <T> Reactive<T>.withWrite(action: suspend Reactive<T>.(T) -> Unit): MutableReactive<T> =
-    object : MutableReactive<T>, Reactive<T> by this {
-        override suspend fun set(value: T) {
-            action(this@withWrite, value)
-        }
-    }
-
-// Lenses
 infix fun <T> MutableReactive<T>.equalTo(value: T): MutableReactive<Boolean> = lens(
     get = { it == value },
     modify = { o, it -> if (it) value else o }
 )
-
-infix fun <T> MutableReactive<Set<T>>.contains(value: T): MutableReactive<Boolean> = remember { value in this@contains() }.withWrite { on ->
-    if (on) this@contains.set(this@contains.await() + value)
-    else this@contains.set(this@contains.await() - value)
-}
-
-fun <T : Any> MutableReactive<T>.nullable(): MutableReactive<T?> =
-    object : MutableReactive<T?>, Reactive<T?> by this {
-        override suspend fun set(value: T?) {
-            if (value != null) this@nullable.set(value)
-        }
-    }
 
 fun <T : Any> MutableReactive<T?>.notNull(default: T): MutableReactive<T> = lens(
     get = { it ?: default },
     set = { it }
 )
 
-val <T : Any> MutableReactive<T?>.waitForNotNull: MutableReactive<T>
-    get() =
-        object : MutableReactive<T>, Reactive<T> by (this as Reactive<T?>).waitForNotNull {
-            override suspend fun set(value: T) = this@waitForNotNull.set(value)
-        }
-
 fun MutableReactive<String?>.nullToBlank(): MutableReactive<String> = lens(
     get = { it ?: "" },
     set = { it.takeUnless { it.isBlank() } }
+)
+
+infix fun <T> MutableReactive<Set<T>>.contains(value: T): MutableReactive<Boolean> = lens(
+    get = { value in it },
+    modify = { items, bool -> if (bool) items + value else items - value  }
+)
+
+infix fun <T> MutableReactive<List<T>>.contains(value: T): MutableReactive<Boolean> = lens(
+    get = { value in it },
+    modify = { items, bool -> if (bool) items + value else items - value }
 )
 
 @JvmName("writableStringAsDouble")
@@ -179,115 +128,3 @@ fun MutableReactiveValue<String>.asULongHex(): MutableReactiveValue<ULong?> = le
 
 @JvmName("writableIntAsDoubleNullable")
 fun MutableReactiveValue<Int?>.asDouble(): MutableReactiveValue<Double?> = lens(get = { it?.toDouble() }, set = { it?.toInt() })
-
-suspend infix fun <T> MutableReactive<T>.modify(action: suspend (T) -> T) {
-    set(action(await()))
-}
-
-suspend infix fun <T> MutableReactiveValue<T>.modify(action: suspend (T) -> T) {
-    value = action(value)
-}
-
-suspend fun MutableReactive<Boolean>.toggle() { set(!awaitOnce()) }
-fun MutableReactiveValue<Boolean>.toggle() { value = !value }
-
-fun CalculationContext.use(resourceUse: ResourceUse) {
-    val x = resourceUse.beginUse()
-    onRemove { x() }
-}
-
-fun <T, WRITE : MutableReactive<T>> WRITE.interceptWrite(action: suspend WRITE.(T) -> Unit): MutableReactive<T> =
-    object : MutableReactive<T>, Reactive<T> by this {
-        override suspend fun set(value: T) {
-            action(this@interceptWrite, value)
-        }
-    }
-
-fun <T> Reactive<MutableReactive<T>>.flatten(): MutableReactive<T> = remember { this@flatten()() }
-    .withWrite { this@flatten.state.onSuccess { s -> s set it } }
-
-
-interface Emitter<T>: CoroutineScope {
-    fun emit(value: T)
-}
-
-@JvmName("reactiveProcessImplicit")
-fun <T> CoroutineScope.reactiveProcess(emitter: suspend Emitter<T>.() -> Unit): Reactive<T> {
-    val prop = LateInitSignal<T>()
-    launch {
-        emitter(object : Emitter<T>, CoroutineScope by this {
-            override fun emit(value: T) {
-                prop.value = value
-            }
-        })
-    }
-    return prop
-}
-fun <T> reactiveProcess(scope: CoroutineScope = AppScope, emitter: suspend Emitter<T>.() -> Unit): Reactive<T> {
-    return object: BaseReactive<T>() {
-        var job: Job? = null
-        override fun activate() {
-            state = ReactiveState.notReady
-            job = scope.launch {
-                emitter(object : Emitter<T>, CoroutineScope by this@launch {
-                    override fun emit(value: T) {
-                        state = ReactiveState(value)
-                    }
-                })
-            }
-        }
-        override fun deactivate() {
-            job?.cancel()
-            job = null
-        }
-    }
-}
-fun <T> rawReactiveProcess(scope: CoroutineScope = AppScope, emitter: suspend Emitter<ReactiveState<T>>.() -> Unit): Reactive<T> {
-    return object: BaseReactive<T>() {
-        var job: Job? = null
-        override fun activate() {
-            job = scope.launch {
-                emitter(object : Emitter<ReactiveState<T>>, CoroutineScope by this@launch {
-                    override fun emit(value: ReactiveState<T>) {
-                        state = value
-                    }
-                })
-            }
-        }
-        override fun deactivate() {
-            job?.cancel()
-            job = null
-        }
-    }
-}
-
-fun <T> CoroutineScope.asyncReadable(action: suspend () -> T): Reactive<T> {
-    val prop = LateInitSignal<T>()
-    launch {
-        prop.value = action()
-    }
-    return prop
-}
-
-@OptIn(ExperimentalCoroutinesApi::class)
-fun <T> Deferred<T>.signal() = object : BaseReactive<T>() {
-    init {
-        this@signal[Job]?.invokeOnCompletion {
-            state = if (it == null) ReactiveState(getCompleted()) else ReactiveState.exception(it as? Exception ?: Exception("Must be exception, not throwable", it))
-        }
-    }
-}
-
-
-suspend operator fun <R> (ReactiveContext.()->R).invoke(): R {
-    return remember { this@invoke() }.awaitOnce()
-}
-suspend operator fun <A, R> (ReactiveContext.(A)->R).invoke(a: A): R {
-    return remember { this@invoke(a) }.awaitOnce()
-}
-suspend operator fun <A, B, R> (ReactiveContext.(A, B)->R).invoke(a: A, b: B): R {
-    return remember { this@invoke(a, b) }.awaitOnce()
-}
-suspend operator fun <A, B, C, R> (ReactiveContext.(A, B, C)->R).invoke(a: A, b: B, c: C): R {
-    return remember { this@invoke(a, b, c) }.awaitOnce()
-}

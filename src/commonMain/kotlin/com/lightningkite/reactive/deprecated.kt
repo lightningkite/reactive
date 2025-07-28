@@ -1,4 +1,4 @@
-package com.lightningkite.reactive
+package com.lightningkite.readable
 
 import com.lightningkite.reactive.context.ReactiveContext
 import com.lightningkite.reactive.core.AppScope
@@ -11,13 +11,16 @@ import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.ReactiveValue
 import com.lightningkite.reactive.core.reactiveState
 import com.lightningkite.reactive.core.toReactiveState
-import com.lightningkite.reactive.impl.BaseReactive
-import com.lightningkite.reactive.impl.BaseReactiveValue
-import com.lightningkite.reactive.impl.LateInitSignal
-import com.lightningkite.reactive.impl.MutableRemember
-import com.lightningkite.reactive.impl.RawReactive
-import com.lightningkite.reactive.impl.Remember
-import com.lightningkite.reactive.impl.remember
+import com.lightningkite.reactive.extensions.DebounceReactive
+import com.lightningkite.reactive.core.BaseReactive
+import com.lightningkite.reactive.core.BaseReactiveValue
+import com.lightningkite.reactive.core.Emitter
+import com.lightningkite.reactive.core.LateInitSignal
+import com.lightningkite.reactive.core.MutableRemember
+import com.lightningkite.reactive.core.RawReactive
+import com.lightningkite.reactive.core.Remember
+import com.lightningkite.reactive.core.reactiveProcess
+import com.lightningkite.reactive.core.remember
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlin.coroutines.CoroutineContext

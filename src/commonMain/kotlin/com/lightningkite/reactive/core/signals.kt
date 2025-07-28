@@ -1,9 +1,5 @@
-package com.lightningkite.reactive.impl
+package com.lightningkite.reactive.core
 
-import com.lightningkite.reactive.core.MutableReactiveValue
-import com.lightningkite.reactive.core.ReactiveState
-import com.lightningkite.reactive.core.ReactiveValue
-import com.lightningkite.reactive.core.ReactiveWithMutableValue
 import kotlin.random.Random
 
 /**

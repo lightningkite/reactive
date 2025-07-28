@@ -1,9 +1,7 @@
-package com.lightningkite.reactive.impl
+package com.lightningkite.reactive.core
 
 import com.lightningkite.reactive.context.ReactiveContext
 import com.lightningkite.reactive.context.awaitOnce
-import com.lightningkite.reactive.core.MutableReactive
-import com.lightningkite.reactive.core.ReactiveWithMutableValue
 
 /**
  * A mutable reactive value that supports draft editing and publishing. Essentially, this provides an input buffer for a [MutableReactive].

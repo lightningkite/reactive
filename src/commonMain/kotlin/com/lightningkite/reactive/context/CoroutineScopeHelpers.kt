@@ -3,7 +3,7 @@ package com.lightningkite.reactive.context
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.reactiveState
-import com.lightningkite.reactive.impl.RawReactive
+import com.lightningkite.reactive.core.RawReactive
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart

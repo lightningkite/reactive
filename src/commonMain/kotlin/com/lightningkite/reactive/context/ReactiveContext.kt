@@ -2,8 +2,8 @@
 
 package com.lightningkite.reactive.context
 
-import com.lightningkite.reactive.impl.BaseReactive
-import com.lightningkite.reactive.impl.RawReactive
+import com.lightningkite.reactive.core.BaseReactive
+import com.lightningkite.reactive.core.RawReactive
 import com.lightningkite.reactive.core.InternalReactiveApi
 import com.lightningkite.reactive.core.Listenable
 import com.lightningkite.reactive.core.Reactive

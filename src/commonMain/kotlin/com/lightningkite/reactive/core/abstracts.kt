@@ -1,9 +1,5 @@
-package com.lightningkite.reactive.impl
+package com.lightningkite.reactive.core
 
-import com.lightningkite.reactive.core.Listenable
-import com.lightningkite.reactive.core.Reactive
-import com.lightningkite.reactive.core.ReactiveState
-import com.lightningkite.reactive.core.ReactiveValue
 import kotlin.coroutines.cancellation.CancellationException
 
 /**

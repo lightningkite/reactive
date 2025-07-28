@@ -1,4 +1,4 @@
-package com.lightningkite.reactive
+package com.lightningkite.reactive.extensions
 
 import kotlin.math.pow
 import kotlin.math.roundToInt

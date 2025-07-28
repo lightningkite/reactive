@@ -1,8 +1,6 @@
-package com.lightningkite.reactive.impl
+package com.lightningkite.reactive.core
 
 import com.lightningkite.reactive.context.CalculationContext
-import com.lightningkite.reactive.core.ReactiveState
-import com.lightningkite.reactive.core.ReactiveWithMutableValue
 import kotlinx.coroutines.Dispatchers
 import kotlin.coroutines.CoroutineContext
 

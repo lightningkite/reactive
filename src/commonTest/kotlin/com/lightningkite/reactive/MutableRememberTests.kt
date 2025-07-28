@@ -4,10 +4,11 @@ import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.context.reactiveScope
 import com.lightningkite.reactive.core.ReactiveState
-import com.lightningkite.reactive.impl.LateInitSignal
-import com.lightningkite.reactive.impl.MutableRemember
-import com.lightningkite.reactive.impl.Signal
-import com.lightningkite.reactive.impl.mutableRemember
+import com.lightningkite.reactive.extensions.value
+import com.lightningkite.reactive.core.LateInitSignal
+import com.lightningkite.reactive.core.MutableRemember
+import com.lightningkite.reactive.core.Signal
+import com.lightningkite.reactive.core.mutableRemember
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
