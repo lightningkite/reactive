@@ -25,23 +25,27 @@ class MutableRemember<T>(
     private val remember = Remember(coroutineContext, useLastWhileLoading, initialValue)
     private var forget: (()->Unit)? = null
 
-    private fun startListening() {
-        forget = remember.addListener {
-            if (!overridden) state = remember.state
-        }
+    private fun updateOnce() {
         val currentRememberedState = remember.state
         if(!overridden && (!useLastWhileLoading || currentRememberedState.ready)) state = currentRememberedState
     }
 
+    private fun startListening() {
+        forget = remember.addListener {
+            if (!overridden) state = remember.state
+        }
+        updateOnce()
+    }
     private fun stopListening() {
         forget?.invoke()
         forget = null
     }
 
     override var state: ReactiveState<T>
-        get() =
-            if (!overridden && forget == null && !(useLastWhileLoading && super.state.ready)) remember.state
-            else super.state
+        get() {
+            if (!overridden && forget == null) updateOnce()
+            return super.state
+        }
         set(value) {
             super.state = value
         }

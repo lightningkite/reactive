@@ -18,12 +18,16 @@ class MutableRememberSuspending<T>(
     private val remember = RememberSuspending(coroutineContext, useLastWhileLoading, initialValue)
     private var forget: (()->Unit)? = null
 
+    private fun updateOnce() {
+        val currentRememberedState = remember.state
+        if(!overridden && (!useLastWhileLoading || currentRememberedState.ready)) state = currentRememberedState
+    }
+
     private fun startListening() {
         forget = remember.addListener {
             if (!overridden) state = remember.state
         }
-        val currentRememberedState = remember.state
-        if(!overridden && (!useLastWhileLoading || currentRememberedState.ready)) state = currentRememberedState
+        updateOnce()
     }
 
     private fun stopListening() {
@@ -32,9 +36,10 @@ class MutableRememberSuspending<T>(
     }
 
     override var state: ReactiveState<T>
-        get() =
-            if (!overridden && forget == null && !(useLastWhileLoading && super.state.ready)) remember.state
-            else super.state
+        get() {
+            if (!overridden && forget == null) updateOnce()
+            return super.state
+        }
         set(value) {
             super.state = value
         }
