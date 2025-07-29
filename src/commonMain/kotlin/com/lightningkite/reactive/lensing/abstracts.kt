@@ -3,12 +3,12 @@ package com.lightningkite.reactive.lensing
 import com.lightningkite.reactive.context.awaitOnce
 import com.lightningkite.reactive.core.BaseReactive
 import com.lightningkite.reactive.core.BaseReactiveValue
+import com.lightningkite.reactive.core.Listenable
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.MutableReactiveValue
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.ReactiveValue
-
 
 open class Lens<S : Reactive<T>, T, L>(val source: S, val get: (T) -> L) : BaseReactive<L>() {
     override var state: ReactiveState<L>
@@ -36,6 +36,8 @@ open class Lens<S : Reactive<T>, T, L>(val source: S, val get: (T) -> L) : BaseR
         myListen = null
     }
 }
+
+fun <O, T> Reactive<O>.lens(get: (O) -> T): Reactive<T> = Lens(this, get)
 
 open class SetLens<O, T>(
     source: MutableReactive<O>, get: (O) -> T,
@@ -84,6 +86,15 @@ open class ValueLens<S : ReactiveValue<T>, T, L>(
         myListen = null
     }
 }
+
+fun <T> Listenable.lensListenable(
+    get: () -> T
+): Reactive<T> = ValueLens(
+    object: ReactiveValue<Unit>, Listenable by this {
+        override val value: Unit get() = Unit
+    },
+    get = { get() }
+)
 
 open class SetValueLens<O, T>(source: MutableReactiveValue<O>, get: (O) -> T, val set: (T) -> O) :
     ValueLens<MutableReactiveValue<O>, O, T>(source, get), MutableReactiveValue<T> {

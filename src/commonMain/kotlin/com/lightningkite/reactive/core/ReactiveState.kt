@@ -86,6 +86,8 @@ data class InternalReactiveThrownException(val exception: Exception)
 @InternalReactiveApi
 object InternalReactiveNotReady
 
+class NotReadyException(message: String? = null) : IllegalStateException(message)
+
 inline fun <T> reactiveState(action: () -> T): ReactiveState<T> {
     return try {
         ReactiveState(action())

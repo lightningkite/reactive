@@ -59,6 +59,21 @@ fun <T> Reactive<T>.withWrite(action: suspend Reactive<T>.(T) -> Unit): MutableR
         }
     }
 
+fun <T> Reactive<T>.onNextSuccess(action: (T) -> Unit) {
+    if (state.success) {
+        state.onSuccess(action)
+        return
+    }
+
+    var remover: (() -> Unit)? = null
+    remover = addListener {
+        state.onSuccess {
+            action(it)
+            remover?.invoke()
+        }
+    }
+}
+
 fun <T : Any> MutableReactive<T>.nullable(): MutableReactive<T?> =
     object : MutableReactive<T?>, Reactive<T?> by this {
         override suspend fun set(value: T?) {

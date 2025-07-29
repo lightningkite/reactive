@@ -1,5 +1,9 @@
 package com.lightningkite.reactive.core
 
+import com.lightningkite.reactive.lensing.ModifyLens
+import com.lightningkite.reactive.lensing.ModifyValueLens
+import com.lightningkite.reactive.lensing.SetLens
+import com.lightningkite.reactive.lensing.SetValueLens
 import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
@@ -89,12 +93,21 @@ interface Mutable<T> {
  * - Combines the features of [Reactive] (observation) and [Mutable] (modification).
  * - Allows asynchronous updates via [set], which triggers notifications to listeners if the value changes.
  * - Listeners are notified only when the underlying state changes, not for repeated or identical values.
- * - Useful for representing values that can be changed by the user or system and need to be observed reactively.
  *
  * @see Reactive
  * @see Mutable
  */
-interface MutableReactive<T> : Reactive<T>, Mutable<T>
+interface MutableReactive<T> : Reactive<T>, Mutable<T> {
+    fun <L> lens(
+        get: (T) -> L,
+        set: (L) -> T
+    ): MutableReactive<L> = SetLens(this, get, set)
+
+    fun <L> lens(
+        get: (T) -> L,
+        modify: (T, L) -> T
+    ): MutableReactive<L> = ModifyLens(this, get, modify)
+}
 
 /**
  * Represents an infallible reactive value.
@@ -117,7 +130,7 @@ interface ReactiveValue<out T> : Reactive<T>, ReadOnlyProperty<Any?, T> {
  * Represents a mutable value that can be set synchronously and/or asynchronously.
  *
  * - [valueSet] sets the value synchronously.
- * - [set] sets the value asynchronously (typically calls [valueSet]).
+ * - [set] sets the value asynchronously (typically just calls [valueSet]).
  *
  * @see Mutable
  */
@@ -143,8 +156,8 @@ interface ReactiveWithMutableValue<T> : MutableReactive<T>, MutableValue<T>
 /**
  * Represents a mutable reactive value that can be modified and observed for changes.
  *
- * This differs from [MutableReactive] in that
- * modifying and reading values can be done synchronously and without error. [MutableReactiveValue] guarantees that values are both
+ * This differs from [MutableReactive] in that modifying and reading values can be
+ * done synchronously and without error. [MutableReactiveValue] guarantees that values are both
  * immediately accessible and modifiable, without any error states.
  *
  * @see MutableValue
@@ -169,14 +182,14 @@ interface MutableReactiveValue<T> : MutableValue<T>, ReactiveValue<T>,
     override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
         this.value = value
     }
-}
 
-class NotReadyException(message: String? = null) : IllegalStateException(message)
+    override fun <L> lens(
+        get: (T) -> L,
+        set: (L) -> T
+    ): MutableReactiveValue<L> = SetValueLens(this, get, set)
 
-fun test() {
-    val obj = object : MutableValue<Int> {
-        override fun valueSet(value: Int) {
-            println("Setting value $value")
-        }
-    }
+    override fun <L> lens(
+        get: (T) -> L,
+        modify: (T, L) -> T
+    ): MutableReactiveValue<L> = ModifyValueLens(this, get, modify)
 }
