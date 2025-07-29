@@ -5,6 +5,7 @@ package com.lightningkite.reactive.core
  * */
 class ReactiveMutableList<T>(private val list: ArrayList<T>): MutableList<T> by list, MutableReactiveValue<List<T>>, BaseListenable() {
     constructor() : this(ArrayList<T>())
+    constructor(items: List<T>) : this(ArrayList(items))
     constructor(vararg startingItems: T) : this(ArrayList(startingItems.asList()))
 
     override var value: List<T>

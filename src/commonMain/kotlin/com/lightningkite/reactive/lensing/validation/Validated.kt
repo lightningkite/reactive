@@ -7,7 +7,7 @@ import com.lightningkite.reactive.core.ReactiveValue
 
 interface IssueTracking {
     val node: IssueNode
-    val issues: Reactive<Map<IssueNode, List<Issue>>> get() = node.issues
+    val issues: Reactive<List<Issue>> get() = node.issues
 }
 
 interface Validated<T> : IssueTracking, Reactive<T>
@@ -17,21 +17,21 @@ interface MutableValidated<T> : IssueTracking, MutableReactive<T>, Validated<T> 
     override fun <L> lens(
         get: (T) -> L,
         set: (L) -> T
-    ): MutableValidated<L> = ValidatedSetLens(null, this, get, set)
+    ): MutableValidated<L> = ValidatedSetLens(this, get, set)
 
     override fun <L> lens(
         get: (T) -> L,
         modify: (T, L) -> T
-    ): MutableValidated<L> = ValidatedModifyLens(null, this, get, modify)
+    ): MutableValidated<L> = ValidatedModifyLens(this, get, modify)
 }
 interface MutableValidatedValue<T> : IssueTracking, MutableReactiveValue<T>, ValidatedValue<T> {
     override fun <L> lens(
         get: (T) -> L,
         set: (L) -> T
-    ): MutableValidatedValue<L> = ValidatedSetValueLens(null, this, get, set)
+    ): MutableValidatedValue<L> = ValidatedSetValueLens(this, get, set)
 
     override fun <L> lens(
         get: (T) -> L,
         modify: (T, L) -> T
-    ): MutableValidatedValue<L> = ValidatedModifyValueLens(null, this, get, modify)
+    ): MutableValidatedValue<L> = ValidatedModifyValueLens(this, get, modify)
 }

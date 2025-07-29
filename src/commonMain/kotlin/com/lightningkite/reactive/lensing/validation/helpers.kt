@@ -2,28 +2,11 @@ package com.lightningkite.reactive.lensing.validation
 
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.MutableReactiveValue
-import com.lightningkite.reactive.core.Signal
-import com.lightningkite.reactive.extensions.asDouble
-
-fun <T> MutableValidated<T>.checkForIssue(
-    name: String? = null,
-    validate: (T) -> Issue?
-) = checkForIssues(name) {
-    validate(it)?.let(::listOf)
-}
-
-fun <T> MutableValidatedValue<T>.checkForIssue(
-    name: String? = null,
-    validate: (T) -> Issue?
-) = checkForIssues(name) {
-    validate(it)?.let(::listOf)
-}
 
 fun <T> MutableValidated<T>.validate(
-    name: String? = null,
     setOnIssue: Boolean = true,
     validate: (T) -> String?
-) = checkForIssue(name) { value ->
+) = checkForIssue { value ->
     validate(value)?.let {
         if (setOnIssue) Issue.Warning(it)
         else Issue.Invalid(it)
@@ -31,10 +14,9 @@ fun <T> MutableValidated<T>.validate(
 }
 
 fun <T> MutableValidatedValue<T>.validate(
-    name: String? = null,
     setOnIssue: Boolean = true,
     validate: (T) -> String?
-) = checkForIssue(name) { value ->
+) = checkForIssue { value ->
     validate(value)?.let {
         if (setOnIssue) Issue.Warning(it)
         else Issue.Invalid(it)
@@ -92,26 +74,10 @@ fun MutableValidatedValue<String>.validateNotBlank(
 
 
 
-
-fun <T> MutableReactive<T>.checkForIssue(
-    name: String? = null,
-    validate: (T) -> Issue?
-) = checkForIssues(name) {
-    validate(it)?.let(::listOf)
-}
-
-fun <T> MutableReactiveValue<T>.checkForIssue(
-    name: String? = null,
-    validate: (T) -> Issue?
-) = checkForIssues(name) {
-    validate(it)?.let(::listOf)
-}
-
 fun <T> MutableReactive<T>.validate(
-    name: String? = null,
     setOnIssue: Boolean = true,
     validate: (T) -> String?
-) = checkForIssue(name) { value ->
+) = checkForIssue { value ->
     validate(value)?.let {
         if (setOnIssue) Issue.Warning(it)
         else Issue.Invalid(it)
@@ -119,10 +85,9 @@ fun <T> MutableReactive<T>.validate(
 }
 
 fun <T> MutableReactiveValue<T>.validate(
-    name: String? = null,
     setOnIssue: Boolean = true,
     validate: (T) -> String?
-) = checkForIssue(name) { value ->
+) = checkForIssue { value ->
     validate(value)?.let {
         if (setOnIssue) Issue.Warning(it)
         else Issue.Invalid(it)
@@ -176,34 +141,3 @@ fun MutableReactiveValue<String>.validateNotBlank(
     description: String = summary,
     setOnIssue: Boolean = true
 ) = assert(summary, description, setOnIssue) { it.isNotBlank() }
-
-
-
-data class Thingy(
-    val x: Int,
-    val y: Int?,
-)
-fun test() {
-    val signal = Signal(Thingy(0, null)).validated()
-
-    val x = signal.lens(
-        get = { it.x },
-        modify = { o, it -> o.copy(x = it) }
-    )
-
-    val input = x.validate {
-        if (it <= 0) "Must be greater than 0"
-        else if (it > 10) "Must be less than 10"
-        else null
-    }
-
-    val y = signal
-        .lens(
-            get = { it.y },
-            modify = { o, it -> o.copy(y = it) }
-        )
-        .asDouble()
-        .assert("Must be empty or negative") {
-            it == null || it < 0
-        }
-}

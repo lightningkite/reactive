@@ -37,8 +37,6 @@ open class Lens<S : Reactive<T>, T, L>(val source: S, val get: (T) -> L) : BaseR
     }
 }
 
-fun <O, T> Reactive<O>.lens(get: (O) -> T): Reactive<T> = Lens(this, get)
-
 open class SetLens<O, T>(
     source: MutableReactive<O>, get: (O) -> T,
     val set: (T) -> O
@@ -87,15 +85,6 @@ open class ValueLens<S : ReactiveValue<T>, T, L>(
     }
 }
 
-fun <T> Listenable.lensListenable(
-    get: () -> T
-): Reactive<T> = ValueLens(
-    object: ReactiveValue<Unit>, Listenable by this {
-        override val value: Unit get() = Unit
-    },
-    get = { get() }
-)
-
 open class SetValueLens<O, T>(source: MutableReactiveValue<O>, get: (O) -> T, val set: (T) -> O) :
     ValueLens<MutableReactiveValue<O>, O, T>(source, get), MutableReactiveValue<T> {
     override var value: T
@@ -113,3 +102,15 @@ open class ModifyValueLens<O, T>(source: MutableReactiveValue<O>, get: (O) -> T,
             source.value = modify(source.value, value)
         }
 }
+
+fun <T, L> Reactive<T>.lens(get: (T) -> L): Reactive<L> = Lens(this, get)
+fun <T, L> ReactiveValue<T>.lens(get: (T) -> L): ReactiveValue<L> = ValueLens(this, get)
+
+fun <T> Listenable.lensListenable(
+    get: () -> T
+): Reactive<T> = ValueLens(
+    object: ReactiveValue<Unit>, Listenable by this {
+        override val value: Unit get() = Unit
+    },
+    get = { get() }
+)

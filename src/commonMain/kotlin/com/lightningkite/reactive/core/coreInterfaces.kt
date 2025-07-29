@@ -98,11 +98,58 @@ interface Mutable<T> {
  * @see Mutable
  */
 interface MutableReactive<T> : Reactive<T>, Mutable<T> {
+
+    /**
+     * 'Lenses' a new type from this [MutableReactive]. This is useful when translating one
+     * type to another for user input, or safe type coercion.
+     *
+     * - The lens allows you to observe and modify a derived value of type [L] from the original value [T].
+     * - Changes to the lens are propagated back to the original value using the [set] function.
+     * - Useful for focusing on a specific property or transformation of the reactive value.
+     * - Supertypes of [MutableReactive] typically overload [lens] to return the supertype.
+     *
+     * @param get Function to extract the sub-value from the original value.
+     * @param set Function to produce a new original value from the sub-value.
+     * @return A [MutableReactive] lens for the sub-value.
+     *
+     * Example:
+     * ```kotlin
+     * val int: MutableReactive<Int> = // snip
+     * val double: MutableReactive<Double> = int.lens(
+     *    get = { it.toDouble() },
+     *    set = { it.toInt() }
+     * )
+     * ```
+     */
     fun <L> lens(
         get: (T) -> L,
         set: (L) -> T
     ): MutableReactive<L> = SetLens(this, get, set)
 
+    /**
+     * 'Lenses' a subtype from this [MutableReactive]. This is useful for extracting properties from a data class
+     * or modifying a single item in a collection.
+     *
+     * - The lens allows you to observe and modify a derived value of type [L] from the original value [T].
+     * - Changes to the lens are propagated back to the original value using the [modify] function.
+     * - Useful for focusing on a specific property or transformation of the reactive value, where modification depends on both the original and new value.
+     * - Supertypes of [MutableReactive] typically overload [lens] to return the supertype.
+     *
+     * @param get Function to extract the sub-value from the original value.
+     * @param modify Function to produce a new original value from the original and sub-value.
+     * @return A [MutableReactive] lens for the sub-value.
+     *
+     * Example:
+     * ```kotlin
+     * data class Point(val x: Double, val y: Double)
+     *
+     * val point: MutableReactive<Point> = // snip
+     * val x: MutableReactive<Double> = list.lens(
+     *    get = { it.x },
+     *    modify = { point, newX -> point.copy(x = newX) }
+     * )
+     * ```
+     */
     fun <L> lens(
         get: (T) -> L,
         modify: (T, L) -> T

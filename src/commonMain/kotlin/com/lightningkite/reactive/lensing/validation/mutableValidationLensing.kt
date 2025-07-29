@@ -11,67 +11,61 @@ import com.lightningkite.reactive.lensing.SetLens
 import com.lightningkite.reactive.lensing.SetValueLens
 
 class ValidatedSetLens<T, L>(
-    name: String?,
     source: MutableValidated<T>,
     get: (T) -> L,
     set: (L) -> T
 ) : MutableValidated<L>, SetLens<T, L>(source, get, set) {
-    override val node: IssueNode = source.node.childNode(name)
+    override val node: IssueNode = source.node.childNode()
 }
 
 class ValidatedModifyLens<T, L>(
-    name: String?,
     source: MutableValidated<T>,
     get: (T) -> L,
     modify: (T, L) -> T
 ) : MutableValidated<L>, ModifyLens<T, L>(source, get, modify) {
-    override val node: IssueNode = source.node.childNode(name)
+    override val node: IssueNode = source.node.childNode()
 }
 
 class ValidatedSetValueLens<T, L>(
-    name: String?,
     source: MutableValidatedValue<T>,
     get: (T) -> L,
     set: (L) -> T
 ) : MutableValidatedValue<L>, SetValueLens<T, L>(source, get, set) {
-    override val node: IssueNode = source.node.childNode(name)
+    override val node: IssueNode = source.node.childNode()
 }
 
 class ValidatedModifyValueLens<T, L>(
-    name: String?,
     source: MutableValidatedValue<T>,
     get: (T) -> L,
     modify: (T, L) -> T
 ) : MutableValidatedValue<L>, ModifyValueLens<T, L>(source, get, modify) {
-    override val node: IssueNode = source.node.childNode(name)
+    override val node: IssueNode = source.node.childNode()
 }
 
 
 // Named anonymous object
-private class ValidationWrapper<T>(
-    name: String?,
+private class ValidationRoot<T>(
     val wrapped: MutableReactive<T>
 ) : MutableValidated<T>, Reactive<T> by wrapped {
-    override val node: IssueNode = IssueNode(name)
+    override val node: IssueNode = IssueNode(null)
     override suspend fun set(value: T) = wrapped.set(value)
 }
 
 private class ValidationLens<T>(
-    name: String?,
     private val source: MutableValidated<T>,
-    private val validate: (T) -> List<Issue>?
+    private val validate: (T) -> Issue?
 ) : MutableValidated<T>, Reactive<T> by source {
-    override val node: IssueNode = source.node.childNode(name)
+    override val node: IssueNode = source.node.childNode()
 
     private fun check(value: T): Boolean {
-        val issues = validate(value)
-        return if (issues == null || issues.isEmpty()) {
-            node.nodeIssues.clear()
+        val issue = validate(value)
+        return if (issue == null) {
+            node.report(null)
             true
         }
         else {
-            node.nodeIssues.addAll(issues)
-            issues.none { it is Issue.Invalid }
+            node.report(issue)
+            issue !is Issue.Invalid
         }
     }
     override suspend fun set(value: T) {
@@ -83,30 +77,28 @@ private class ValidationLens<T>(
 }
 
 // Named anonymous object
-private class ValidationValueWrapper<T>(
-    name: String?,
+private class ValidationRootValue<T>(
     val wrapped: MutableReactiveValue<T>
 ) : MutableValidatedValue<T>, Listenable by wrapped {
-    override val node: IssueNode = IssueNode(name)
+    override val node: IssueNode = IssueNode(null)
     override var value: T by wrapped::value
 }
 
 private class ValidationValueLens<T>(
-    name: String?,
     private val source: MutableValidatedValue<T>,
-    private val validate: (T) -> List<Issue>?
+    private val validate: (T) -> Issue?
 ) : MutableValidatedValue<T>, Listenable by source {
-    override val node: IssueNode = source.node.childNode(name)
+    override val node: IssueNode = source.node.childNode()
 
     private fun check(value: T): Boolean {
-        val issues = validate(value)
-        return if (issues == null || issues.isEmpty()) {
-            node.nodeIssues.clear()
+        val issue = validate(value)
+        return if (issue == null) {
+            node.report(null)
             true
         }
         else {
-            node.nodeIssues.addAll(issues)
-            issues.none { it is Issue.Invalid }
+            node.report(issue)
+            issue !is Issue.Invalid
         }
     }
     override var value: T
@@ -119,29 +111,16 @@ private class ValidationValueLens<T>(
     }
 }
 
-fun <T> MutableReactive<T>.validated(name: String? = null): MutableValidated<T> =
-    this as? MutableValidated<T> ?: ValidationWrapper(name, this)
+fun <T> MutableReactive<T>.validated(): MutableValidated<T> =
+    this as? MutableValidated<T> ?: ValidationRoot(this)
 
-fun <T> MutableValidated<T>.checkForIssues(
-    name: String?,
-    validate: (T) -> List<Issue>?
-): MutableValidated<T> = ValidationLens(name, this, validate)
+fun <T> MutableValidated<T>.checkForIssue(validate: (T) -> Issue?): MutableValidated<T> = ValidationLens(this, validate)
 
-fun <T> MutableReactive<T>.checkForIssues(
-    name: String?,
-    validate: (T) -> List<Issue>?
-): MutableValidated<T> = ValidationLens(name, this.validated(), validate)
-
+fun <T> MutableReactive<T>.checkForIssue(validate: (T) -> Issue?): MutableValidated<T> = ValidationLens(this.validated(), validate)
 
 fun <T> MutableReactiveValue<T>.validated(name: String? = null): MutableValidatedValue<T> =
-    this as? MutableValidatedValue<T> ?: ValidationValueWrapper(name, this)
+    this as? MutableValidatedValue<T> ?: ValidationRootValue(this)
 
-fun <T> MutableValidatedValue<T>.checkForIssues(
-    name: String?,
-    validate: (T) -> List<Issue>?
-): MutableValidatedValue<T> = ValidationValueLens(name, this, validate)
+fun <T> MutableValidatedValue<T>.checkForIssue(validate: (T) -> Issue?): MutableValidatedValue<T> = ValidationValueLens(this, validate)
 
-fun <T> MutableReactiveValue<T>.checkForIssues(
-    name: String?,
-    validate: (T) -> List<Issue>?
-): MutableValidatedValue<T> = ValidationValueLens(name, this.validated(), validate)
+fun <T> MutableReactiveValue<T>.checkForIssue(validate: (T) -> Issue?): MutableValidatedValue<T> = ValidationValueLens(this.validated(), validate)
