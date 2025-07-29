@@ -35,6 +35,7 @@ import com.lightningkite.reactive.extensions.modify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlin.coroutines.CoroutineContext
+import kotlin.jvm.JvmName
 import kotlin.time.Duration
 
 
@@ -111,6 +112,7 @@ fun <T> shared(coroutineContext: CoroutineContext = Dispatchers.Unconfined, useL
 fun <T> sharedProcess(scope: CoroutineScope = AppScope, emitter: suspend Emitter<T>.() -> Unit): Reactive<T> = reactiveProcess(scope, emitter)
 
 @Deprecated("Use reactiveProcess", ReplaceWith("reactiveProcess", "com.lightningkite.reactive.core"))
+@JvmName("sharedProcessReceiving")
 fun <T> CoroutineScope.sharedProcess(emitter: suspend Emitter<T>.() -> Unit): Reactive<T> = reactiveProcess(emitter)
 
 @Deprecated("Use reactiveState", ReplaceWith("reactiveState", "com.lightningkite.reactive.core"))
