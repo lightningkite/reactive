@@ -7,8 +7,9 @@ import com.lightningkite.reactive.core.ReactiveValue
 
 interface IssueTracking {
     val node: IssueNode
-    val issues: Reactive<List<Issue>> get() = node.issues
 }
+
+val IssueTracking.issues get() = node.issues
 
 interface Validated<T> : IssueTracking, Reactive<T>
 interface ValidatedValue<T> : IssueTracking, ReactiveValue<T>

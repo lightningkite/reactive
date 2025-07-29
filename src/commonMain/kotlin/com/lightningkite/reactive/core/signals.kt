@@ -1,6 +1,7 @@
 package com.lightningkite.reactive.core
 
 import kotlin.random.Random
+import com.lightningkite.reactive.context.ReactiveContext
 
 /**
  * A reactive value that exposes its state and allows direct mutation.
@@ -31,7 +32,19 @@ class BasicListenable : BaseListenable() {
  * A mutable reactive value that can be updated and observed.
  *
  * This is the most basic entrypoint into the Reactive ecosystem. [Signal] is simply a container that notifies it's listeners when it is changed.
- * [Signal] is guaranteed to always have a ready value.
+ * Listeners are typically added in a [ReactiveContext], which a context that registers [Reactive] dependencies and reruns when any dependency is changed.
+ *
+ * Example:
+ * ```kotlin
+ * val number = Signal(0)
+ *
+ * reactive {
+ *    println("Number: ${number()}") // prints "Number: 0"
+ * }
+ *
+ * number.value = 1 // prints "Number: 1"
+ * number.value = 2 // prints "Number: 2"
+ * ```
  */
 class Signal<T>(startValue: T) : MutableReactiveValue<T>, BaseReactiveValue<T>(startValue)
 
