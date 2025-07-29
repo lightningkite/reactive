@@ -29,6 +29,7 @@ infix fun <T> MutableReactive<Set<T>>.contains(value: T): MutableReactive<Boolea
     modify = { items, bool -> if (bool) items + value else items - value  }
 )
 
+@JvmName("containsList")
 infix fun <T> MutableReactive<List<T>>.contains(value: T): MutableReactive<Boolean> = lens(
     get = { value in it },
     modify = { items, bool -> if (bool) items + value else items - value }

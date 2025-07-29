@@ -111,7 +111,7 @@ fun <T> Reactive<MutableReactive<T>>.flatten(): MutableReactive<T> =
         this@flatten.state.onSuccess { s -> s set it }
     }
 
-fun <T> CoroutineScope.asyncReadable(action: suspend () -> T): Reactive<T> {
+fun <T> CoroutineScope.asyncReactive(action: suspend () -> T): Reactive<T> {
     val prop = LateInitSignal<T>()
     launch {
         prop.value = action()

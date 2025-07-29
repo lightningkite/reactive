@@ -10,7 +10,7 @@ import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.addAndRunListener
-import com.lightningkite.reactive.extensions.asyncReadable
+import com.lightningkite.reactive.extensions.asyncReactive
 import com.lightningkite.reactive.extensions.interceptWrite
 import com.lightningkite.reactive.extensions.value
 import com.lightningkite.reactive.extensions.waitForNotNull
@@ -327,7 +327,7 @@ class ReactivityTests {
             var starts = 0
             var completes = 0
             val wait = WaitGate()
-            val deferred = (AppScope + Dispatchers.Unconfined).asyncReadable {
+            val deferred = (AppScope + Dispatchers.Unconfined).asyncReactive {
                 println("Calculating...")
                 wait.await()
                 println("Going...")
