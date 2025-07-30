@@ -120,30 +120,3 @@ inline fun <T> readableState(action: () -> T): ReactiveState<T> = reactiveState(
 
 @Deprecated("Use toReactiveState", ReplaceWith("toReactiveState", "com.lightningkite.reactive.core"))
 inline fun <T> Result<T>.toReadableState(): ReactiveState<T> = toReactiveState()
-
-@Deprecated("Import has moved", ReplaceWith("debounce", "com.lightningkite.reactive.extensions"))
-fun <T> Reactive<T>.debounce(ms: Long) = debounce(ms)
-
-@Deprecated("Import has moved", ReplaceWith("debounce", "com.lightningkite.reactive.extensions"))
-fun <T> Reactive<T>.debounce(duration: Duration) = debounce(duration)
-
-@Deprecated("Import has moved", ReplaceWith("onRemove", "com.lightningkite.reactive.context"))
-fun CoroutineScope.onRemove(action: () -> Unit) = onRemove(action)
-
-@Deprecated("Import has moved", ReplaceWith("ReactiveContext", "com.lightningkite.reactive.context"))
-typealias ReactiveContext = ReactiveContext
-
-@Deprecated("Import has moved", ReplaceWith("await", "com.lightningkite.reactive.context"))
-suspend fun <T> Reactive<T>.await(): T = await()
-
-@Deprecated("Import has moved", ReplaceWith("awaitOnce", "com.lightningkite.reactive.context"))
-suspend fun <T> Reactive<T>.awaitOnce(): T = awaitOnce()
-
-@Deprecated("Import has moved", ReplaceWith("Constant", "com.lightningkite.reactive.core"))
-typealias Constant<T> = Constant<T>
-
-@Deprecated("Import has moved", ReplaceWith("modify", "com.lightningkite.reactive.extensions"))
-suspend fun <T> MutableReactive<T>.modify(action: (T) -> T) = modify(action)
-
-@Deprecated("Import has moved", ReplaceWith("invoke", "com.lightningkite.reactive.context"))
-suspend operator fun <T> Reactive<T>.invoke(): T = invoke()
