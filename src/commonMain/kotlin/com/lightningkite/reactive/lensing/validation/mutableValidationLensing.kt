@@ -111,16 +111,72 @@ private class ValidationValueLens<T>(
     }
 }
 
+/**
+ * Wraps a [MutableReactive] as a [MutableValidated].
+ *
+ * If the receiver is already a [MutableValidated], it is returned as-is. Otherwise, this creates the root of the validation tree for the reactive value.
+ * This enables validation and issue tracking for the reactive value. See [IssueTracking] for more details about validation trees.
+ *
+ * @return A [MutableValidated] instance wrapping the receiver.
+ *
+ * @see IssueTracking
+ */
 fun <T> MutableReactive<T>.validated(): MutableValidated<T> =
     this as? MutableValidated<T> ?: ValidationRoot(this)
 
+/**
+ * Adds a validation check to a [MutableValidated] instance.
+ *
+ * The [validate] function should return an [Issue] if the value is invalid, or null if valid.
+ * The returned [MutableValidated] will report issues according to the provided validation function.
+ *
+ * @param validate Function that returns an [Issue] or null for valid values.
+ * @return A [MutableValidated] that tracks issues according to [validate].
+ */
 fun <T> MutableValidated<T>.checkForIssue(validate: (T) -> Issue?): MutableValidated<T> = ValidationLens(this, validate)
 
+/**
+ * Adds a validation check to a [MutableReactive] instance, returning a [MutableValidated] that tracks issues.
+ *
+ * The [validate] function should return an [Issue] if the value is invalid, or null if valid.
+ *
+ * @param validate Function that returns an [Issue] or null for valid values.
+ * @return A [MutableValidated] that tracks issues according to [validate].
+ */
 fun <T> MutableReactive<T>.checkForIssue(validate: (T) -> Issue?): MutableValidated<T> = ValidationLens(this.validated(), validate)
 
-fun <T> MutableReactiveValue<T>.validated(name: String? = null): MutableValidatedValue<T> =
+
+
+/**
+ * Wraps a [MutableReactiveValue] as a [MutableValidatedValue].
+ *
+ * If the receiver is already a [MutableValidatedValue], it is returned as-is. Otherwise, this creates the root of the validation tree for the reactive value.
+ * This enables validation and issue tracking for the reactive value. See [IssueTracking] for more details about validation trees.
+ *
+ * @return A [MutableValidatedValue] instance wrapping the receiver.
+ *
+ * @see IssueTracking
+ */
+fun <T> MutableReactiveValue<T>.validated(): MutableValidatedValue<T> =
     this as? MutableValidatedValue<T> ?: ValidationRootValue(this)
 
+/**
+ * Adds a validation check to a [MutableValidatedValue] instance.
+ *
+ * The [validate] function should return an [Issue] if the value is invalid, or null if valid.
+ * The returned [MutableValidatedValue] will report issues according to the provided validation function.
+ *
+ * @param validate Function that returns an [Issue] or null for valid values.
+ * @return A [MutableValidatedValue] that tracks issues according to [validate].
+ */
 fun <T> MutableValidatedValue<T>.checkForIssue(validate: (T) -> Issue?): MutableValidatedValue<T> = ValidationValueLens(this, validate)
 
+/**
+ * Adds a validation check to a [MutableReactiveValue] instance, returning a [MutableValidatedValue] that tracks issues.
+ *
+ * The [validate] function should return an [Issue] if the value is invalid, or null if valid.
+ *
+ * @param validate Function that returns an [Issue] or null for valid values.
+ * @return A [MutableValidatedValue] that tracks issues according to [validate].
+ */
 fun <T> MutableReactiveValue<T>.checkForIssue(validate: (T) -> Issue?): MutableValidatedValue<T> = ValidationValueLens(this.validated(), validate)
