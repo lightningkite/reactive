@@ -1,5 +1,8 @@
 package com.lightningkite.reactive.core
 
+import com.lightningkite.reactive.lensing.ValueLens
+import com.lightningkite.reactive.lensing.lens
+
 /**
  * A wrapper around [ArrayList] that signals its listeners whenever it is mutated
  * */
@@ -33,4 +36,17 @@ class ReactiveMutableList<T>(private val list: ArrayList<T>): MutableList<T> by 
     override fun add(index: Int, element: T) = signal { add(index, element) }
     override fun add(element: T): Boolean = signal { add(element) }
     override fun remove(element: T): Boolean = signalChange { remove(element) }
+
+    fun reactiveContains(element: T) = object : MutableReactiveValue<Boolean> {
+        private val lens = this@ReactiveMutableList.lens { element in it }
+
+        override fun addListener(listener: () -> Unit): () -> Unit = lens.addListener(listener)
+
+        override var value: Boolean
+            get() = lens.value
+            set(value) {
+                if (value) add(element)
+                else remove(element)
+            }
+    }
 }
