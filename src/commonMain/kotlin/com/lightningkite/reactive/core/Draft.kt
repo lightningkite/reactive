@@ -14,11 +14,6 @@ import com.lightningkite.reactive.context.awaitOnce
  * - Listeners are only notified if the draft value actually changes.
  * - Use [publish] to commit draft changes to the published value, or [cancel] to discard changes and reset the draft.
  *
- * @param T The type of value being edited and published.
- * @property published The underlying published value.
- * @property draft The mutable draft value.
- * @property changesMade A reactive value indicating if the draft differs from the published value.
- *
  * Example:
  * ```kotlin
  * val published = Signal(0)
@@ -30,6 +25,12 @@ import com.lightningkite.reactive.context.awaitOnce
  * draft.set(43) // draft now holds '43', while published holds '42'
  * draft.cancel() // discards changes and resets the draft. draft now reads '42' again.
  * ```
+ *
+ * @param T The type of value being edited and published.
+ * @property published The underlying published value.
+ * @property draft The mutable draft value.
+ * @property changesMade A reactive value indicating if the draft differs from the published value.
+ *
  *
  * @see MutableRemember
  */
