@@ -19,7 +19,7 @@ buildscript {
         maven("https://jitpack.io")
     }
     dependencies {
-        classpath("com.lightningkite:lk-gradle-helpers:4.0.2")
+        classpath("com.lightningkite:lk-gradle-helpers:4.0.3")
         classpath("org.jetbrains.dokka:dokka-gradle-plugin:2.0.0")
     }
 }
