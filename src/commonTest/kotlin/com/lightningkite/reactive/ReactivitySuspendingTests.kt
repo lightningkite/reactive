@@ -1,7 +1,10 @@
 package com.lightningkite.reactive
 
 import com.lightningkite.reactive.context.ReactiveContext
+import com.lightningkite.reactive.context.await
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.onRemove
+import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.context.reactiveSuspending
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.extensions.value
@@ -10,6 +13,7 @@ import com.lightningkite.reactive.core.BaseReactive
 import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.rememberSuspending
+import com.lightningkite.reactive.extensions.invoke
 import kotlinx.coroutines.Dispatchers
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -61,6 +65,7 @@ class ReactivitySuspendingTests {
                 println("Set to $it")
                 basicSignal.value = it
             }
+            println("Emissions: $emissions")
         }
         assertEquals((0..9).toList(), emissions)
     }

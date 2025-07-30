@@ -22,7 +22,7 @@ internal class WaitForNotNull<T : Any>(val wraps: Reactive<T?>) : Reactive<T> {
 val <T : Any> Reactive<T?>.waitForNotNull: Reactive<T> get() = WaitForNotNull(this)
 
 val <T : Any> MutableReactive<T?>.waitForNotNull: MutableReactive<T> get() =
-    object : MutableReactive<T>, Reactive<T> by this.waitForNotNull {
+    object : MutableReactive<T>, Reactive<T> by (this as Reactive<T?>).waitForNotNull { // DO NOT REMOVE THE TYPECAST
         override suspend fun set(value: T) = this@waitForNotNull.set(value)
     }
 

@@ -1,5 +1,7 @@
 package com.lightningkite.reactive
 
+import com.lightningkite.reactive.context.await
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.context.reactiveScope
@@ -9,6 +11,7 @@ import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.MutableRemember
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.mutableRemember
+import com.lightningkite.reactive.lensing.lens
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

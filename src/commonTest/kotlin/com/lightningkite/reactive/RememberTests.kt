@@ -1,5 +1,6 @@
 package com.lightningkite.reactive
 
+import com.lightningkite.reactive.context.await
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.context.reactiveScope
 import com.lightningkite.reactive.core.Listenable

@@ -3,6 +3,7 @@ package com.lightningkite.reactive
 import com.lightningkite.reactive.context.CoroutineScopeHelpers
 import com.lightningkite.reactive.context.StatusListener
 import com.lightningkite.reactive.context.TypedReactiveContext
+import com.lightningkite.reactive.context.await
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.context.reactiveScope
