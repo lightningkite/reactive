@@ -26,13 +26,13 @@ import com.lightningkite.reactive.core.remember
  *
  * @property parent The parent node in the validation tree, or null if this is the root.
  */
-class IssueNode(parent: IssueNode?) {
+class IssueNode(val parent: IssueNode?) {
     private val nodeIssue = Signal<Issue?>(null)
 
     fun report(issue: Issue?) { nodeIssue.value = issue }
 
     private val children = ReactiveMutableList<IssueNode>()
-    fun childNode() = IssueNode(this).also { children.add(it) }
+    fun child() = IssueNode(this).also { children.add(it) }
     fun removeChild(child: IssueNode) = children.remove(child)
 
     val issues : Reactive<List<Issue>> = remember {

@@ -15,7 +15,7 @@ class ValidatedSetLens<T, L>(
     get: (T) -> L,
     set: (L) -> T
 ) : MutableValidated<L>, SetLens<T, L>(source, get, set) {
-    override val node: IssueNode = source.node.childNode()
+    override val node: IssueNode = source.node.child()
 }
 
 class ValidatedModifyLens<T, L>(
@@ -23,7 +23,7 @@ class ValidatedModifyLens<T, L>(
     get: (T) -> L,
     modify: (T, L) -> T
 ) : MutableValidated<L>, ModifyLens<T, L>(source, get, modify) {
-    override val node: IssueNode = source.node.childNode()
+    override val node: IssueNode = source.node.child()
 }
 
 class ValidatedSetValueLens<T, L>(
@@ -31,7 +31,7 @@ class ValidatedSetValueLens<T, L>(
     get: (T) -> L,
     set: (L) -> T
 ) : MutableValidatedValue<L>, SetValueLens<T, L>(source, get, set) {
-    override val node: IssueNode = source.node.childNode()
+    override val node: IssueNode = source.node.child()
 }
 
 class ValidatedModifyValueLens<T, L>(
@@ -39,7 +39,7 @@ class ValidatedModifyValueLens<T, L>(
     get: (T) -> L,
     modify: (T, L) -> T
 ) : MutableValidatedValue<L>, ModifyValueLens<T, L>(source, get, modify) {
-    override val node: IssueNode = source.node.childNode()
+    override val node: IssueNode = source.node.child()
 }
 
 
@@ -55,7 +55,7 @@ private class ValidationLens<T>(
     private val source: MutableValidated<T>,
     private val validate: (T) -> Issue?
 ) : MutableValidated<T>, Reactive<T> by source {
-    override val node: IssueNode = source.node.childNode()
+    override val node: IssueNode = source.node.child()
 
     private fun check(value: T): Boolean {
         val issue = validate(value)
@@ -88,7 +88,7 @@ private class ValidationValueLens<T>(
     private val source: MutableValidatedValue<T>,
     private val validate: (T) -> Issue?
 ) : MutableValidatedValue<T>, Listenable by source {
-    override val node: IssueNode = source.node.childNode()
+    override val node: IssueNode = source.node.child()
 
     private fun check(value: T): Boolean {
         val issue = validate(value)
