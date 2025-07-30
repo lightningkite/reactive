@@ -18,15 +18,16 @@ class ReactiveMutableSet<T>(private val hashSet: LinkedHashSet<T>): MutableSet<T
 
     private inline fun <V> signal(operation: MutableSet<T>.()->V): V = hashSet.operation().also { invokeAllListeners() }
 
-    override fun clear() = signal { clear() }
-    override fun retainAll(elements: Collection<T>): Boolean = signal { retainAll(elements.toSet()) }
-    override fun removeAll(elements: Collection<T>): Boolean = signal { removeAll(elements.toSet()) }
-    override fun addAll(elements: Collection<T>): Boolean = signal { addAll(elements) }
-    override fun add(element: T): Boolean = signal { add(element) }
+    // Used for methods that return if the list was modified
+    private inline fun signalChange(operation: MutableSet<T>.()->Boolean): Boolean =
+        hashSet.operation().also {
+            if (it) invokeAllListeners()
+        }
 
-    override fun remove(element: T): Boolean {
-        val success = hashSet.remove(element)
-        if (success) invokeAllListeners()
-        return success
-    }
+    override fun clear() = signal { clear() }
+    override fun retainAll(elements: Collection<T>): Boolean = signalChange { retainAll(elements.toSet()) }
+    override fun removeAll(elements: Collection<T>): Boolean = signalChange { removeAll(elements.toSet()) }
+    override fun addAll(elements: Collection<T>): Boolean = signalChange { addAll(elements) }
+    override fun add(element: T): Boolean = signalChange { add(element) }
+    override fun remove(element: T): Boolean = signalChange { remove(element) }
 }
