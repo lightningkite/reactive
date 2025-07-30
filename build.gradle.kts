@@ -1,7 +1,6 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import com.lightningkite.deployhelpers.*
-import com.vanniktech.maven.publish.SonatypeHost
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 
 group = "com.lightningkite"
@@ -16,7 +15,7 @@ buildscript {
         maven("https://jitpack.io")
     }
     dependencies {
-        classpath("com.lightningkite:lk-gradle-helpers:1.1.3")
+        classpath("com.lightningkite:lk-gradle-helpers:4.0.0")
         classpath("org.jetbrains.dokka:dokka-gradle-plugin:2.0.0")
     }
 }
@@ -24,20 +23,16 @@ buildscript {
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.comLightningkiteTestingManual)
-    alias(libs.plugins.vanniktechMaven)
-//    id("org.jetbrains.dokka")
+    alias(libs.plugins.vanniktechPublishing)
+    alias(libs.plugins.dokka)
     signing
 }
 
-val lk = project.lk {
-    kotlinTestManualPlugin()
-}
+group = "com.lightningkite"
 
 kotlin {
     jvm {
-        compilations.all {
-            kotlinOptions.jvmTarget = "1.8"
-        }
+        compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
     }
     iosX64()
     iosArm64()
@@ -64,41 +59,19 @@ kotlin {
 
         val commonMain by getting {
             dependencies {
-                api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+                api(libs.kotlinxCoroutines)
             }
         }
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0-RC.2")
-                implementation(lk.kotlinTestManualRuntime())
+                implementation(libs.kotlinxCoroutinesTesting)
+                implementation(libs.comLightningkiteTestingKotlinTestManualRuntime)
             }
         }
     }
 }
 
-mavenPublishing {
-    // publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
-    signAllPublications()
-    coordinates(group.toString(), name, version.toString())
-    pom {
-        name.set("Signals")
-        description.set("A lightweight reactivity platform for Kotlin Multiplatform")
-        github("lightningkite", "signals")
-
-        licenses {
-            mit()
-        }
-
-        developers {
-            joseph()
-            brady()
-            developer {
-                id.set("shanelk")
-                name.set("Shane Thompson")
-                email.set("shane@lightningkite.com")
-            }
-        }
-    }
-
+lkLibrary("lightningkite", "reactive") {
+    description.set("A lightweight reactivity platform for Kotlin Multiplatform")
 }

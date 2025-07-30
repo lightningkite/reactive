@@ -24,7 +24,7 @@ typealias CalculationContext = CoroutineScope
 @OptIn(ExperimentalStdlibApi::class)
 val CoroutineScope.requireMainThread: Boolean get() = coroutineContext[CoroutineDispatcher.Key] is MainCoroutineDispatcher
 @OptIn(ExperimentalStdlibApi::class)
-inline fun CoroutineScope.onThread(crossinline action: ()->Unit) {
+fun CoroutineScope.onThread(action: ()->Unit) {
     val d = coroutineContext[CoroutineDispatcher.Key] ?: return action()
     if(d.isDispatchNeeded(coroutineContext)) {
         d.dispatch(coroutineContext, Runnable(action))

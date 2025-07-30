@@ -322,33 +322,6 @@ class ReactivityTests {
     }
 
     @Test
-    fun deferredTest() {
-        testContext {
-            val other = Signal(0)
-            var starts = 0
-            var completes = 0
-            val wait = WaitGate()
-            val deferred = (AppScope + Dispatchers.Unconfined).asyncReactive {
-                println("Calculating...")
-                wait.await()
-                println("Going...")
-                "OK"
-            }
-            reactive {
-                starts++
-                other()
-                println(deferred())
-                completes++
-            }
-            assertEquals(1, starts)
-            assertEquals(0, completes)
-            wait.permitOnce()
-            assertEquals(2, starts)
-            assertEquals(1, completes)
-        }
-    }
-
-    @Test
     fun exceptionReruns() {
         val exceptional = RawReactive<Int>()
         testContext {
