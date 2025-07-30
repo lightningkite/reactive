@@ -17,8 +17,8 @@ Kotlin Multiplatform reactivity tools.
 
 ## Overview
 
-Reactive is a multiplatform Kotlin library for building reactive applications. It is based on concepts from SolidJS, and
-provides a set of core abstractions and utilities for managing state, observing changes, and composing reactive data 
+Reactive is a multiplatform Kotlin library for building reactive applications. It is inspired by concepts from Solid.js,
+and provides a set of core abstractions and utilities for managing state, observing changes, and composing reactive data 
 flow.
 
 Some of the features of Reactive include:
