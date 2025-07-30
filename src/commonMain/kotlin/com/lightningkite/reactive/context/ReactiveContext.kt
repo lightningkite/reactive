@@ -17,7 +17,75 @@ import kotlin.native.concurrent.ThreadLocal
 @ThreadLocal
 var reactiveContext: ReactiveContext? = null
 
+/**
+ * [ReactiveContext] provides an environment for observing and reacting to changes in [Reactive] or [Listenable] values.
+ *
+ * It automatically tracks dependencies accessed during a calculation and reruns the calculation whenever any dependency changes.
+ *
+ * - [Reactive] Dependencies are registered when accessed using the `invoke()` operator.
+ * - Long loading times and error states are automatically handled and reported.
+ * - The context's lifetime is tied to a [CoroutineScope]. When the scope ends, all resources are released and listeners are stopped.
+ * - Only calculations affected by changed dependencies are rerun, ensuring efficient updates.
+ * - The context can be cancelled to stop further calculations and clean up resources.
+ *
+ * Example usage:
+ * ```kotlin
+ * val r1: Reactive<Int> = // ...
+ * val r2: Reactive<String> = // ...
+ *
+ * val context = reactive {
+ *     println("Value1 is: ${r1()}, value2 is: ${r2()}")
+ * }
+ * ```
+ */
 typealias ReactiveContext = TypedReactiveContext<*>
+
+/**
+ * Implements the core logic for a single reactive calculation, managing its dependencies and lifecycle.
+ *
+ * [TypedReactiveContext] tracks all [Reactive] and [Listenable] dependencies accessed during the execution of its [action] lambda.
+ * When any dependency changes, the context automatically reruns the calculation, ensuring the result is always up-to-date.
+ *
+ * ### Implementation Details
+ * - **Dependency Tracking:**
+ *   - When [startCalculation] is called, the context sets itself as the current [reactiveContext] (thread-local).
+ *   - All [Reactive] and [Listenable] values accessed via the provided operators (e.g., `invoke()`, `once()`, etc.) are registered as dependencies.
+ *   - Each dependency registers a listener that triggers [rerun], queuing a recalculation.
+ *   - Dependency tracking is managed by [DependencyTracker], which ensures only relevant dependencies are tracked and cleaned up.
+ *
+ * - **Calculation Lifecycle:**
+ *   - The [action] lambda is executed inside [startCalculation], and its result is reported to [reportTo] (a [RawReactive]).
+ *   - If [useLastWhileLoading] is true, the previous value is used while new results are loading; otherwise, the state is updated only when ready.
+ *   - The context can be cancelled via [cancel], which stops further calculations and releases all listeners/resources.
+ *   - The context inherits its lifetime from the provided [CalculationContext] (usually a [CoroutineScope]).
+ *
+ * - **Operators:**
+ *   - `Reactive<T>.invoke()`: Returns the current value and registers the dependency.
+ *   - `Reactive<T>.once()`: Returns the value once, then unregisters the dependency.
+ *   - `Flow<T>.invoke()`: Returns the latest value from a [Flow], registering the dependency.
+ *   - `Deferred<T>.invoke()`: Returns the value from a [Deferred], registering the dependency.
+ *
+ * - **Advanced Features:**
+ *   - Suspending calculations can be performed using [async] and [Deferred.invoke].
+ *   - The context supports custom dependency registration via [rerunOn].
+ *   - The context can be used with lambdas that take parameters, using the provided operator overloads.
+ *
+ * ### Example Usage
+ * ```kotlin
+ * val context = TypedReactiveContext(scope) {
+ *     val a = someReactive()
+ *     val b = anotherReactive()
+ *     a + b
+ * }
+ * context.startCalculation()
+ * ```
+ *
+ * @param T The type of value produced by the calculation.
+ * @property scope The coroutine context for calculations.
+ * @property useLastWhileLoading Whether to use the last value while loading new results.
+ * @property reportTo The underlying [RawReactive] to report state updates to.
+ * @property action The calculation logic to execute in this context.
+ */
 class TypedReactiveContext<T>(
     val scope: CalculationContext,
     val useLastWhileLoading: Boolean = false,
@@ -228,6 +296,15 @@ class TypedReactiveContext<T>(
     }
 }
 
+/**
+ * Creates a [ReactiveContext] in which to run the provided [action] reactively.
+ *
+ * The [action] lambda is executed in a tracked context, automatically registering all [Reactive] and [Listenable] dependencies accessed.
+ * Whenever any dependency changes, the calculation is rerun, keeping the result up-to-date.
+ *
+ * @param action The calculation logic to run reactively.
+ * @return A [TypedReactiveContext] managing the calculation and its dependencies.
+ */
 fun <T> CalculationContext.reactive(action: ReactiveContext.() -> T): TypedReactiveContext<T> {
     val trc = TypedReactiveContext(this, action = action)
     trc.startCalculation()
@@ -235,6 +312,25 @@ fun <T> CalculationContext.reactive(action: ReactiveContext.() -> T): TypedReact
     return trc
 }
 
+/**
+ * Creates a [ReactiveContext] in which to run the provided [action] reactively, with support for loading state.
+ *
+ * The [action] lambda is executed in a tracked context, automatically registering all [Reactive] and [Listenable] dependencies accessed.
+ * If the calculation enters a loading state, the [onLoad] callback is invoked.
+ *
+ * The returned [TypedReactiveContext] manages the lifecycle and cancellation of the calculation, and is tied to the provided [CalculationContext].
+ *
+ * Example usage:
+ * ```kotlin
+ * val context = reactive(onLoad = { println("Loading...") }) {
+ *     // calculation logic
+ * }
+ * ```
+ *
+ * @param onLoad Callback invoked when the calculation enters a loading state.
+ * @param action The calculation logic to run reactively.
+ * @return A [TypedReactiveContext] managing the calculation and its dependencies.
+ */
 inline fun <T> CalculationContext.reactive(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): TypedReactiveContext<Unit> {
     var wasLoadingLastTime = false
     return reactive {
@@ -253,8 +349,24 @@ inline fun <T> CalculationContext.reactive(crossinline onLoad: () -> Unit, cross
     }
 }
 
-fun CalculationContext.reactiveScope(action: ReactiveContext.() -> Unit) = reactive(action = action)
+/**
+ * Creates a [ReactiveContext] in which to run the provided [action] reactively, discarding the result.
+ *
+ * This is a convenience wrapper for [reactive], used when the result of the calculation is not needed.
+ *
+ * @param action The calculation logic to run reactively.
+ */
+fun CalculationContext.reactiveScope(action: ReactiveContext.() -> Unit): ReactiveContext = reactive(action = action)
 
-inline fun CalculationContext.reactiveScope(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit) = reactive<Unit>(onLoad = onLoad, action = action)
+/**
+ * Creates a [ReactiveContext] in which to run the provided [action] reactively, discarding the result, with support for loading state.
+ *
+ * This is a convenience wrapper for [reactive], used when the result of the calculation is not needed.
+ * If the calculation enters a loading state, the [onLoad] callback is invoked.
+ *
+ * @param onLoad Callback invoked when the calculation enters a loading state.
+ * @param action The calculation logic to run reactively.
+ */
+inline fun CalculationContext.reactiveScope(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): ReactiveContext = reactive<Unit>(onLoad = onLoad, action = action)
 
 object ReactiveLoading : Throwable()

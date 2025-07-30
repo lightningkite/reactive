@@ -59,10 +59,10 @@ fun <T> Reactive<T>.withWrite(action: suspend Reactive<T>.(T) -> Unit): MutableR
         }
     }
 
-fun <T> Reactive<T>.onNextSuccess(action: (T) -> Unit) {
+fun <T> Reactive<T>.onNextSuccess(action: (T) -> Unit): () -> Unit {
     if (state.success) {
         state.onSuccess(action)
-        return
+        return {}
     }
 
     var remover: (() -> Unit)? = null
@@ -72,6 +72,7 @@ fun <T> Reactive<T>.onNextSuccess(action: (T) -> Unit) {
             remover?.invoke()
         }
     }
+    return remover
 }
 
 fun <T : Any> MutableReactive<T>.nullable(): MutableReactive<T?> =

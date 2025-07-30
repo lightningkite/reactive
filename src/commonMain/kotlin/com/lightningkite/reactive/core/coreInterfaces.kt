@@ -4,6 +4,7 @@ import com.lightningkite.reactive.lensing.ModifyLens
 import com.lightningkite.reactive.lensing.ModifyValueLens
 import com.lightningkite.reactive.lensing.SetLens
 import com.lightningkite.reactive.lensing.SetValueLens
+import com.lightningkite.reactive.context.ReactiveContext
 import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
@@ -56,7 +57,7 @@ fun Listenable.addAndRunListener(listener: () -> Unit): () -> Unit {
  * Represents a reactive value that can be observed for changes.
  *
  * - Holds a [ReactiveState], which can represent not only ready values, but also **loading states** and **error states**.
- * - Values can be retrieved asynchronously and reactively via `Reactive.invoke()` when in a `ReactiveContext`.
+ * - Values can be retrieved asynchronously and reactively via `Reactive.invoke()` when in a [ReactiveContext].
  * - Listeners are notified only when the [state] changes; repeated or identical states do not trigger notifications.
  *
  * This interface is central to the reactive system, allowing you to observe and respond to changes in state, including asynchronous or error-prone data sources.
