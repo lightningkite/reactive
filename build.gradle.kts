@@ -2,6 +2,10 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import com.lightningkite.deployhelpers.*
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
+import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnLockMismatchReport
+import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin
+import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension
+import kotlin.jvm.java
 
 group = "com.lightningkite"
 version = "1.0-SNAPSHOT"
@@ -74,4 +78,9 @@ kotlin {
 
 lkLibrary("lightningkite", "reactive") {
     description.set("A lightweight reactivity platform for Kotlin Multiplatform")
+}
+plugins.withType(YarnPlugin::class.java) {
+    the<YarnRootExtension>().yarnLockMismatchReport = YarnLockMismatchReport.FAIL
+    the<YarnRootExtension>().reportNewYarnLock = false
+    the<YarnRootExtension>().yarnLockAutoReplace = true
 }
