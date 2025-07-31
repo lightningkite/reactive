@@ -8,18 +8,13 @@ import kotlin.coroutines.CoroutineContext
 /**
  * Creates a mutable reactive value that can be set directly or calculated automatically.
  *
- * This behaves essentially the same as [remember], but allows the value to be manually set.
- * The initial value is calculated in a reactive context and updates automatically when dependencies change,
- * unless the value is overridden by direct assignment. When overridden, listeners are notified only if the value changes.
+ * This is essentially the same as [remember], but allows the value to be manually set. The initial
+ * value is calculated in a [ReactiveContext], updating when dependencies change. However, once a value
+ * is manually set it will stop the calculation and instead behave like a [Signal].
  *
  * Note:
- * - `MutableRemember` is lazy: if it has no listeners, it will not calculate a value.
+ * - `mutableRemember` is lazy: if it has no listeners, it will not calculate a value.
  * - Listeners are only notified if the calculated or set value changes.
- *
- * @param useLastWhileLoading If true, uses the last known value while recalculating.
- * @param coroutineContext The coroutine context for running the calculation (default: Dispatchers.Unconfined).
- * @param initialValue The block to compute the initial value reactively.
- * @return A mutable reactive value that can be set or calculated automatically.
  *
  * Example:
  * ```kotlin
@@ -28,6 +23,11 @@ import kotlin.coroutines.CoroutineContext
  * val sum: ReactiveWithMutableValue<Int> = mutableRemember { a() + b() } // calculates '1' and shares result
  * sum.value = 42 // overrides automatic calculation and shares new value '42'
  * ```
+ *
+ * @param useLastWhileLoading If true, uses the last known value while recalculating.
+ * @param coroutineContext The coroutine context for running the calculation (default: Dispatchers.Unconfined).
+ * @param initialValue The block to compute the initial value reactively.
+ * @return A mutable reactive value that can be set or calculated automatically.
  *
  * @see remember
  */
@@ -38,7 +38,8 @@ fun <T> mutableRemember(
 ): ReactiveWithMutableValue<T> = MutableRemember(true, useLastWhileLoading, coroutineContext, initialValue)
 
 /**
- * A mutable reactive value that can be set directly or calculated automatically from dependencies.
+ * A mutable reactive value that can be set directly or calculated automatically from dependencies. It is a
+ * mutable version of [Remember].
  *
  * When not overridden, the value is calculated in a reactive context and updates automatically when dependencies change.
  * When overridden by direct assignment, automatic calculation is paused until `reset()` is called.
@@ -52,6 +53,8 @@ fun <T> mutableRemember(
  * @property useLastWhileLoading If true, uses the last known value while recalculating.
  * @param coroutineContext The coroutine context for running the calculation.
  * @param initialValue The block to compute the initial value reactively.
+ *
+ * @see Remember
  */
 class MutableRemember<T>(
     private val stopListeningWhenOverridden: Boolean = true,
