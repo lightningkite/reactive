@@ -1,7 +1,9 @@
 package com.lightningkite.reactive.lensing.validation
 
+import com.lightningkite.reactive.context.ReactiveContext
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.MutableReactiveValue
+import com.lightningkite.reactive.core.Signal
 
 /**
  * Adds a validation check to this [MutableValidated] instance.
@@ -262,3 +264,26 @@ fun MutableReactiveValue<String>.assertNotBlank(
     description: String = summary,
     setOnIssue: Boolean = true
 ) = assert(summary, description, setOnIssue) { it.isNotBlank() }
+
+/**
+ * Runs the provided validation condition reactively, reporting to a child of this [IssueTracking] node.
+ * */
+fun IssueTracking.report(issue: ReactiveContext.() -> Issue?) {
+    val child = IssueNode(parent = node)
+    child.connect()
+    child.reactiveReport(issue)
+}
+
+/**
+ * Runs the provided validation condition reactively, reporting to a child of this [IssueTracking] node.
+ * */
+fun <T> Validated<T>.validateReactive(issue: ReactiveContext.(T) -> String?) = report { issue(this@validateReactive.invoke())?.let(Issue::Warning) }
+
+/**
+ * Asserts the provided condition reactively, constructing and reporting an [Issue.Warning] to a child of this [IssueTracking] node.
+ * */
+fun <T> Validated<T>.assertReactive(
+    summary: String,
+    description: String = summary,
+    condition: ReactiveContext.(T) -> Boolean
+) = report { if (condition(this@assertReactive.invoke())) null else Issue.Warning(summary, description) }

@@ -1,5 +1,7 @@
 package com.lightningkite.reactive.lensing.validation
 
+import com.lightningkite.reactive.context.ReactiveContext
+import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveMutableList
 import com.lightningkite.reactive.core.ReactiveValue
@@ -29,9 +31,12 @@ import com.lightningkite.reactive.core.remember
  * @property parent The parent node in the validation tree, or null if this is the root.
  */
 class IssueNode(val parent: IssueNode?) : ResourceUse {
-    private val nodeIssue = Signal<Issue?>(null)
+    private val nodeIssue = Signal<Reactive<Issue?>>(Constant(null))
 
-    fun report(issue: Issue?) { nodeIssue.value = issue }
+    fun report(issue: Issue?) { nodeIssue.value = Constant(issue) }
+    fun reactiveReport(issue: ReactiveContext.() -> Issue?) {
+        nodeIssue.value = remember(action = issue)
+    }
 
     private val children = ReactiveMutableList<IssueNode>()
 
@@ -41,7 +46,7 @@ class IssueNode(val parent: IssueNode?) : ResourceUse {
      * Grafts this node and its children to its parent's validation tree.
      * This means that this node's issues will propagate to its parent.
      *
-     * Useful for restoring validation dependencies once a set of data has become relevant.
+     * Useful for establishing validation dependencies once a set of data has become relevant.
      * */
     fun connect() {
         if (connected || parent == null) return
@@ -65,9 +70,8 @@ class IssueNode(val parent: IssueNode?) : ResourceUse {
         return ::disconnect
     }
 
-    val issue : ReactiveValue<Issue?> get() = nodeIssue
     val issues : Reactive<List<Issue>> = remember {
-        listOfNotNull(nodeIssue()) + children().flatMap { it.issues() }
+        listOfNotNull(nodeIssue()()) + children().flatMap { it.issues() }
     }
 }
 

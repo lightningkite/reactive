@@ -28,16 +28,15 @@ private open class ValidatedLens<S : Validated<T>, T>(
             return super.state
         }
         set(value) {
-            check(value)
             super.state = value
         }
 
     override fun activate() {
         super.activate()
         baseNode.connect()
-        state = source.state
+        state = source.state.also(::check)
         myListen = source.addListener {
-            state = source.state
+            state = source.state.also(::check)
         }
     }
     override fun deactivate() {
@@ -66,16 +65,15 @@ private open class ValidatedValueLens<S : ValidatedValue<T>, T>(
             return super.value
         }
         set(value) {
-            check(value)
             super.value = value
         }
 
     override fun activate() {
         super.activate()
         baseNode.connect()
-        value = source.value
+        value = source.value.also(::check)
         myListen = source.addListener {
-            value = source.value
+            value = source.value.also(::check)
         }
     }
     override fun deactivate() {
@@ -91,8 +89,10 @@ private class MutableValidationLens<T>(
     validate: (T) -> Issue?
 ) : MutableValidated<T>, ValidatedLens<MutableValidated<T>, T>(source, validate) {
     override suspend fun set(value: T) {
-        state = ReactiveState(value) // performs the validation check
-        if (baseNode.issue.value !is Issue.Invalid) source.set(value)
+        val issue = validate(value)
+        baseNode.report(issue)
+        super.state = ReactiveState(value)
+        if (issue == null || issue is Issue.Warning) source.set(value)
     }
 }
 
@@ -103,8 +103,10 @@ private class ValidationValueLens<T>(
     override var value
         get() = super.value
         set(value) {
-            super.value = value // performs the validation check
-            if (baseNode.issue.value !is Issue.Invalid) source.value = value
+            val issue = validate(value)
+            baseNode.report(issue)
+            super.value = value
+            if (issue == null || issue is Issue.Warning) source.value = value
         }
 }
 
@@ -154,14 +156,3 @@ fun <T> MutableValidatedValue<T>.checkForIssue(validate: (T) -> Issue?): Mutable
  * @return A [MutableValidatedValue] that tracks issues according to [validate].
  */
 fun <T> MutableReactiveValue<T>.checkForIssue(validate: (T) -> Issue?): MutableValidatedValue<T> = ValidationValueLens(this.validated(), validate)
-
-fun test() {
-    val a = Signal(0).validated().checkForIssue {
-        if (it > 10) Issue.Warning("Must be less than 10")
-        else null
-    }
-    val b = remember { a() }.validated().checkForIssue {
-        if (it > 10) Issue.Warning("Must be less than 10")
-        else null
-    }
-}
