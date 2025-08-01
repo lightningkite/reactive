@@ -7,6 +7,10 @@ import com.lightningkite.reactive.core.MutableWithReactiveValue
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.extensions.invokeAllSafe
+import com.lightningkite.reactive.lensing.validation.IssueNode
+import com.lightningkite.reactive.lensing.validation.MutableValidated
+import com.lightningkite.reactive.lensing.validation.Validated
+import com.lightningkite.reactive.lensing.validation.ValidatedValue
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -44,7 +48,11 @@ class LensByElement<E, ID, T>(
     val identity: (E) -> ID,
     val elementLens: (LensByElement<E, ID, T>.Element) -> T
 ) : Reactive<List<T>> {
-    inner class Element internal constructor(valueInit: E) : MutableWithReactiveValue<E>, CalculationContext {
+    private val node = IssueNode(parent = (source as? MutableValidated)?.node).apply { connect() }
+
+    inner class Element internal constructor(valueInit: E) : MutableWithReactiveValue<E>, MutableValidated<E>, CalculationContext {
+        override val node: IssueNode = this@LensByElement.node.child()
+
         private var job = Job()
         private val restOfContext = Dispatchers.Default + CoroutineExceptionHandler { coroutineContext, throwable ->
             if (throwable !is CancellationException) {
@@ -56,6 +64,7 @@ class LensByElement<E, ID, T>(
         internal var dead = false
             set(value) {
                 field = value
+                if (value) node.disconnect() else node.connect()
                 listeners.invokeAllSafe()
                 job.cancel()
                 job = Job()
@@ -63,10 +72,8 @@ class LensByElement<E, ID, T>(
         var id: ID = identity(valueInit)
             private set
         private val listeners = ArrayList<() -> Unit>()
-        override val state: ReactiveState<E>
-            get() = ReactiveState(value)
         override var value: E = valueInit
-            set(value) {
+            internal set(value) {
                 if (field != value) {
                     id = identity(value)
                     field = value

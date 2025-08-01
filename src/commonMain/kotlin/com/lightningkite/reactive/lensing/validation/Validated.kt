@@ -49,7 +49,7 @@ val IssueTracking.issues get() = node.issues
  *
  * Note: Reporting or clearing issues in this node does not affect issues in child nodes.
  *
- * @param issue The issue to report, or null to clear this node's issues.
+ * @param issue The issue to report, or null to clear this node's issue.
  */
 fun IssueTracking.report(issue: Issue?) = node.report(issue)
 

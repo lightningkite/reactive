@@ -1,7 +1,11 @@
 package com.lightningkite.reactive.lensing.validation
 
+import com.lightningkite.reactive.context.ReactiveContext
+import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveMutableList
+import com.lightningkite.reactive.core.ReactiveValue
+import com.lightningkite.reactive.core.ResourceUse
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
 
@@ -24,19 +28,69 @@ import com.lightningkite.reactive.core.remember
  * Reporting an issue on any node will cause that issue to be included in the parent's [issues] list.
  * Removing a child node will remove its issues from the parent's [issues] list.
  *
+ * Note: When created, IssueNodes are not by-default connected to their parent's validation tree.
+ * This is done to help manage dependencies, and avoid deadlocks in validation. If this wasn't done
+ * there would be some cases where a validation lens would be discarded, but it's validation issues
+ * would still propagate up the tree, even though there's no way to clear the issues. To connect an
+ * IssueNode
+ *
  * @property parent The parent node in the validation tree, or null if this is the root.
  */
-class IssueNode(val parent: IssueNode?) {
-    private val nodeIssue = Signal<Issue?>(null)
+class IssueNode(val parent: IssueNode?) : ResourceUse {
+    private val nodeIssue = Signal<Reactive<Issue?>>(Constant(null))
 
-    fun report(issue: Issue?) { nodeIssue.value = issue }
+    fun report(issue: Issue?) { nodeIssue.value = Constant(issue) }
+    fun reactiveReport(issue: ReactiveContext.() -> Issue?) {
+        nodeIssue.value = remember(action = issue)
+    }
 
     private val children = ReactiveMutableList<IssueNode>()
-    fun child() = IssueNode(this).also { children.add(it) }
-    fun removeChild(child: IssueNode) = children.remove(child)
+
+    /**
+     * Creates a child of this [IssueNode] and immediately connects it to the validation tree.
+     *
+     * Note: This function is **NOT** safe to use in a [ReactiveContext], unless you plan to manage
+     * the lifetime of the node manually. Using this function in a [ReactiveContext] will create a new
+     * child every time the context reruns, and will probably leave orphaned nodes that you are unable
+     * to clear the issues on.
+     *
+     * Instead, consider using [child] outside of the [ReactiveContext], and then report to that outside
+     * node inside any reactive code.
+     * */
+    fun child() = IssueNode(this).apply { connect() }
+
+    private var connected = false
+
+    /**
+     * Grafts this node and its children to its parent's validation tree.
+     * This means that this node's issues will propagate to its parent.
+     *
+     * Useful for establishing validation dependencies once a set of data has become relevant.
+     * */
+    fun connect() {
+        if (connected || parent == null) return
+        connected = true
+        parent.children.add(this)
+    }
+    /**
+     * Prunes this node and its children from its parent's validation tree.
+     * This means that this node's issues will no longer propagate to its parent.
+     *
+     * Useful for removing validation dependencies on data that is no longer relevant.
+     * */
+    fun disconnect() {
+        if (!connected || parent == null) return
+        connected = false
+        parent.children.remove(this)
+    }
+
+    override fun beginUse(): () -> Unit {
+        connect()
+        return ::disconnect
+    }
 
     val issues : Reactive<List<Issue>> = remember {
-        listOfNotNull(nodeIssue()) + children().flatMap { it.issues() }
+        listOfNotNull(nodeIssue()()) + children().flatMap { it.issues() }
     }
 }
 

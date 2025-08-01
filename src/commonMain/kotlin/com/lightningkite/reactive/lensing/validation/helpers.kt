@@ -1,7 +1,9 @@
 package com.lightningkite.reactive.lensing.validation
 
+import com.lightningkite.reactive.context.ReactiveContext
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.MutableReactiveValue
+import com.lightningkite.reactive.core.Signal
 
 /**
  * Adds a validation check to this [MutableValidated] instance.
@@ -88,7 +90,7 @@ fun <T> MutableValidatedValue<T>.assert(
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun <T : Any> MutableValidated<T?>.validateNotNull(
+fun <T : Any> MutableValidated<T?>.assertNotNull(
     summary: String = "Cannot be blank.",
     description: String = summary,
     setOnIssue: Boolean = true
@@ -101,33 +103,33 @@ fun <T : Any> MutableValidated<T?>.validateNotNull(
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun <T : Any> MutableValidatedValue<T?>.validateNotNull(
+fun <T : Any> MutableValidatedValue<T?>.assertNotNull(
     summary: String = "Cannot be blank.",
     description: String = summary,
     setOnIssue: Boolean = true
 ) = assert(summary, description, setOnIssue) { it != null }
 
 /**
- * Validates that the value of this [MutableValidated] is not blank (for String values).
+ * Validates that the value of this [MutableValidated] is not blank.
  *
  * @param summary Short description of the issue (defaults to "Cannot be blank.").
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun MutableValidated<String>.validateNotBlank(
+fun MutableValidated<String>.assertNotBlank(
     summary: String = "Cannot be blank.",
     description: String = summary,
     setOnIssue: Boolean = true
 ) = assert(summary, description, setOnIssue) { it.isNotBlank() }
 
 /**
- * Validates that the value of this [MutableValidatedValue] is not blank (for String values).
+ * Validates that the value of this [MutableValidatedValue] is not blank.
  *
  * @param summary Short description of the issue (defaults to "Cannot be blank.").
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun MutableValidatedValue<String>.validateNotBlank(
+fun MutableValidatedValue<String>.assertNotBlank(
     summary: String = "Cannot be blank.",
     description: String = summary,
     setOnIssue: Boolean = true
@@ -218,7 +220,7 @@ fun <T> MutableReactiveValue<T>.assert(
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun <T : Any> MutableReactive<T?>.validateNotNull(
+fun <T : Any> MutableReactive<T?>.assertNotNull(
     summary: String = "Cannot be blank.",
     description: String = summary,
     setOnIssue: Boolean = true
@@ -231,34 +233,57 @@ fun <T : Any> MutableReactive<T?>.validateNotNull(
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun <T : Any> MutableReactiveValue<T?>.validateNotNull(
+fun <T : Any> MutableReactiveValue<T?>.assertNotNull(
     summary: String = "Cannot be blank.",
     description: String = summary,
     setOnIssue: Boolean = true
 ) = assert(summary, description, setOnIssue) { it != null }
 
 /**
- * Validates that the value of this [MutableReactive] is not blank (for String values).
+ * Validates that the value of this [MutableReactive] is not blank.
  *
  * @param summary Short description of the issue (defaults to "Cannot be blank.").
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun MutableReactive<String>.validateNotBlank(
+fun MutableReactive<String>.assertNotBlank(
     summary: String = "Cannot be blank.",
     description: String = summary,
     setOnIssue: Boolean = true
 ) = assert(summary, description, setOnIssue) { it.isNotBlank() }
 
 /**
- * Validates that the value of this [MutableReactiveValue] is not blank (for String values).
+ * Validates that the value of this [MutableReactiveValue] is not blank.
  *
  * @param summary Short description of the issue (defaults to "Cannot be blank.").
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun MutableReactiveValue<String>.validateNotBlank(
+fun MutableReactiveValue<String>.assertNotBlank(
     summary: String = "Cannot be blank.",
     description: String = summary,
     setOnIssue: Boolean = true
 ) = assert(summary, description, setOnIssue) { it.isNotBlank() }
+
+/**
+ * Runs the provided validation condition reactively, reporting to a child of this [IssueTracking] node.
+ * */
+fun IssueTracking.report(issue: ReactiveContext.() -> Issue?) {
+    val child = IssueNode(parent = node)
+    child.connect()
+    child.reactiveReport(issue)
+}
+
+/**
+ * Runs the provided validation condition reactively, reporting to a child of this [IssueTracking] node.
+ * */
+fun <T> Validated<T>.validateReactive(issue: ReactiveContext.(T) -> String?) = report { issue(this@validateReactive.invoke())?.let(Issue::Warning) }
+
+/**
+ * Asserts the provided condition reactively, constructing and reporting an [Issue.Warning] to a child of this [IssueTracking] node.
+ * */
+fun <T> Validated<T>.assertReactive(
+    summary: String,
+    description: String = summary,
+    condition: ReactiveContext.(T) -> Boolean
+) = report { if (condition(this@assertReactive.invoke())) null else Issue.Warning(summary, description) }

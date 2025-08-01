@@ -9,6 +9,7 @@ import com.lightningkite.reactive.core.Listenable
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.reactiveState
+import com.lightningkite.reactive.lensing.validation.IssueNode
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
