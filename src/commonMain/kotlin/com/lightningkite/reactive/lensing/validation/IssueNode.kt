@@ -2,6 +2,8 @@ package com.lightningkite.reactive.lensing.validation
 
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveMutableList
+import com.lightningkite.reactive.core.ReactiveValue
+import com.lightningkite.reactive.core.ResourceUse
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
 
@@ -26,15 +28,44 @@ import com.lightningkite.reactive.core.remember
  *
  * @property parent The parent node in the validation tree, or null if this is the root.
  */
-class IssueNode(val parent: IssueNode?) {
+class IssueNode(val parent: IssueNode?) : ResourceUse {
     private val nodeIssue = Signal<Issue?>(null)
 
     fun report(issue: Issue?) { nodeIssue.value = issue }
 
     private val children = ReactiveMutableList<IssueNode>()
-    fun child() = IssueNode(this).also { children.add(it) }
-    fun removeChild(child: IssueNode) = children.remove(child)
 
+    private var connected = false
+
+    /**
+     * Grafts this node and its children to its parent's validation tree.
+     * This means that this node's issues will propagate to its parent.
+     *
+     * Useful for restoring validation dependencies once a set of data has become relevant.
+     * */
+    fun connect() {
+        if (connected || parent == null) return
+        connected = true
+        parent.children.add(this)
+    }
+    /**
+     * Prunes this node and its children from its parent's validation tree.
+     * This means that this node's issues will no longer propagate to its parent.
+     *
+     * Useful for removing validation dependencies on data that is no longer relevant.
+     * */
+    fun disconnect() {
+        if (!connected || parent == null) return
+        connected = false
+        parent.children.remove(this)
+    }
+
+    override fun beginUse(): () -> Unit {
+        connect()
+        return ::disconnect
+    }
+
+    val issue : ReactiveValue<Issue?> get() = nodeIssue
     val issues : Reactive<List<Issue>> = remember {
         listOfNotNull(nodeIssue()) + children().flatMap { it.issues() }
     }

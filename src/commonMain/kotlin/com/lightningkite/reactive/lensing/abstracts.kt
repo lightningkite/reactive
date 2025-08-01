@@ -42,7 +42,9 @@ open class SetLens<O, T>(
     val set: (T) -> O
 ) : Lens<MutableReactive<O>, O, T>(source, get), MutableReactive<T> {
     override suspend fun set(value: T) {
-        source.set(set.invoke(value))
+        val transformed = set.invoke(value)
+        state = ReactiveState(get(transformed)) // using get(set(value)) so that echos are filtered out
+        source.set(transformed)
     }
 }
 
@@ -52,7 +54,9 @@ open class ModifyLens<O, T>(
     val modify: (O, T) -> O
 ) : Lens<MutableReactive<O>, O, T>(source, get), MutableReactive<T> {
     override suspend fun set(value: T) {
-        source.set(modify(source.awaitOnce(), value))
+        val transformed = modify(source.awaitOnce(), value)
+        state = ReactiveState(get(transformed)) // using get(modify(this, value)) so that echos are filtered out
+        source.set(transformed)
     }
 }
 
@@ -90,7 +94,9 @@ open class SetValueLens<O, T>(source: MutableReactiveValue<O>, get: (O) -> T, va
     override var value: T
         get() = super.value
         set(value) {
-            source.value = set.invoke(value)
+            val transformed = set.invoke(value)
+            super.value = get(transformed)
+            source.value = transformed
         }
 }
 
@@ -99,7 +105,9 @@ open class ModifyValueLens<O, T>(source: MutableReactiveValue<O>, get: (O) -> T,
     override var value: T
         get() = super.value
         set(value) {
-            source.value = modify(source.value, value)
+            val transformed = modify(source.value, value)
+            super.value = get(transformed)
+            source.value = transformed
         }
 }
 
