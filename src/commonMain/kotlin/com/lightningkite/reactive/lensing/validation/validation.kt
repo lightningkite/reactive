@@ -8,6 +8,7 @@ import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
+import kotlin.random.Random
 
 private open class ValidatedLens<S : Validated<T>, T>(
     val source: S,
@@ -17,7 +18,9 @@ private open class ValidatedLens<S : Validated<T>, T>(
     private var myListen: (() -> Unit)? = null
 
     private fun check(state: ReactiveState<T>) =
-        state.onSuccess { baseNode.report(validate(it)) }
+        state.onSuccess { value ->
+            baseNode.report(validate(value))
+        }
 
     override val node: IssueNode
         get() = baseNode.also { if (myListen == null) check(source.state) }
@@ -31,12 +34,19 @@ private open class ValidatedLens<S : Validated<T>, T>(
             super.state = value
         }
 
+    private var listen = true
+    protected inline fun withoutListening(block: () -> Unit) {
+        listen = false
+        block()
+        listen = true
+    }
+
     override fun activate() {
         super.activate()
         baseNode.connect()
         state = source.state.also(::check)
         myListen = source.addListener {
-            state = source.state.also(::check)
+            if (listen) state = source.state.also(::check)
         }
     }
     override fun deactivate() {
@@ -68,12 +78,19 @@ private open class ValidatedValueLens<S : ValidatedValue<T>, T>(
             super.value = value
         }
 
+    private var listen = true
+    protected inline fun withoutListening(block: () -> Unit) {
+        listen = false
+        block()
+        listen = true
+    }
+
     override fun activate() {
         super.activate()
         baseNode.connect()
         value = source.value.also(::check)
         myListen = source.addListener {
-            value = source.value.also(::check)
+            if (listen) value = source.value.also(::check)
         }
     }
     override fun deactivate() {
@@ -92,7 +109,7 @@ private class MutableValidationLens<T>(
         val issue = validate(value)
         baseNode.report(issue)
         super.state = ReactiveState(value)
-        if (issue == null || issue is Issue.Warning) source.set(value)
+        if (issue == null || issue is Issue.Warning) withoutListening { source.set(value) }
     }
 }
 
@@ -106,7 +123,7 @@ private class ValidationValueLens<T>(
             val issue = validate(value)
             baseNode.report(issue)
             super.value = value
-            if (issue == null || issue is Issue.Warning) source.value = value
+            if (issue == null || issue is Issue.Warning) withoutListening { source.value = value }
         }
 }
 

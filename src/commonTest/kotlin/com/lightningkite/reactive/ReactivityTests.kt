@@ -471,7 +471,14 @@ class TestContext : CoroutineScopeHelpers() {
     }
 
     val incompleteKeys = HashSet<Any>()
-    override val coroutineContext: CoroutineContext = job + Dispatchers.Unconfined + object : StatusListener {
+    override val coroutineContext: CoroutineContext =
+        job +
+                CoroutineExceptionHandler { ctx, it ->
+                    error = it
+                    job.cancel()
+                } +
+                Dispatchers.Unconfined +
+                object : StatusListener {
         override fun loading(reactive: Reactive<*>) {
             var loading = false
             var excEnder: (() -> Unit)? = null

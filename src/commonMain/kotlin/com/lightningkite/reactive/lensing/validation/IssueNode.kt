@@ -28,6 +28,12 @@ import com.lightningkite.reactive.core.remember
  * Reporting an issue on any node will cause that issue to be included in the parent's [issues] list.
  * Removing a child node will remove its issues from the parent's [issues] list.
  *
+ * Note: When created, IssueNodes are not by-default connected to their parent's validation tree.
+ * This is done to help manage dependencies, and avoid deadlocks in validation. If this wasn't done
+ * there would be some cases where a validation lens would be discarded, but it's validation issues
+ * would still propagate up the tree, even though there's no way to clear the issues. To connect an
+ * IssueNode
+ *
  * @property parent The parent node in the validation tree, or null if this is the root.
  */
 class IssueNode(val parent: IssueNode?) : ResourceUse {
@@ -39,6 +45,19 @@ class IssueNode(val parent: IssueNode?) : ResourceUse {
     }
 
     private val children = ReactiveMutableList<IssueNode>()
+
+    /**
+     * Creates a child of this [IssueNode] and immediately connects it to the validation tree.
+     *
+     * Note: This function is **NOT** safe to use in a [ReactiveContext], unless you plan to manage
+     * the lifetime of the node manually. Using this function in a [ReactiveContext] will create a new
+     * child every time the context reruns, and will probably leave orphaned nodes that you are unable
+     * to clear the issues on.
+     *
+     * Instead, consider using [child] outside of the [ReactiveContext], and then report to that outside
+     * node inside any reactive code.
+     * */
+    fun child() = IssueNode(this).apply { connect() }
 
     private var connected = false
 
