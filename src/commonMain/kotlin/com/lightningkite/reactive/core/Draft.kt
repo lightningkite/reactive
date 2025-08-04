@@ -4,57 +4,66 @@ import com.lightningkite.reactive.context.ReactiveContext
 import com.lightningkite.reactive.context.awaitOnce
 
 /**
- * A mutable reactive value that supports draft editing and publishing. Essentially, this provides an input buffer for a [MutableReactive].
+ * A mutable reactive value that supports draft editing and publishing. Essentially,
+ * this represents an input buffer for a [MutableReactive].
  *
- * This class wraps a [MutableReactive] value and provides a buffer layer using [MutableRemember].
- * Changes can be made to the draft without affecting the published value until explicitly published.
- *
- * - The draft value is calculated and updated reactively, but can be manually set.
- * - The draft is lazy: if there are no listeners, it will not calculate a value.
- * - Listeners are only notified if the draft value actually changes.
- * - Use [publish] to commit draft changes to the published value, or [cancel] to discard changes and reset the draft.
+ * A [Draft] copies its [published] value until you set a new value in the draft. After
+ * you set a new value, the draft keeps this change separate from the published value.
+ * The draft will keep your change until you call [publish] (to save it) or [cancel]
+ * (to discard it and revert to the published value).
  *
  * Example:
  * ```kotlin
  * val published = Signal(0)
  * val draft = Draft(published)
  *
- * draft.set(42) // changes the draft, not the published value
+ * draft.value = 42 // changes the draft, not the published value
  * draft.publish() // commits the draft to published. published now holds the value '42'
  *
- * draft.set(43) // draft now holds '43', while published holds '42'
+ * draft.value = 43 // draft now holds '43', while published holds '42'
  * draft.cancel() // discards changes and resets the draft. draft now reads '42' again.
  * ```
- *
- * @param T The type of value being edited and published.
- * @property published The underlying published value.
- * @property draft The mutable draft value.
- * @property changesMade A reactive value indicating if the draft differs from the published value.
- *
- *
- * @see MutableRemember
  */
-class Draft<T> private constructor(
-    val published: MutableReactive<T>,
-    private val draft: MutableRemember<T>
-): ReactiveWithMutableValue<T> by draft {
+interface Draft<T> : ReactiveWithMutableValue<T> {
+    /**
+     * The current saved value that this [Draft] is buffering.
+     *
+     * NOTE: Manually setting values for [published] will not by-default update values in the draft buffer.
+     * */
+    val published: MutableReactive<T>
+
+    /**
+     * Saves all changes made to this [Draft] to the published [MutableReactive]
+     * */
+    suspend fun publish(): T
+
+    /**
+     * Discards all changes made to this [Draft] and reverts back to the [published] state
+     * */
+    fun cancel()
+
+    /**
+     * Reads `true` if there are any differences between the [published] value and the value stored in the draft buffer.
+     * */
+    val changesMade: Reactive<Boolean>
+}
+
+private class BaseDraft<T> private constructor(
+    override val published: MutableReactive<T>,
+    val buffer: MutableRemember<T>
+): Draft<T>, ReactiveWithMutableValue<T> by buffer {
     constructor(published: MutableReactive<T>) : this(published, MutableRemember(stopListeningWhenOverridden = false) { published() })
-    constructor(initialValue: ReactiveContext.() -> T) : this(
-        MutableRemember(
-            useLastWhileLoading = true,
-            initialValue = initialValue
-        )
-    )
-    constructor(initialValue: T) : this(Signal(initialValue))
 
-    val changesMade = remember { draft() != published() }
+    override val changesMade = remember { buffer() != published() }
 
-    suspend fun publish(): T {
-        published.set(draft.awaitOnce())
-        draft.reset()
+    override suspend fun publish(): T {
+        published.set(buffer.awaitOnce())
+        buffer.reset()
         return awaitOnce()
     }
-    fun cancel() { draft.reset() }
-
-    override suspend fun set(value: T) { draft.valueSet(value) }
+    override fun cancel() { buffer.reset() }
 }
+
+fun <T> Draft(published: MutableReactive<T>): Draft<T> = BaseDraft(published)
+fun <T> Draft(initialValue: T): Draft<T> = BaseDraft(Signal(initialValue))
+fun <T> Draft(initialValue: ReactiveContext.() -> T): Draft<T> = BaseDraft(MutableRemember(useLastWhileLoading = true, initialValue = initialValue))
