@@ -1,7 +1,6 @@
 package com.lightningkite.reactive.lensing.validation
 
 import com.lightningkite.reactive.core.Draft
-import com.lightningkite.reactive.core.MutableReactive
 
 /**
  * A [Draft] with a validation tree. Useful for buffering and validating user input at the same time.
