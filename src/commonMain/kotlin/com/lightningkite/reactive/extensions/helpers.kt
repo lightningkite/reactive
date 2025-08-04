@@ -37,7 +37,6 @@ var <T> MutableValue<T>.value: T
     get() = throw IllegalStateException("Attempted to retrieve value for set-only property")
     @JvmName("setValue2")
     set(value) {
-        println("Setting outer value: $value")
         valueSet(value)
     }
 
