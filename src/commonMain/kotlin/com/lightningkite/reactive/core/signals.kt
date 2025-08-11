@@ -2,6 +2,7 @@ package com.lightningkite.reactive.core
 
 import kotlin.random.Random
 import com.lightningkite.reactive.context.ReactiveContext
+import kotlin.jvm.JvmInline
 
 /**
  * A reactive value that exposes its state and allows direct mutation.
@@ -63,9 +64,14 @@ class LateInitSignal<T>() : ReactiveWithMutableValue<T>, BaseReactive<T>() {
 }
 
 /**
- * A reactive value that always holds a constant value and does not notify listeners.
+ * A wrapper around a `value` to coerce it into a [ReactiveValue] that never changes.
+ * This will never notify listeners, because it never changes.
+ *
+ * Useful for passing constant parameters where reactive ones are expected with
+ * no overhead.
  */
-class Constant<T>(override val value: T) : ReactiveValue<T> {
+@JvmInline
+value class Constant<T>(override val value: T) : ReactiveValue<T> {
     companion object {
         private val NOOP = {}
     }
