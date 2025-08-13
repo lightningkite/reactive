@@ -106,7 +106,7 @@ typealias LateInitProperty<T> = LateInitSignal<T>
 
 @Deprecated("Use remember", ReplaceWith("remember", "com.lightningkite.reactive.core"))
 fun <T> shared(coroutineContext: CoroutineContext = Dispatchers.Unconfined, useLastWhileLoading: Boolean = false, action: ReactiveContext.() -> T): Reactive<T> =
-    remember(coroutineContext, useLastWhileLoading, action)
+    remember(coroutineContext, useLastWhileLoading, null, action)
 
 @Deprecated("Use reactiveProcess", ReplaceWith("reactiveProcess", "com.lightningkite.reactive.core"))
 fun <T> sharedProcess(scope: CoroutineScope = AppScope, emitter: suspend Emitter<T>.() -> Unit): Reactive<T> = reactiveProcess(scope, emitter)

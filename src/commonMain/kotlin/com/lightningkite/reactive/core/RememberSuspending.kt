@@ -4,9 +4,13 @@ import com.lightningkite.reactive.context.CalculationContext
 import com.lightningkite.reactive.context.ReactiveContextSuspending
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration
 
 /**
  * This is a suspending version of [remember]. Creates a reactive value that automatically updates when its dependencies change.
@@ -39,9 +43,14 @@ import kotlin.coroutines.cancellation.CancellationException
  *
  * @see [remember]
  */
-fun <T> rememberSuspending(coroutineContext: CoroutineContext = Dispatchers.Unconfined, useLastWhileLoading: Boolean = false, action: suspend CalculationContext.() -> T): Reactive<T> {
-    return RememberSuspending(coroutineContext = coroutineContext, useLastWhileLoading = useLastWhileLoading, action = action)
-}
+fun <T> rememberSuspending(
+    coroutineContext: CoroutineContext = Dispatchers.Unconfined,
+    useLastWhileLoading: Boolean = false,
+    deactivationDelay: Duration? = null,
+    action: suspend CalculationContext.() -> T
+): Reactive<T> =
+    RememberSuspending(coroutineContext, useLastWhileLoading, deactivationDelay, action)
+
 
 /**
  * A reactive value that remembers the result of a calculation and shares the result among its listeners.
@@ -71,6 +80,7 @@ fun <T> rememberSuspending(coroutineContext: CoroutineContext = Dispatchers.Unco
 class RememberSuspending<T>(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     useLastWhileLoading: Boolean = false,
+    private val deactivationDelay: Duration? = null,
     private val action: suspend CalculationContext.() -> T
 ) : Reactive<T>, CalculationContext, BaseListenable() {
     private var job = SupervisorJob()
@@ -90,16 +100,29 @@ class RememberSuspending<T>(
             return scope.state
         }
 
+    private var deactivating: Job? = null
     private var remover: (() -> Unit)? = null
+
     override fun activate() {
+        if (deactivating != null) {
+            deactivating?.cancel()
+            deactivating = null
+            return
+        }
         scope.startCalculation()
         remover = scope.addListener { invokeAllListeners() }
     }
-    override fun deactivate() {
-        super.deactivate()
+    private fun shutdown() {
         job.cancel()
         job = SupervisorJob()
         remover?.invoke()
         scope.cancel()
+    }
+    override fun deactivate() {
+        if (deactivationDelay != null) deactivating = launch {
+            delay(deactivationDelay)
+            shutdown()
+        }
+        else shutdown()
     }
 }

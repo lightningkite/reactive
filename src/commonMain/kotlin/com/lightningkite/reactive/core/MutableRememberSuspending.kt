@@ -4,6 +4,7 @@ import com.lightningkite.reactive.context.CalculationContext
 import com.lightningkite.reactive.context.ReactiveContextSuspending
 import kotlinx.coroutines.Dispatchers
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration
 
 /**
  * This is a suspending version of [mutableRemember]. Creates a mutable reactive value that can be set directly or calculated automatically.
@@ -36,7 +37,7 @@ fun <T> mutableRememberSuspending(
     useLastWhileLoading: Boolean = false,
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     initialValue: suspend CalculationContext.() -> T
-): ReactiveWithMutableValue<T> = MutableRememberSuspending(true, useLastWhileLoading, coroutineContext, initialValue)
+): ReactiveWithMutableValue<T> = MutableRememberSuspending(true, useLastWhileLoading, coroutineContext, null, initialValue)
 
 /**
  * A mutable reactive value that can be set directly or calculated automatically from dependencies. It is a
@@ -61,12 +62,13 @@ class MutableRememberSuspending<T>(
     private val stopListeningWhenOverridden: Boolean = true,
     private val useLastWhileLoading: Boolean = false,
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
+    deactivationDelay: Duration? = null,
     initialValue: suspend CalculationContext.() -> T
 ) : ReactiveWithMutableValue<T>, BaseReactive<T>() {
     var overridden: Boolean = false
         private set
 
-    private val remember = RememberSuspending(coroutineContext, useLastWhileLoading, initialValue)
+    private val remember = RememberSuspending(coroutineContext, useLastWhileLoading, deactivationDelay, initialValue)
     private var forget: (()->Unit)? = null
 
     private fun updateOnce() {

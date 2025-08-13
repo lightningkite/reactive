@@ -7,10 +7,14 @@ import com.lightningkite.reactive.core.Listenable
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.extensions.value
 import com.lightningkite.reactive.core.LateInitSignal
+import com.lightningkite.reactive.core.Remember
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.milliseconds
 
 class RememberTests {
     @Test
@@ -179,4 +183,27 @@ class RememberTests {
         }
     }
 
+    @Test fun canDelayDeactivation() {
+        val signal = Signal(0)
+        var hits = 0
+        val remember = Remember(deactivationDelay = 100.milliseconds) { hits++; signal() }
+        testContext {
+            assertEquals(0, hits)
+            var remover = remember.addListener {  }
+            assertEquals(1, hits)
+            // remove the listener, should delay before shutting down
+            remover()
+            assertEquals(1, hits)
+            remover = remember.addListener {  }
+            assertEquals(1, hits)
+            remover()
+            // should still shut down after deactivationDelay
+            launch {
+                delay(101.milliseconds)
+                remover = remember.addListener {  }
+                assertEquals(2, hits)
+                remover()
+            }
+        }
+    }
 }

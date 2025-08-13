@@ -6,8 +6,11 @@ import com.lightningkite.reactive.context.TypedReactiveContext
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration
 
 /**
  * Creates a reactive value that automatically updates when its dependencies change.
@@ -21,6 +24,7 @@ import kotlin.coroutines.cancellation.CancellationException
  *
  * @param coroutineContext The coroutine context for running the calculation (default: Dispatchers.Unconfined).
  * @param useLastWhileLoading If true, uses the last known value while recalculating.
+ * @param deactivationDelay If provided, the reactive context will be kept alive for that duration after all listeners have unsubscribed.
  * @param action The block to compute the value reactively.
  * @return A [Reactive] value that updates automatically.
  *
@@ -38,9 +42,13 @@ import kotlin.coroutines.cancellation.CancellationException
  * b.value = 2 // prints "sum: 3"
  * ```
  */
-fun <T> remember(coroutineContext: CoroutineContext = Dispatchers.Unconfined, useLastWhileLoading: Boolean = false, action: ReactiveContext.() -> T): Reactive<T> {
-    return Remember(coroutineContext = coroutineContext, useLastWhileLoading = useLastWhileLoading, action = action)
-}
+fun <T> remember(
+    coroutineContext: CoroutineContext = Dispatchers.Unconfined,
+    useLastWhileLoading: Boolean = false,
+    deactivationDelay: Duration? = null,
+    action: ReactiveContext.() -> T
+): Reactive<T> =
+    Remember(coroutineContext, useLastWhileLoading, deactivationDelay, action)
 
 /**
  * A reactive value that remembers the result of a calculation and shares the result among its listeners.
@@ -57,6 +65,7 @@ fun <T> remember(coroutineContext: CoroutineContext = Dispatchers.Unconfined, us
  * @param T The type of value produced by the calculation.
  * @param coroutineContext The coroutine context in which the calculation runs. Defaults to [Dispatchers.Unconfined].
  * @param useLastWhileLoading If true, the last known value will be used while the calculation is loading or re-running.
+ * @param deactivationDelay If provided, the reactive context will be kept alive for that duration after all listeners have unsubscribed.
  * @param action The block of code to execute within the [ReactiveContext] to produce the value.
  *
  * This class manages its own coroutine job and calculation scope. When activated, it starts the calculation
@@ -68,6 +77,7 @@ fun <T> remember(coroutineContext: CoroutineContext = Dispatchers.Unconfined, us
 class Remember<T>(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     useLastWhileLoading: Boolean = false,
+    private val deactivationDelay: Duration? = null,
     private val action: ReactiveContext.() -> T
 ) : Reactive<T>, CalculationContext, BaseListenable() {
     private var job = Job()
@@ -88,15 +98,28 @@ class Remember<T>(
             return scope.state
         }
 
+    private var deactivating: Job? = null
     private var remover: (() -> Unit)? = null
     override fun activate() {
+        if (deactivating != null) {
+            deactivating?.cancel()
+            deactivating = null
+            return
+        }
         scope.startCalculation()
         remover = scope.addListener { invokeAllListeners() }
     }
-    override fun deactivate() {
+    private fun shutdown() {
         job.cancel()
         job = Job()
         remover?.invoke()
         scope.cancel()
+    }
+    override fun deactivate() {
+        if (deactivationDelay != null) deactivating = launch {
+            delay(deactivationDelay)
+            shutdown()
+        }
+        else shutdown()
     }
 }
