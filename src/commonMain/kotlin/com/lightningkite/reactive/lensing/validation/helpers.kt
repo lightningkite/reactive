@@ -86,12 +86,12 @@ fun <T> MutableValidatedValue<T>.assert(
 /**
  * Validates that the value of this [MutableValidated] is not null.
  *
- * @param summary Short description of the issue (defaults to "Cannot be blank.").
+ * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
 fun <T : Any> MutableValidated<T?>.assertNotNull(
-    summary: String = "Cannot be blank.",
+    summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
 ) = assert(summary, description, setOnIssue) { it != null }
@@ -99,12 +99,12 @@ fun <T : Any> MutableValidated<T?>.assertNotNull(
 /**
  * Validates that the value of this [MutableValidatedValue] is not null.
  *
- * @param summary Short description of the issue (defaults to "Cannot be blank.").
+ * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
 fun <T : Any> MutableValidatedValue<T?>.assertNotNull(
-    summary: String = "Cannot be blank.",
+    summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
 ) = assert(summary, description, setOnIssue) { it != null }
@@ -112,12 +112,12 @@ fun <T : Any> MutableValidatedValue<T?>.assertNotNull(
 /**
  * Validates that the value of this [MutableValidated] is not blank.
  *
- * @param summary Short description of the issue (defaults to "Cannot be blank.").
+ * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
 fun MutableValidated<String>.assertNotBlank(
-    summary: String = "Cannot be blank.",
+    summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
 ) = assert(summary, description, setOnIssue) { it.isNotBlank() }
@@ -125,12 +125,12 @@ fun MutableValidated<String>.assertNotBlank(
 /**
  * Validates that the value of this [MutableValidatedValue] is not blank.
  *
- * @param summary Short description of the issue (defaults to "Cannot be blank.").
+ * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
 fun MutableValidatedValue<String>.assertNotBlank(
-    summary: String = "Cannot be blank.",
+    summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
 ) = assert(summary, description, setOnIssue) { it.isNotBlank() }
@@ -216,12 +216,12 @@ fun <T> MutableReactiveValue<T>.assert(
 /**
  * Validates that the value of this [MutableReactive] is not null.
  *
- * @param summary Short description of the issue (defaults to "Cannot be blank.").
+ * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
 fun <T : Any> MutableReactive<T?>.assertNotNull(
-    summary: String = "Cannot be blank.",
+    summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
 ) = assert(summary, description, setOnIssue) { it != null }
@@ -229,12 +229,12 @@ fun <T : Any> MutableReactive<T?>.assertNotNull(
 /**
  * Validates that the value of this [MutableReactiveValue] is not null.
  *
- * @param summary Short description of the issue (defaults to "Cannot be blank.").
+ * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
 fun <T : Any> MutableReactiveValue<T?>.assertNotNull(
-    summary: String = "Cannot be blank.",
+    summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
 ) = assert(summary, description, setOnIssue) { it != null }
@@ -242,12 +242,12 @@ fun <T : Any> MutableReactiveValue<T?>.assertNotNull(
 /**
  * Validates that the value of this [MutableReactive] is not blank.
  *
- * @param summary Short description of the issue (defaults to "Cannot be blank.").
+ * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
 fun MutableReactive<String>.assertNotBlank(
-    summary: String = "Cannot be blank.",
+    summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
 ) = assert(summary, description, setOnIssue) { it.isNotBlank() }
@@ -255,12 +255,12 @@ fun MutableReactive<String>.assertNotBlank(
 /**
  * Validates that the value of this [MutableReactiveValue] is not blank.
  *
- * @param summary Short description of the issue (defaults to "Cannot be blank.").
+ * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
 fun MutableReactiveValue<String>.assertNotBlank(
-    summary: String = "Cannot be blank.",
+    summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
 ) = assert(summary, description, setOnIssue) { it.isNotBlank() }
