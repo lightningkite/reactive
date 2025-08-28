@@ -36,7 +36,7 @@ import com.lightningkite.reactive.core.remember
  *
  * @property parent The parent node in the validation tree, or null if this is the root.
  */
-class IssueNode(val parent: IssueNode?) : ResourceUse {
+class IssueNode(val parent: IssueNode? = null) : ResourceUse {
     private val nodeIssue = Signal<Reactive<Issue?>>(Constant(null))
 
     fun report(issue: Issue?) { nodeIssue.value = Constant(issue) }
