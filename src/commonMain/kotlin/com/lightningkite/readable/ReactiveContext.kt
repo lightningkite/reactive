@@ -100,19 +100,21 @@ class TypedReactiveContext<T>(
     private data class Once<T>(val wraps: Readable<T>)
 
     fun <T> Readable<T>.once(): T {
-        val key = Once(this)
-        if (existingDependency(key) == null) {
-            var remover: () -> Unit = {}
-            remover = addListener {
-                remover()
-                rerun()
-            }
-            registerDependency(key, remover)
-        }
         return state.handle(
             success = { it },
             exception = { throw it },
-            notReady = { throw ReactiveLoading }
+            notReady = {
+                val key = Once(this)
+                if (existingDependency(key) == null) {
+                    var remover: () -> Unit = {}
+                    remover = addListener {
+                        remover()
+                        rerun()
+                    }
+                    registerDependency(key, remover)
+                }
+                throw ReactiveLoading
+            }
         )
     }
 
