@@ -1,14 +1,16 @@
 
 [versions]
-kotlin = "2.2.20"
+kotlin = "2.2.21"
 vanniktechPublishing = "0.34.0"
-dokka = "2.0.0"
+dokka = "2.1.0"
 coroutines = "1.10.2"
+lkGradleHelpers = "4.0.6"
 
 [libraries]
 kotlinxCoroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version = { ref = "coroutines" } }
 kotlinxCoroutinesTesting = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version = { ref = "coroutines" } }
 comLightningkiteTestingKotlinTestManualRuntime = { module = "com.lightningkite.testing:kotlin-test-manual-runtime", version = "0.0.9" }
+lkGradleHelpers = { module = "com.lightningkite:lk-gradle-helpers", version = { ref = "lkGradleHelpers" } }
 
 [plugins]
 comLightningkiteTestingManual = { id = "com.lightningkite.testing.manual", version = "0.0.9" }

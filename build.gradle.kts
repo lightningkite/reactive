@@ -7,8 +7,13 @@ import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension
 import kotlin.jvm.java
 
-group = "com.lightningkite"
-version = "1.0-SNAPSHOT"
+plugins {
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.comLightningkiteTestingManual)
+    alias(libs.plugins.vanniktechPublishing)
+    alias(libs.plugins.dokka)
+    signing
+}
 
 buildscript {
     repositories {
@@ -19,20 +24,12 @@ buildscript {
         maven("https://jitpack.io")
     }
     dependencies {
-        classpath("com.lightningkite:lk-gradle-helpers:4.0.4")
-        classpath("org.jetbrains.dokka:dokka-gradle-plugin:2.0.0")
+        classpath(libs.lkGradleHelpers)
     }
 }
 
-plugins {
-    alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.comLightningkiteTestingManual)
-    alias(libs.plugins.vanniktechPublishing)
-    alias(libs.plugins.dokka)
-    signing
-}
-
 group = "com.lightningkite"
+version = "1.0-SNAPSHOT"
 
 kotlin {
     jvm {
