@@ -2,12 +2,7 @@ package com.lightningkite.reactive.core
 
 import com.lightningkite.reactive.context.CalculationContext
 import com.lightningkite.reactive.context.ReactiveContextSuspending
-import kotlinx.coroutines.CoroutineExceptionHandler
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
@@ -47,7 +42,7 @@ fun <T> rememberSuspending(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     useLastWhileLoading: Boolean = false,
     deactivationDelay: Duration? = null,
-    action: suspend CalculationContext.() -> T
+    action: suspend CalculationContext.() -> T,
 ): Reactive<T> =
     RememberSuspending(coroutineContext, useLastWhileLoading, deactivationDelay, action)
 
@@ -81,7 +76,7 @@ class RememberSuspending<T>(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     useLastWhileLoading: Boolean = false,
     private val deactivationDelay: Duration? = null,
-    private val action: suspend CalculationContext.() -> T
+    private val action: suspend CalculationContext.() -> T,
 ) : Reactive<T>, CalculationContext, BaseListenable() {
     private var job = SupervisorJob()
     private val restOfContext = coroutineContext +
@@ -102,6 +97,7 @@ class RememberSuspending<T>(
 
     private var deactivating: Job? = null
     private var remover: (() -> Unit)? = null
+    private var shuttingDown: Job? = null
 
     override fun activate() {
         if (deactivating != null) {
@@ -109,21 +105,32 @@ class RememberSuspending<T>(
             deactivating = null
             return
         }
+
+        shuttingDown?.let {
+            it.cancel()
+            shutdown()
+        }
+
         scope.startCalculation()
         remover = scope.addListener { invokeAllListeners() }
     }
+
     private fun shutdown() {
+        remover?.invoke()
+        remover = null
+        scope.cancel()
         job.cancel()
         job = SupervisorJob()
-        remover?.invoke()
-        scope.cancel()
+        shuttingDown = null
     }
+
     override fun deactivate() {
         if (deactivationDelay != null) deactivating = launch {
             delay(deactivationDelay)
-            shutdown()
+            shuttingDown = CoroutineScope(Job()).launch {
+                shutdown()
+            }
             deactivating = null
-        }
-        else shutdown()
+        } else shutdown()
     }
 }
