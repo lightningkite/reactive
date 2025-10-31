@@ -122,6 +122,7 @@ class RememberSuspending<T>(
         if (deactivationDelay != null) deactivating = launch {
             delay(deactivationDelay)
             shutdown()
+            deactivating = null
         }
         else shutdown()
     }
