@@ -6,7 +6,9 @@ import com.lightningkite.reactive.context.TypedReactiveContext
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.random.Random
 import kotlin.time.Duration
+import kotlin.uuid.Uuid
 
 /**
  * Creates a reactive value that automatically updates when its dependencies change.
@@ -71,13 +73,14 @@ fun <T> remember(
  * cancellation exceptions, and any other exceptions are reported via [Reactive.reportException].
  */
 class Remember<T>(
-    coroutineContext: CoroutineContext = Dispatchers.Unconfined,
+    val incomingCoroutineContext: CoroutineContext = Dispatchers.Unconfined,
     useLastWhileLoading: Boolean = false,
     private val deactivationDelay: Duration? = null,
     private val action: ReactiveContext.() -> T,
 ) : Reactive<T>, CalculationContext, BaseListenable() {
+
     private var job = SupervisorJob()
-    private val restOfContext = coroutineContext +
+    private val restOfContext = incomingCoroutineContext +
             CoroutineExceptionHandler { coroutineContext, throwable ->
                 if (throwable !is CancellationException) {
                     Reactive.reportException(throwable)
@@ -106,12 +109,15 @@ class Remember<T>(
         }
 
         shuttingDown?.let {
-            it.cancel()
-            shutdown()
+            CoroutineScope(incomingCoroutineContext).launch {
+                it.join()
+                scope.startCalculation()
+                remover = scope.addListener { invokeAllListeners() }
+            }
+        } ?: run {
+            scope.startCalculation()
+            remover = scope.addListener { invokeAllListeners() }
         }
-
-        scope.startCalculation()
-        remover = scope.addListener { invokeAllListeners() }
     }
 
     private fun shutdown() {
@@ -124,12 +130,16 @@ class Remember<T>(
     }
 
     override fun deactivate() {
-        if (deactivationDelay != null) deactivating = launch {
-            delay(deactivationDelay)
-            shuttingDown = CoroutineScope(Job()).launch {
-                shutdown()
+        if (deactivationDelay != null) {
+            if(deactivating != null) return
+            deactivating = launch {
+                delay(deactivationDelay)
+                ensureActive()
+                shuttingDown = CoroutineScope(incomingCoroutineContext).launch {
+                    shutdown()
+                }
+                deactivating = null
             }
-            deactivating = null
         } else shutdown()
     }
 }

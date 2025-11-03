@@ -3,15 +3,12 @@ package com.lightningkite.reactive
 import com.lightningkite.reactive.context.await
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.context.reactiveScope
-import com.lightningkite.reactive.core.Listenable
-import com.lightningkite.reactive.core.ReactiveState
+import com.lightningkite.reactive.core.*
 import com.lightningkite.reactive.extensions.value
-import com.lightningkite.reactive.core.LateInitSignal
-import com.lightningkite.reactive.core.Remember
-import com.lightningkite.reactive.core.Signal
-import com.lightningkite.reactive.core.remember
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.milliseconds
@@ -35,7 +32,8 @@ class RememberTests {
         }
     }
 
-    @Test fun sharedDoesNotEmitSameValue() {
+    @Test
+    fun sharedDoesNotEmitSameValue() {
         val a = LateInitSignal<Int?>()
         val b = remember {
             println("remember running")
@@ -62,7 +60,8 @@ class RememberTests {
         }
     }
 
-    @Test fun sharedTerminatesWhenNoOneIsListening() {
+    @Test
+    fun sharedTerminatesWhenNoOneIsListening() {
         var onRemoveCalled = 0
         var scopeCalled = 0
         val shared = remember {
@@ -72,7 +71,7 @@ class RememberTests {
         }
         assertEquals(0, scopeCalled)
         assertEquals(0, onRemoveCalled)
-        val removeListener = shared.addListener {  }
+        val removeListener = shared.addListener { }
         assertEquals(1, scopeCalled)
         assertEquals(0, onRemoveCalled)
         removeListener()
@@ -80,11 +79,12 @@ class RememberTests {
         assertEquals(1, onRemoveCalled)
     }
 
-    @Test fun sharedTerminatesWhenNoOneIsListeningCancelDeps() {
+    @Test
+    fun sharedTerminatesWhenNoOneIsListeningCancelDeps() {
         var onRemoveCalled = 0
         var scopeCalled = 0
         var dependencyListeners = 0
-        val listener = object: Listenable {
+        val listener = object : Listenable {
             override fun addListener(listener: () -> Unit): () -> Unit {
                 dependencyListeners++
                 return { dependencyListeners-- }
@@ -99,7 +99,7 @@ class RememberTests {
         assertEquals(0, scopeCalled)
         assertEquals(0, onRemoveCalled)
         assertEquals(0, dependencyListeners)
-        var removeListener = shared.addListener {  }
+        var removeListener = shared.addListener { }
         assertEquals(1, dependencyListeners)
         assertEquals(1, scopeCalled)
         assertEquals(0, onRemoveCalled)
@@ -107,7 +107,7 @@ class RememberTests {
         assertEquals(0, dependencyListeners)
         assertEquals(1, scopeCalled)
         assertEquals(1, onRemoveCalled)
-        removeListener = shared.addListener {  }
+        removeListener = shared.addListener { }
         assertEquals(1, dependencyListeners)
         assertEquals(2, scopeCalled)
         assertEquals(1, onRemoveCalled)
@@ -117,7 +117,8 @@ class RememberTests {
         assertEquals(2, onRemoveCalled)
     }
 
-    @Test fun sharedSharesCalculations() {
+    @Test
+    fun sharedSharesCalculations() {
         var hits = 0
         val basicSignal = Signal(1)
         val a = remember {
@@ -158,7 +159,8 @@ class RememberTests {
         assertEquals(3, hits)
     }
 
-    @Test fun sharedReloads() {
+    @Test
+    fun sharedReloads() {
         val late = LateInitSignal<Int>()
         var starts = 0
         var hits = 0
@@ -183,26 +185,33 @@ class RememberTests {
         }
     }
 
-    @Test fun canDelayDeactivation() {
+    @Test
+    fun canDelayDeactivation() {
         val signal = Signal(0)
         var hits = 0
         val remember = Remember(deactivationDelay = 100.milliseconds) { hits++; signal() }
-        testContext {
-            assertEquals(0, hits)
-            var remover = remember.addListener {  }
-            assertEquals(1, hits)
-            // remove the listener, should delay before shutting down
-            remover()
-            assertEquals(1, hits)
-            remover = remember.addListener {  }
-            assertEquals(1, hits)
-            remover()
-            // should still shut down after deactivationDelay
-            launch {
-                delay(101.milliseconds)
-                remover = remember.addListener {  }
-                assertEquals(2, hits)
+        runTest {
+            launch(Dispatchers.Default) {
+                assertEquals(0, hits)
+                var remover = remember.addListener { }
+                assertEquals(1, hits)
+                // remove the listener, should delay before shutting down
                 remover()
+                assertEquals(1, hits)
+                remover = remember.addListener { }
+                assertEquals(1, hits)
+
+                // should still shut down after deactivationDelay
+                val job = launch {
+                    remover()
+                    println("TEST: Launch delay starting")
+                    delay(101.milliseconds)
+                    println("TEST: Launch continuing")
+                    remover = remember.addListener { }
+                    assertEquals(2, hits)
+                    remover()
+                }
+                job.join()
             }
         }
     }

@@ -14,6 +14,7 @@ import com.lightningkite.reactive.core.rememberSuspending
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.milliseconds
@@ -119,7 +120,7 @@ class RememberSuspendingTests {
         val late = LateInitSignal<Int>()
         var starts = 0
         var hits = 0
-        val a = RememberSuspending(coroutineContext = Dispatchers.Unconfined, useLastWhileLoading = false) {
+        val a = RememberSuspending(incomingCoroutineContext = Dispatchers.Unconfined, useLastWhileLoading = false) {
             starts++
             val r = late()
             hits++
@@ -147,26 +148,33 @@ class RememberSuspendingTests {
     }
 
 
-    @Test fun canDelayDeactivation() {
+    @Test
+    fun canDelayDeactivation() {
         val signal = Signal(0)
         var hits = 0
-        val remember = rememberSuspending(deactivationDelay = 100.milliseconds) { hits++; signal() }
-        testContext {
-            assertEquals(0, hits)
-            var remover = remember.addListener {  }
-            assertEquals(1, hits)
-            // remove the listener, should delay before shutting down
-            remover()
-            assertEquals(1, hits)
-            remover = remember.addListener {  }
-            assertEquals(1, hits)
-            remover()
-            // should still shut down after deactivationDelay
-            launch {
-                delay(101.milliseconds)
-                remover = remember.addListener {  }
-                assertEquals(2, hits)
+        val remember = RememberSuspending(deactivationDelay = 100.milliseconds) { hits++; signal() }
+        runTest {
+            launch(Dispatchers.Default) {
+                assertEquals(0, hits)
+                var remover = remember.addListener { }
+                assertEquals(1, hits)
+                // remove the listener, should delay before shutting down
                 remover()
+                assertEquals(1, hits)
+                remover = remember.addListener { }
+                assertEquals(1, hits)
+
+                // should still shut down after deactivationDelay
+                val job = launch {
+                    remover()
+                    println("TEST: Launch delay starting")
+                    delay(101.milliseconds)
+                    println("TEST: Launch continuing")
+                    remover = remember.addListener { }
+                    assertEquals(2, hits)
+                    remover()
+                }
+                job.join()
             }
         }
     }
