@@ -16,8 +16,13 @@ public interface StatusListener : CoroutineContext.Element {
 }
 
 fun CoroutineScope.onRemove(action: () -> Unit) {
-    coroutineContext[CoroutineName.Key]
-    this.coroutineContext[Job]?.invokeOnCompletion { action() }
+    this.coroutineContext[Job]?.invokeOnCompletion {
+        try {
+            action()
+        } catch(t: Throwable) {
+            Exception("WARNING: onRemove handler failed!", t)
+        }
+    }
 }
 
 typealias CalculationContext = CoroutineScope

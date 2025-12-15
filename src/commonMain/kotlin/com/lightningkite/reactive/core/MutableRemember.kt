@@ -35,7 +35,7 @@ import kotlin.time.Duration
 fun <T> mutableRemember(
     useLastWhileLoading: Boolean = false,
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
-    initialValue: ReactiveContext.() -> T
+    initialValue: context(ReactiveContext) () -> T
 ): ReactiveWithMutableValue<T> = MutableRemember(true, useLastWhileLoading, coroutineContext, null, initialValue)
 
 /**
@@ -62,7 +62,7 @@ class MutableRemember<T>(
     private val useLastWhileLoading: Boolean = false,
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     deactivationDelay: Duration? = null,
-    initialValue: ReactiveContext.() -> T
+    initialValue: context(ReactiveContext) () -> T
 ): ReactiveWithMutableValue<T>, BaseReactive<T>() {
     var overridden: Boolean = false
         private set

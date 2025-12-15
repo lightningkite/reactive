@@ -2,6 +2,7 @@ package com.lightningkite.reactive
 
 import com.lightningkite.reactive.context.CalculationContext
 import com.lightningkite.reactive.context.awaitOnce
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.reactiveScope
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.MutableReactiveValue

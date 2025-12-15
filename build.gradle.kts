@@ -52,6 +52,7 @@ kotlin {
 //    explicitApi = ExplicitApiMode.Warning
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
+        freeCompilerArgs.add("-Xcontext-parameters")
         freeCompilerArgs.add("-opt-in=kotlinx.cinterop.BetaInteropApi")
         freeCompilerArgs.add("-opt-in=kotlinx.cinterop.ExperimentalForeignApi")
     }

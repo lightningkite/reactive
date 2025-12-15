@@ -94,7 +94,12 @@ class RememberSuspending<T>(
 
     override val state: ReactiveState<T>
         get() {
-            if (!scope.active) scope.runOnceWhileDead()
+            // If the scope isn't active, we need to get a value.
+            // Use startCalculation() instead of runOnceWhileDead() to avoid duplicate
+            // calculations when activate() is called immediately after.
+            // startCalculation() is idempotent - if called twice in quick succession,
+            // the second call will see queued=true and return early.
+            if (!scope.active) scope.startCalculation()
             return scope.state
         }
 
@@ -116,6 +121,8 @@ class RememberSuspending<T>(
                 remover = scope.addListener { invokeAllListeners() }
             }
         } ?: run {
+            // startCalculation() is idempotent - if it was just called by the state getter,
+            // this call will see queued=true and return early, preventing duplicate calculation
             scope.startCalculation()
             remover = scope.addListener { invokeAllListeners() }
         }
@@ -135,6 +142,7 @@ class RememberSuspending<T>(
             if(deactivating != null) return
             deactivating = launch {
                 delay(deactivationDelay)
+//                ensureActive()
                 shuttingDown = CoroutineScope(incomingCoroutineContext).launch {
                     shutdown()
                 }

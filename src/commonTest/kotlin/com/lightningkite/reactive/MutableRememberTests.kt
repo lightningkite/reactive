@@ -14,6 +14,7 @@ import com.lightningkite.reactive.core.mutableRemember
 import com.lightningkite.reactive.lensing.lens
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import com.lightningkite.reactive.context.invoke
 
 class MutableRememberRememberTests {
     @Test

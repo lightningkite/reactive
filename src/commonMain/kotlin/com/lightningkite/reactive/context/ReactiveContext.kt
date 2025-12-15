@@ -41,6 +41,7 @@ var reactiveContext: ReactiveContext? = null
  */
 typealias ReactiveContext = TypedReactiveContext<*>
 
+
 /**
  * Implements the core logic for a single reactive calculation, managing its dependencies and lifecycle.
  *
@@ -91,7 +92,7 @@ class TypedReactiveContext<T>(
     val scope: CalculationContext,
     val useLastWhileLoading: Boolean = false,
     private val reportTo: RawReactive<T> = RawReactive(),
-    val action: TypedReactiveContext<T>.() -> T
+    val action: context(ReactiveContext) () -> T
 ): DependencyTracker(), CalculationContext by scope, Reactive<T> by reportTo {
     companion object
 
@@ -113,7 +114,7 @@ class TypedReactiveContext<T>(
             val old = reactiveContext
             reactiveContext = this
             dependencyBlockStart()
-            val state = reactiveState { action(this@TypedReactiveContext) }
+            val state = reactiveState { action() }
             if (!useLastWhileLoading || state.ready) reportTo.state = state
             dependencyBlockEnd()
             reactiveContext = old
@@ -121,8 +122,11 @@ class TypedReactiveContext<T>(
     }
 
     fun runOnceWhileDead() {
-        val state = reactiveState { action(this) }
+        val old = reactiveContext
+        reactiveContext = this
+        val state = reactiveState { action() }
         if (!useLastWhileLoading || state.ready) reportTo.state = state
+        reactiveContext = old
     }
 
     init {
@@ -134,168 +138,186 @@ class TypedReactiveContext<T>(
         queued = false
         super.cancel()
     }
+}
 
-    //////////////////////////////////////////////////////////////////////////////////
-    // Everything after this point only uses public API from above.
-    // Eventually, this should use context receivers.  However, that's not stable yet.
-    //////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+// Reactive Context Extension Functions
+// These provide the core operators for working with Reactive values inside a ReactiveContext
+//////////////////////////////////////////////////////////////////////////////////
 
-    // Operators for standard reactive tools
-    fun rerunOn(listenable: Listenable) {
-        if (existingDependency(listenable) != null) return
-        registerDependency(listenable, listenable.addListener(rerun))
+// Operators for standard reactive tools
+context(ctx: ReactiveContext)
+fun rerunOn(listenable: Listenable) {
+    if (ctx.existingDependency(listenable) != null) return
+    ctx.registerDependency(listenable, listenable.addListener(ctx.rerun))
+}
+
+context(ctx: ReactiveContext)
+fun onRemove(action: () -> Unit) {
+    (ctx as? CalculationContext)?.onRemove(action)
+}
+
+context(ctx: ReactiveContext)
+operator fun <R> Reactive<R>.invoke(): R {
+    if (ctx.existingDependency(this) == null) {
+        ctx.registerDependency(this, this@invoke.addListener(ctx.rerun))
     }
+    return this@invoke.state.handle(
+        success = { it },
+        exception = { throw it },
+        notReady = { throw ReactiveLoading }
+    )
+}
 
-    operator fun <R> Reactive<R>.invoke(): R {
-        if (existingDependency(this) == null) {
-            registerDependency(this, addListener(rerun))
-        }
-        return state.handle(
-            success = { it },
-            exception = { throw it },
-            notReady = { throw ReactiveLoading }
-        )
+context(ctx: ReactiveContext)
+fun <R> Reactive<R?>.awaitNotNull(): R {
+    if (ctx.existingDependency(this) == null) {
+        ctx.registerDependency(this, this@awaitNotNull.addListener(ctx.rerun))
     }
+    return this@awaitNotNull.state.handle(
+        success = { it ?: throw ReactiveLoading },
+        exception = { throw it },
+        notReady = { throw ReactiveLoading }
+    )
+}
 
-    fun <R> Reactive<R?>.awaitNotNull(): R {
-        if (existingDependency(this) == null) {
-            registerDependency(this, addListener(rerun))
-        }
-        return state.handle(
-            success = { it ?: throw ReactiveLoading },
-            exception = { throw it },
-            notReady = { throw ReactiveLoading }
-        )
+context(ctx: ReactiveContext)
+fun <R> Reactive<R>.state(): ReactiveState<R> {
+    if (ctx.existingDependency(this) == null) {
+        ctx.registerDependency(this, this@state.addListener(ctx.rerun))
     }
+    return this@state.state
+}
 
-    fun <R> Reactive<R>.state(): ReactiveState<R> {
-        if (existingDependency(this) == null) {
-            registerDependency(this, addListener(rerun))
-        }
-        return state
-    }
+private data class Once<T>(val wraps: Reactive<T>)
 
-    private data class Once<T>(val wraps: Reactive<T>)
-
-    fun <T> Reactive<T>.once(): T {
-        return state.handle(
-            success = { it },
-            exception = { throw it },
-            notReady = {
-                val key = Once(this)
-                if (existingDependency(key) == null) {
-                    var remover: () -> Unit = {}
-                    remover = addListener {
-                        remover()
-                        rerun()
-                    }
-                    registerDependency(key, remover)
+context(ctx: ReactiveContext)
+fun <T> Reactive<T>.once(): T {
+    return this@once.state.handle(
+        success = { it },
+        exception = { throw it },
+        notReady = {
+            val key = Once(this@once)
+            if (ctx.existingDependency(key) == null) {
+                var remover: () -> Unit = {}
+                remover = this@once.addListener {
+                    remover()
+                    ctx.rerun()
                 }
-                throw ReactiveLoading
+                ctx.registerDependency(key, remover)
             }
-        )
-    }
-
-    // Hack: fixes compiler weirdness around lambdas with 'this'
-    @Suppress("NOTHING_TO_INLINE")
-    inline operator fun <T> (ReactiveContext.() -> T).invoke(): T = invoke(this@TypedReactiveContext)
-
-    @Suppress("NOTHING_TO_INLINE")
-    inline operator fun <A, T> (ReactiveContext.(A) -> T).invoke(a: A): T = invoke(this@TypedReactiveContext, a)
-
-    @Suppress("NOTHING_TO_INLINE")
-    inline operator fun <A, B, T> (ReactiveContext.(A, B) -> T).invoke(a: A, b: B): T = invoke(this@TypedReactiveContext, a, b)
-
-    @Deprecated("Just use the invoke operator", ReplaceWith("this()"))
-    fun <T> Reactive<T>.await(): T = invoke()
-
-    @Deprecated("Just use the once function", ReplaceWith("this.once()"))
-    fun <T> Reactive<T>.awaitOnce(): T = once()
-
-
-    // Suspending calculations
-
-    private class SuspendCalculation<T>(val key: Any) : BaseReactive<T>() {
-        override var state: ReactiveState<T>
-            get() = super.state
-            public set(value) {
-                super.state = value
-            }
-
-        override fun equals(other: Any?): Boolean = other is SuspendCalculation<*> && other.key == key
-        override fun hashCode(): Int = key.hashCode() + 1
-        override fun toString(): String = "SuspendCalculation($key)"
-    }
-
-    fun <T> async(vararg dependencies: Any?, action: suspend () -> T): T {
-        val key = setOf(*dependencies)
-        val calc = SuspendCalculation<T>(key)
-        existingDependency(calc)?.let {
-            return it.invoke()
+            throw ReactiveLoading
         }
-        scope.launch {
-            calc.state = reactiveState { action() }
+    )
+}
+
+// Hack: fixes compiler weirdness around lambdas with 'this'
+context(ctx: ReactiveContext)
+@Suppress("NOTHING_TO_INLINE")
+inline operator fun <T> (ReactiveContext.() -> T).invoke(): T = invoke(ctx as TypedReactiveContext<*>)
+
+context(ctx: ReactiveContext)
+@Suppress("NOTHING_TO_INLINE")
+inline operator fun <A, T> (ReactiveContext.(A) -> T).invoke(a: A): T = invoke(ctx as TypedReactiveContext<*>, a)
+
+context(ctx: ReactiveContext)
+@Suppress("NOTHING_TO_INLINE")
+inline operator fun <A, B, T> (ReactiveContext.(A, B) -> T).invoke(a: A, b: B): T = invoke(ctx as TypedReactiveContext<*>, a, b)
+
+context(ctx: ReactiveContext)
+@Deprecated("Just use the invoke operator", ReplaceWith("this()"))
+fun <T> Reactive<T>.await(): T = this@await.invoke()
+
+context(ctx: ReactiveContext)
+@Deprecated("Just use the once function", ReplaceWith("this.once()"))
+fun <T> Reactive<T>.awaitOnce(): T = this@awaitOnce.once()
+
+
+// Suspending calculations
+
+private class SuspendCalculation<T>(val key: Any) : BaseReactive<T>() {
+    override var state: ReactiveState<T>
+        get() = super.state
+        public set(value) {
+            super.state = value
         }
-        registerDependency(calc, calc.addListener(rerun))
-        return calc.state.handle(
-            success = { it },
-            exception = { throw it },
-            notReady = { throw ReactiveLoading }
-        )
+
+    override fun equals(other: Any?): Boolean = other is SuspendCalculation<*> && other.key == key
+    override fun hashCode(): Int = key.hashCode() + 1
+    override fun toString(): String = "SuspendCalculation($key)"
+}
+
+context(ctx: ReactiveContext)
+fun <T> async(vararg dependencies: Any?, action: suspend () -> T): T {
+    val key = setOf(*dependencies)
+    val calc = SuspendCalculation<T>(key)
+    ctx.existingDependency(calc)?.let {
+        return it.invoke()
     }
-
-    operator fun <T> Deferred<T>.invoke(): T {
-        val calc = SuspendCalculation<T>(this)
-        existingDependency(calc)?.let {
-            return it.invoke()
-        }
-        scope.launch {
-            calc.state = reactiveState { this@invoke.await() }
-        }
-        registerDependency(calc, calc.addListener(rerun))
-        return calc.state.handle(
-            success = { it },
-            exception = { throw it },
-            notReady = { throw ReactiveLoading }
-        )
+    ctx.scope.launch {
+        calc.state = reactiveState { action() }
     }
+    ctx.registerDependency(calc, calc.addListener(ctx.rerun))
+    return calc.state.handle(
+        success = { it },
+        exception = { throw it },
+        notReady = { throw ReactiveLoading }
+    )
+}
 
-
-    // Flows
-
-    private class FlowLoader<T>(val flow: Flow<T>) {
-        var state: ReactiveState<T> = ReactiveState.notReady
-        override fun hashCode(): Int = flow.hashCode()
-        override fun equals(other: Any?): Boolean = other is FlowLoader<*> && flow == other.flow
-        override fun toString(): String = "${super.toString()}/$flow"
+context(ctx: ReactiveContext)
+operator fun <T> Deferred<T>.invoke(): T {
+    val calc = SuspendCalculation<T>(this)
+    ctx.existingDependency(calc)?.let {
+        return it.invoke()
     }
+    ctx.scope.launch {
+        calc.state = reactiveState { this@invoke.await() }
+    }
+    ctx.registerDependency(calc, calc.addListener(ctx.rerun))
+    return calc.state.handle(
+        success = { it },
+        exception = { throw it },
+        notReady = { throw ReactiveLoading }
+    )
+}
 
-    operator fun <T> Flow<T>.invoke(): T {
-        val new = FlowLoader(this)
 
-        val existing = existingDependency(new)
-        if (existing == null) {
-            var job: Job? = null
-            registerDependency(new, { job?.cancel() })
-            job = scope.launch {
-                collect { v ->
-                    try {
-                        new.state = ReactiveState(v)
-                        rerun()
-                    } catch (e: Exception) {
-                        new.state = ReactiveState.exception<T>(e)
-                    }
+// Flows
+
+private class FlowLoader<T>(val flow: Flow<T>) {
+    var state: ReactiveState<T> = ReactiveState.notReady
+    override fun hashCode(): Int = flow.hashCode()
+    override fun equals(other: Any?): Boolean = other is FlowLoader<*> && flow == other.flow
+    override fun toString(): String = "${super.toString()}/$flow"
+}
+
+context(ctx: ReactiveContext)
+operator fun <T> Flow<T>.invoke(): T {
+    val new = FlowLoader(this)
+
+    val existing = ctx.existingDependency(new)
+    if (existing == null) {
+        var job: Job? = null
+        ctx.registerDependency(new, { job?.cancel() })
+        job = ctx.scope.launch {
+            collect { v ->
+                try {
+                    new.state = ReactiveState(v)
+                    ctx.rerun()
+                } catch (e: Exception) {
+                    new.state = ReactiveState.exception<T>(e)
                 }
             }
-            if (this is StateFlow<T>) return this.value
-            else throw ReactiveLoading
-        } else {
-            return existing.state.handle(
-                success = { it },
-                exception = { throw it },
-                notReady = { throw ReactiveLoading }
-            )
         }
+        if (this is StateFlow<T>) return this.value
+        else throw ReactiveLoading
+    } else {
+        return existing.state.handle(
+            success = { it },
+            exception = { throw it },
+            notReady = { throw ReactiveLoading }
+        )
     }
 }
 
@@ -308,7 +330,7 @@ class TypedReactiveContext<T>(
  * @param action The calculation logic to run reactively.
  * @return A [TypedReactiveContext] managing the calculation and its dependencies.
  */
-fun <T> CalculationContext.reactive(action: ReactiveContext.() -> T): TypedReactiveContext<T> {
+fun <T> CalculationContext.reactive(action: context(ReactiveContext) () -> T): TypedReactiveContext<T> {
     val trc = TypedReactiveContext(this, action = action)
     trc.startCalculation()
     coroutineContext[StatusListener.Key]?.loading(trc)
@@ -334,11 +356,11 @@ fun <T> CalculationContext.reactive(action: ReactiveContext.() -> T): TypedReact
  * @param action The calculation logic to run reactively.
  * @return A [TypedReactiveContext] managing the calculation and its dependencies.
  */
-inline fun <T> CalculationContext.reactive(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): TypedReactiveContext<Unit> {
+inline fun <T> CalculationContext.reactive(crossinline onLoad: () -> Unit, crossinline action: context(ReactiveContext) () -> Unit): TypedReactiveContext<Unit> {
     var wasLoadingLastTime = false
-    return reactive {
+    return reactive<Unit> {
         try {
-            action(this)
+            action()
             wasLoadingLastTime = false
         } catch(e: ReactiveLoading) {
             if(wasLoadingLastTime) {
@@ -359,7 +381,7 @@ inline fun <T> CalculationContext.reactive(crossinline onLoad: () -> Unit, cross
  *
  * @param action The calculation logic to run reactively.
  */
-fun CalculationContext.reactiveScope(action: ReactiveContext.() -> Unit): ReactiveContext = reactive(action = action)
+fun CalculationContext.reactiveScope(action: context(ReactiveContext) () -> Unit): ReactiveContext = reactive(action = action)
 
 /**
  * Creates a [ReactiveContext] in which to run the provided [action] reactively, discarding the result, with support for loading state.
@@ -370,6 +392,12 @@ fun CalculationContext.reactiveScope(action: ReactiveContext.() -> Unit): Reacti
  * @param onLoad Callback invoked when the calculation enters a loading state.
  * @param action The calculation logic to run reactively.
  */
-inline fun CalculationContext.reactiveScope(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): ReactiveContext = reactive<Unit>(onLoad = onLoad, action = action)
+inline fun CalculationContext.reactiveScope(crossinline onLoad: () -> Unit, crossinline action: context(ReactiveContext) () -> Unit): ReactiveContext = reactive<Unit>(onLoad = onLoad, action = action)
+
+context(ctx: ReactiveContext)
+fun reactiveScope(action: context(ReactiveContext) () -> Unit): ReactiveContext = (ctx as? CalculationContext)?.reactiveScope(action) ?: throw IllegalStateException("ReactiveContext is not a CalculationContext")
+
+context(ctx: ReactiveContext)
+inline fun reactiveScope(crossinline onLoad: () -> Unit, crossinline action: context(ReactiveContext) () -> Unit): ReactiveContext = (ctx as? CalculationContext)?.reactiveScope(onLoad, action) ?: throw IllegalStateException("ReactiveContext is not a CalculationContext")
 
 object ReactiveLoading : Throwable()

@@ -1,6 +1,7 @@
 package com.lightningkite.reactive.lensing.validation
 
 import com.lightningkite.reactive.context.ReactiveContext
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.MutableReactiveValue
 import com.lightningkite.reactive.core.Signal
@@ -268,7 +269,7 @@ fun MutableReactiveValue<String>.assertNotBlank(
 /**
  * Runs the provided validation condition reactively, reporting to a child of this [IssueTracking] node.
  * */
-fun IssueTracking.report(issue: ReactiveContext.() -> Issue?) {
+fun IssueTracking.report(issue: context(ReactiveContext) () -> Issue?) {
     val child = IssueNode(parent = node)
     child.connect()
     child.reactiveReport(issue)
@@ -277,13 +278,27 @@ fun IssueTracking.report(issue: ReactiveContext.() -> Issue?) {
 /**
  * Runs the provided validation condition reactively, reporting to a child of this [IssueTracking] node.
  * */
-fun <T> Validated<T>.validateReactive(issue: ReactiveContext.(T) -> String?) = report { issue(this@validateReactive.invoke())?.let(Issue::Warning) }
+context(ctx: ReactiveContext)
+fun <T> Validated<T>.validateReactive(issue: context(ReactiveContext) (T) -> String?) {
+    val self = this
+    report {
+        val value = self()
+        issue(value)?.let(Issue::Warning)
+    }
+}
 
 /**
  * Asserts the provided condition reactively, constructing and reporting an [Issue.Warning] to a child of this [IssueTracking] node.
  * */
+context(ctx: ReactiveContext)
 fun <T> Validated<T>.assertReactive(
     summary: String,
     description: String = summary,
-    condition: ReactiveContext.(T) -> Boolean
-) = report { if (condition(this@assertReactive.invoke())) null else Issue.Warning(summary, description) }
+    condition: context(ReactiveContext) (T) -> Boolean
+) {
+    val self = this
+    report {
+        val value = self()
+        if (condition(value)) null else Issue.Warning(summary, description)
+    }
+}

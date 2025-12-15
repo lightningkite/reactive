@@ -16,6 +16,7 @@ import com.lightningkite.reactive.lensing.lens
 import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import com.lightningkite.reactive.context.invoke
 
 class MutableRememberSuspendingRememberTests {
     @Test

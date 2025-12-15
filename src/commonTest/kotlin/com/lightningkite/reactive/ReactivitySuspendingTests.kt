@@ -7,13 +7,12 @@ import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.context.reactiveSuspending
 import com.lightningkite.reactive.core.ReactiveState
-import com.lightningkite.reactive.extensions.value
-import com.lightningkite.reactive.extensions.waitForNotNull
+import com.lightningkite.reactive.extensions.*
 import com.lightningkite.reactive.core.BaseReactive
 import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.rememberSuspending
-import com.lightningkite.reactive.extensions.invoke
+import com.lightningkite.reactive.context.invoke
 import kotlinx.coroutines.Dispatchers
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -25,12 +24,12 @@ class ReactivitySuspendingTests {
     @Test fun invokeAdapter() {
         testContext {
             val value = Signal(1)
-            val runner: ReactiveContext.()->Int = {
+            val runner: context(ReactiveContext) ()->Int = {
                 value()
             }
             var read = -1
             load {
-                read = runner()
+                read = runner.invoke()
             }
             assertEquals(read, value.value)
         }

@@ -3,6 +3,7 @@ package com.lightningkite.reactive
 import com.lightningkite.reactive.context.await
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.reactive
+import com.lightningkite.reactive.context.rerunOn
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.extensions.modify
 import com.lightningkite.reactive.lensing.lensByElementWithIdentity

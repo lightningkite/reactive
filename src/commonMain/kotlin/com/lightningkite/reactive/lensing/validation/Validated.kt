@@ -1,5 +1,7 @@
 package com.lightningkite.reactive.lensing.validation
 
+import com.lightningkite.reactive.context.ReactiveContext
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.MutableReactiveValue
 import com.lightningkite.reactive.core.Reactive

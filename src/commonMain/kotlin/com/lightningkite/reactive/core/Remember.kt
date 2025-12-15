@@ -44,7 +44,7 @@ fun <T> remember(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     useLastWhileLoading: Boolean = false,
     deactivationDelay: Duration? = null,
-    action: ReactiveContext.() -> T,
+    action: context(ReactiveContext) () -> T,
 ): Reactive<T> =
     Remember(coroutineContext, useLastWhileLoading, deactivationDelay, action)
 
@@ -76,7 +76,7 @@ class Remember<T>(
     val incomingCoroutineContext: CoroutineContext = Dispatchers.Unconfined,
     useLastWhileLoading: Boolean = false,
     private val deactivationDelay: Duration? = null,
-    private val action: ReactiveContext.() -> T,
+    private val action: context(ReactiveContext) () -> T,
 ) : Reactive<T>, CalculationContext, BaseListenable() {
 
     private var job = SupervisorJob()
@@ -93,7 +93,12 @@ class Remember<T>(
 
     override val state: ReactiveState<T>
         get() {
-            if (!scope.active) scope.runOnceWhileDead()
+            // If the scope isn't active, we need to get a value.
+            // Use startCalculation() instead of runOnceWhileDead() to avoid duplicate
+            // calculations when activate() is called immediately after.
+            // startCalculation() is idempotent - if called twice in quick succession,
+            // the second call will see queued=true and return early.
+            if (!scope.active) scope.startCalculation()
             return scope.state
         }
 
@@ -115,6 +120,8 @@ class Remember<T>(
                 remover = scope.addListener { invokeAllListeners() }
             }
         } ?: run {
+            // startCalculation() is idempotent - if it was just called by the state getter,
+            // this call will see queued=true and return early, preventing duplicate calculation
             scope.startCalculation()
             remover = scope.addListener { invokeAllListeners() }
         }

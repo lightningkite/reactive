@@ -1,6 +1,7 @@
 package com.lightningkite.reactive.lensing.validation
 
 import com.lightningkite.reactive.context.ReactiveContext
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveMutableList
@@ -40,7 +41,7 @@ class IssueNode(val parent: IssueNode? = null) : ResourceUse {
     private val nodeIssue = Signal<Reactive<Issue?>>(Constant(null))
 
     fun report(issue: Issue?) { nodeIssue.value = Constant(issue) }
-    fun reactiveReport(issue: ReactiveContext.() -> Issue?) {
+    fun reactiveReport(issue: context(ReactiveContext) () -> Issue?) {
         nodeIssue.value = remember(action = issue)
     }
 

@@ -4,6 +4,7 @@ import com.lightningkite.reactive.context.CalculationContext
 import com.lightningkite.reactive.context.ReactiveContext
 import com.lightningkite.reactive.context.await
 import com.lightningkite.reactive.context.awaitOnce
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.MutableReactiveValue
@@ -104,8 +105,10 @@ fun <T, WRITE : MutableReactive<T>> WRITE.interceptWrite(action: suspend WRITE.(
         }
     }
 
+context(ctx: ReactiveContext)
 fun <T> Reactive<Reactive<T>>.flatten(): Reactive<T> = remember { this@flatten()() }
 
+context(ctx: ReactiveContext)
 fun <T> Reactive<MutableReactive<T>>.flatten(): MutableReactive<T> =
     remember { this@flatten()() }.withWrite {
         this@flatten.state.onSuccess { s -> s set it }
@@ -128,15 +131,15 @@ fun <T> Deferred<T>.toReactive() = object : BaseReactive<T>() {
     }
 }
 
-suspend operator fun <R> (ReactiveContext.()->R).invoke(): R {
+suspend operator fun <R> (context(ReactiveContext) ()->R).invoke(): R {
     return remember { this@invoke() }.awaitOnce()
 }
-suspend operator fun <A, R> (ReactiveContext.(A)->R).invoke(a: A): R {
+suspend operator fun <A, R> (context(ReactiveContext) (A)->R).invoke(a: A): R {
     return remember { this@invoke(a) }.awaitOnce()
 }
-suspend operator fun <A, B, R> (ReactiveContext.(A, B)->R).invoke(a: A, b: B): R {
+suspend operator fun <A, B, R> (context(ReactiveContext) (A, B)->R).invoke(a: A, b: B): R {
     return remember { this@invoke(a, b) }.awaitOnce()
 }
-suspend operator fun <A, B, C, R> (ReactiveContext.(A, B, C)->R).invoke(a: A, b: B, c: C): R {
+suspend operator fun <A, B, C, R> (context(ReactiveContext) (A, B, C)->R).invoke(a: A, b: B, c: C): R {
     return remember { this@invoke(a, b, c) }.awaitOnce()
 }

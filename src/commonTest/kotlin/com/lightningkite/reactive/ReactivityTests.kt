@@ -12,6 +12,7 @@ import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.addAndRunListener
 import com.lightningkite.reactive.extensions.asyncReactive
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.extensions.interceptWrite
 import com.lightningkite.reactive.extensions.value
 import com.lightningkite.reactive.extensions.waitForNotNull
@@ -230,7 +231,7 @@ class ReactivityTests {
     @Test
     fun sharedTest3() {
         val a = VirtualDelay { 1 }
-        val c = Remember(Dispatchers.Unconfined) { async { a.await() } }
+        val c = Remember(Dispatchers.Unconfined) { GlobalScope.async { a.await() } }
         val d = Remember(Dispatchers.Unconfined) { c() }
         testContext {
             launch { println("launch got " + d.await()) }
