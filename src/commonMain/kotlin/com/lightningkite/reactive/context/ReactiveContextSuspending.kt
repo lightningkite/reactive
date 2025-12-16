@@ -44,6 +44,8 @@ class ReactiveContextSuspending<T>(
     var active = false
         private set
 
+    private var queued = false
+
     private fun CoroutineScope.launchWithStart(block: suspend CoroutineScope.() -> Unit) =
         launch(
             start =
@@ -57,6 +59,8 @@ class ReactiveContextSuspending<T>(
 
     fun startCalculation() {
         active = true
+        if (queued) return
+        queued = true
         lastJob?.cancel()
         dependencyBlockStart()
         lastJob = (scope + this).let { calculationContext ->
@@ -65,6 +69,7 @@ class ReactiveContextSuspending<T>(
                 val result = reactiveState { action() }
                 if (!useLastWhileLoading || result.ready) reportTo.state = result
                 dependencyBlockEnd()
+                queued = false
                 done = true
             }
 
@@ -104,6 +109,7 @@ class ReactiveContextSuspending<T>(
     override fun cancel() {
         super.cancel()
         active = false
+        queued = false
         lastJob?.let {
             lastJob = null
             it.cancel()
