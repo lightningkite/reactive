@@ -6,7 +6,7 @@ import com.lightningkite.reactive.context.TypedReactiveContext
 import com.lightningkite.reactive.context.await
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.context.reactive
-import com.lightningkite.reactive.context.reactiveScope
+import com.lightningkite.reactive.context.reactiveSuspending
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.addAndRunListener
@@ -16,8 +16,10 @@ import com.lightningkite.reactive.extensions.waitForNotNull
 import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.RawReactive
 import com.lightningkite.reactive.core.Remember
+import com.lightningkite.reactive.core.ResourceUse
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
+import com.lightningkite.reactive.extensions.use
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.coroutines.Continuation
@@ -32,9 +34,7 @@ class ReactivityTests {
         val basicSignal = Signal<Int?>(null)
         val emissions = ArrayList<Int>()
         testContext {
-            reactiveScope {
-                emissions.add(basicSignal.waitForNotNull())
-            }
+            reactive(action = { emissions.add(basicSignal.waitForNotNull()) })
             repeat(10) {
                 basicSignal.value = null
                 basicSignal.value = it
@@ -105,9 +105,7 @@ class ReactivityTests {
         val b = Signal(2)
 
         testContext {
-            reactiveScope {
-                println("Got ${a() + b()}")
-            }
+            reactive(action = { println("Got ${a() + b()}") })
         }
         println("Done.")
     }
@@ -120,14 +118,14 @@ class ReactivityTests {
         var hits = 0
 
         testContext {
-            reactiveScope {
-                println("#1 Got ${c()}")
-                hits++
-            }
-            reactiveScope {
-                println("#2 Got ${c()}")
-                hits++
-            }
+            reactive(action = {
+                            println("#1 Got ${c()}")
+                            hits++
+                        })
+            reactive(action = {
+                            println("#2 Got ${c()}")
+                            hits++
+                        })
             assertEquals(2, hits)
             a.value = 2
             assertEquals(4, hits)
@@ -145,10 +143,10 @@ class ReactivityTests {
                 println("launch ${a.await()}")
                 hits++
             }
-            reactiveScope {
+            this@testContext.reactive(action = {
                 println("scope ${a()}")
                 hits++
-            }
+            })
 
             assertEquals(0, hits)
             a.value = 1
@@ -174,9 +172,7 @@ class ReactivityTests {
         println("$e: e")
 
         testContext {
-            reactiveScope {
-                e()
-            }
+            reactive(action = { e() })
             assertEquals(1, cInvocations)
             assertEquals(1, dInvocations)
             assertEquals(1, eInvocations)
@@ -209,9 +205,7 @@ class ReactivityTests {
         println("$e: e")
 
         testContext {
-            reactiveScope {
-                e()
-            }
+            reactive(action = { e() })
             assertEquals(1, cInvocations)
             assertEquals(1, dInvocations)
             assertEquals(1, eInvocations)
@@ -235,7 +229,7 @@ class ReactivityTests {
         val d = Remember(Dispatchers.Unconfined) { c() }
         testContext {
             launch { println("launch got " + d.await()) }
-            reactiveScope { println("reactiveScope got " + d()) }
+            reactive(action = { println("reactiveScope got " + d()) })
             println("Ready... GO!")
             a.go()
         }
@@ -247,7 +241,7 @@ class ReactivityTests {
         val shared = remember(Dispatchers.Unconfined) { property()() }
         var completions = 0
         testContext {
-            reactiveScope { println("reactiveScope got " + shared()); completions++ }
+            reactive(action = { println("reactiveScope got " + shared()); completions++ })
             launch { println("launch got " + shared.await()); completions++ }
             println("Ready... GO!")
             val lp2 = LateInitSignal<Int>()
@@ -277,7 +271,7 @@ class ReactivityTests {
         val socket = remember(Dispatchers.Unconfined) { source() }
         val sublistener = remember(Dispatchers.Unconfined) { socket()() }
         testContext {
-            reactiveScope { println(sublistener()) }
+            reactive(action = { println(sublistener()) })
             println("Ready")
             val s2 = LateInitSignal<String>()
             source.value = s2
@@ -292,8 +286,8 @@ class ReactivityTests {
         val master = LateInitSignal<Int>()
         val secondary = Signal<Int>(0)
         testContext {
-            reactiveScope { println("master: ${master()}") }
-            reactiveScope { println("secondary: ${secondary()}") }
+            reactive(action = { println("master: ${master()}") })
+            reactive(action = { println("secondary: ${secondary()}") })
             secondary bind master
             secondary.value = 1
             master.value = 5
@@ -306,7 +300,7 @@ class ReactivityTests {
         val listItem = LateInitSignal<Int>()
         val selected = Signal<Int>(0)
         testContext {
-            reactiveScope { println(listItem() == selected()) }
+            reactive(action = { println(listItem() == selected()) })
             listItem.value = 1
         }
     }
@@ -315,9 +309,7 @@ class ReactivityTests {
     fun flowtest() {
         testContext {
             val flow = MutableStateFlow(0)
-            reactiveScope {
-                println(flow())
-            }
+            reactive(action = { println(flow()) })
             repeat(5) { flow.value = it }
         }
     }

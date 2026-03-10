@@ -14,14 +14,11 @@ import kotlin.reflect.KMutableProperty0
 abstract class CoroutineScopeHelpers : CoroutineScope {
 
     @ReactiveDsl
-    inline operator fun <T, IGNORED> ((T) -> IGNORED).invoke(crossinline actionToCalculate: ReactiveContext.() -> T) = reactiveScope {
-        this@invoke(actionToCalculate(this))
-    }
+    inline operator fun <T, IGNORED> ((T) -> IGNORED).invoke(crossinline actionToCalculate: ReactiveContext.() -> T) =
+        this@CoroutineScopeHelpers.reactive(action = { this@invoke(actionToCalculate(this)) })
 
     @ReactiveDsl
-    inline operator fun <T> KMutableProperty0<T>.invoke(crossinline actionToCalculate: ReactiveContext.() -> T) = reactiveScope {
-        this@invoke.set(actionToCalculate(this))
-    }
+    inline operator fun <T> KMutableProperty0<T>.invoke(crossinline actionToCalculate: ReactiveContext.() -> T) = this@CoroutineScopeHelpers.reactive(action = { set(actionToCalculate(this)) })
 
     infix fun <T> MutableReactive<T>.bind(master: MutableReactive<T>) {
         var reportTo = RawReactive(ReactiveState(Unit))

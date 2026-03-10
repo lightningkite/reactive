@@ -1,6 +1,7 @@
 package com.lightningkite.reactive.core
 
 import com.lightningkite.reactive.context.ReactiveContextSuspending
+import com.lightningkite.reactive.context.ReactiveCoroutineScope
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
@@ -41,7 +42,7 @@ fun <T> rememberSuspending(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     useLastWhileLoading: Boolean = false,
     deactivationDelay: Duration? = null,
-    action: suspend CoroutineScope.() -> T,
+    action: suspend ReactiveCoroutineScope.() -> T,
 ): Reactive<T> =
     RememberSuspending(coroutineContext, useLastWhileLoading, deactivationDelay, action)
 
@@ -75,7 +76,7 @@ class RememberSuspending<T>(
     val incomingCoroutineContext: CoroutineContext = Dispatchers.Unconfined,
     useLastWhileLoading: Boolean = false,
     private val deactivationDelay: Duration? = null,
-    private val action: suspend CoroutineScope.() -> T,
+    private val action: suspend ReactiveCoroutineScope.() -> T,
 ) : Reactive<T>, CoroutineScope, BaseListenable() {
 
     private var job = SupervisorJob()

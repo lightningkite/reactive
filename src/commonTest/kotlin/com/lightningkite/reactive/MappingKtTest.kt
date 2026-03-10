@@ -1,7 +1,7 @@
 package com.lightningkite.reactive
 
 import com.lightningkite.reactive.context.awaitOnce
-import com.lightningkite.reactive.context.reactiveScope
+import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.MutableReactiveValue
 import com.lightningkite.reactive.core.Reactive
@@ -56,10 +56,10 @@ class MappingKtTest {
             testContext {
                 var seen = -1
                 var sets = 0
-                reactiveScope {
-                    seen = view()
-                    sets++
-                }
+                reactive(action = {
+                                    seen = view()
+                                    sets++
+                                })
                 assertEquals(42, seen)
                 assertEquals(1, sets)
                 source.value = 42
@@ -102,10 +102,10 @@ class MappingKtTest {
             testContext {
                 var seen = -1
                 var sets = 0
-                reactiveScope {
+                this@testContext.reactive(action = {
                     seen = view()
                     sets++
-                }
+                })
                 assertEquals(42, seen)
                 assertEquals(1, sets)
                 load { view.set(43) }
@@ -140,10 +140,10 @@ class MappingKtTest {
             testContext {
                 var seen = -1
                 var sets = 0
-                reactiveScope {
-                    seen = view()
-                    sets++
-                }
+                reactive(action = {
+                                    seen = view()
+                                    sets++
+                                })
                 assertEquals(42, seen)
                 assertEquals(1, sets)
                 load { view.set(43) }
@@ -182,12 +182,12 @@ class MappingKtTest {
         testContext {
             var seen = -1
             var sets = 0
-            reactiveScope {
+            this@testContext.reactive(action = {
                 println("Rerunning...")
                 seen = view()
                 println("Got $seen")
                 sets++
-            }
+            })
             assertEquals(-1, seen)
             assertEquals(0, sets)
             load { view.set(43) }
@@ -252,7 +252,7 @@ class MappingKtTest {
     fun listIdentity() = perElementTest { source, view ->
         val two = view.state.get().find { it.value == 2 }!!
         val three = view.state.get().find { it.value == 3 }!!
-        reactiveScope { three() }
+        reactive(action = { three() })
         source.value = listOf(2, 3, 4)
         assertSame(view.state.get().find { it.value == 2 }, two)
         assertSame(view.state.get().find { it.value == 3 }, three)
@@ -273,7 +273,7 @@ class MappingKtTest {
     @Test
     fun listSettingWithListen() = perElementTest { source, view ->
         val sub = view.state.get().find { it.value == 3 }!!
-        reactiveScope { sub() }
+        reactive(action = { sub() })
         load {
             sub.set(4)
         }
@@ -292,7 +292,7 @@ class MappingKtTest {
     @Test
     fun listInsertion() = perElementTest { source, view ->
         val sub = view.state.get().find { it.value == 3 }!!
-        reactiveScope { sub() }
+        reactive(action = { sub() })
         load { view.elements.set(view.elements.awaitOnce() + view.newElement(4)) }
         assertEquals(4, source.value.size)
     }
@@ -308,13 +308,13 @@ class MappingKtTest {
     @Test
     fun listRemoval() = perElementTest { source, view ->
         val sub = view.state.get().find { it.value == 3 }!!
-        reactiveScope {
-            try {
-                sub()
-            } catch (e: Exception) {
-                println("Blocked $e")
-            }
-        }
+        reactive(action = {
+                    try {
+                        sub()
+                    } catch (e: Exception) {
+                        println("Blocked $e")
+                    }
+                })
         load { view.elements.set(view.elements.awaitOnce().filter { it.value != 3 }) }
         assertEquals(2, source.value.size)
     }
@@ -343,7 +343,7 @@ class MappingKtTest {
     @Test
     fun listRearranging() = perElementTest { source, view ->
         val sub = view.state.get().find { it.value == 3 }!!
-        reactiveScope { sub() }
+        reactive(action = { sub() })
         load { view.elements.set(view.elements.awaitOnce().reversed()) }
         assertEquals(3, sub.value)
     }
@@ -374,7 +374,7 @@ class MappingKtTest {
             // The state of each subwritable always matches the source
             assertEquals(source.value, view.state.get().map { it.value }.also { println("Before: $it") })
             val third = view.state.get().find { it.value == 3 }!!
-            reactiveScope { println("third: ${third()}") }
+            reactive(action = { println("third: ${third()}") })
 
             load {
                 third.set(4)
@@ -415,8 +415,8 @@ class MappingKtTest {
             assertEquals(source.value, view.state.get().map { it.value }.also { println("Before: $it") })
             val second = view.state.get().find { it.value == 2 }!!
             val third = view.state.get().find { it.value == 3 }!!
-            reactiveScope { println("second: ${second()}") }
-            reactiveScope { println("third: ${third()}") }
+            reactive(action = { println("second: ${second()}") })
+            reactive(action = { println("third: ${third()}") })
 
             load {
                 third.set(4)

@@ -2,7 +2,7 @@ package com.lightningkite.reactive
 
 import com.lightningkite.reactive.context.await
 import com.lightningkite.reactive.context.onRemove
-import com.lightningkite.reactive.context.reactiveScope
+import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.core.*
 import com.lightningkite.reactive.extensions.value
 import kotlinx.coroutines.Dispatchers
@@ -20,10 +20,10 @@ class RememberTests {
         val b = remember { a() }
         var hits = 0
         testContext {
-            reactiveScope {
-                b()
-                hits++
-            }
+            reactive(action = {
+                            b()
+                            hits++
+                        })
             assertEquals(0, hits)
             a.value = null
             assertEquals(1, hits)
@@ -44,11 +44,11 @@ class RememberTests {
         var hits = 0
         testContext {
 //            a.addListener { println("Listener") }.also(::onRemove)
-            reactiveScope {
+            this@testContext.reactive(action = {
                 println("running")
                 b()
                 hits++
-            }
+            })
             println("first")
             assertEquals(0, hits)
             println("setting null")
@@ -128,15 +128,11 @@ class RememberTests {
             basicSignal()
         }
         testContext {
-            reactiveScope {
-                a()
-            }
+            reactive(action = { a() })
             load {
                 a.await()
             }
-            reactiveScope {
-                a()
-            }
+            reactive(action = { a() })
             assertEquals(1, hits)
 
             basicSignal.value = 2
@@ -148,15 +144,11 @@ class RememberTests {
         assertEquals(2, hits)
 
         testContext {
-            reactiveScope {
-                a()
-            }
+            reactive(action = { a() })
             load {
                 a.await()
             }
-            reactiveScope {
-                a()
-            }
+            reactive(action = { a() })
         }
         assertEquals(3, hits)
     }

@@ -4,7 +4,6 @@ import com.lightningkite.reactive.context.await
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.context.reactive
-import com.lightningkite.reactive.context.reactiveScope
 import com.lightningkite.reactive.context.rerunOn
 import com.lightningkite.reactive.core.BasicListenable
 import com.lightningkite.reactive.core.ReactiveState
@@ -26,10 +25,10 @@ class MutableRememberSuspendingRememberTests {
         val b = MutableRememberSuspending { a() }
         var hits = 0
         testContext {
-            reactiveScope {
-                b()
-                hits++
-            }
+            reactive(action = {
+                            b()
+                            hits++
+                        })
             assertEquals(0, hits)
             a.value = null
             assertEquals(1, hits)
@@ -43,10 +42,10 @@ class MutableRememberSuspendingRememberTests {
         val b = MutableRememberSuspending { a() }
         var hits = 0
         testContext {
-            reactiveScope {
+            this@testContext.reactive(action = {
                 b()
                 hits++
-            }
+            })
             assertEquals(0, hits)
             a.value = null
             assertEquals(1, hits)
@@ -83,15 +82,11 @@ class MutableRememberSuspendingRememberTests {
             value()
         }
         testContext {
-            reactiveScope {
-                a()
-            }
+            reactive(action = { a() })
             load {
                 a.await()
             }
-            reactiveScope {
-                a()
-            }
+            reactive(action = { a() })
             assertEquals(1, hits)
 
             value.value = 2
@@ -103,15 +98,11 @@ class MutableRememberSuspendingRememberTests {
         assertEquals(2, hits)
 
         testContext {
-            reactiveScope {
-                a()
-            }
+            reactive(action = { a() })
             load {
                 a.await()
             }
-            reactiveScope {
-                a()
-            }
+            reactive(action = { a() })
         }
         assertEquals(3, hits)
     }

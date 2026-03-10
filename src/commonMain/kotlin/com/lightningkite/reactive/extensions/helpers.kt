@@ -96,7 +96,7 @@ fun MutableReactiveValue<Boolean>.toggle() { value = !value }
 /**
  * Starts using this [ResourceUse] and tracks it as a dependency in future loops.
  * */
-fun DependencyTracker.using(resourceUse: ResourceUse) {
+fun DependencyTracker.use(resourceUse: ResourceUse) {
     if (existingDependency(resourceUse) == null) {
         registerDependency(resourceUse, resourceUse.beginUse())
     }
@@ -109,17 +109,14 @@ fun DependencyTracker.using(resourceUse: ResourceUse) {
  * If this scope contains a [DependencyChangeListener] then the resource use
  * is attached as a dependency.
  * */
-fun CoroutineScope.using(resourceUse: ResourceUse) {
+fun CoroutineScope.use(resourceUse: ResourceUse) {
     coroutineContext[DependencyChangeListener.Key]?.let {
-        it.using(resourceUse)
+        it.use(resourceUse)
         return
     }
     // If there's no dependency tracker just attach it to the lifetime of the scope.
     resourceUse.beginUse().also(::onRemove)
 }
-
-@Deprecated("Renamed to using", ReplaceWith("using(resourceUse)"))
-fun CoroutineScope.use(resourceUse: ResourceUse) = using(resourceUse)
 
 fun <T, WRITE : MutableReactive<T>> WRITE.interceptWrite(action: suspend WRITE.(T) -> Unit): MutableReactive<T> =
     object : MutableReactive<T>, Reactive<T> by this {
