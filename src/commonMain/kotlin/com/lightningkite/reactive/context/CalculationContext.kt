@@ -20,10 +20,12 @@ fun CoroutineScope.onRemove(action: () -> Unit) {
     this.coroutineContext[Job]?.invokeOnCompletion { action() }
 }
 
-
+@Deprecated("No longer needed", ReplaceWith("CoroutineScope"))
 typealias CalculationContext = CoroutineScope
+
 @OptIn(ExperimentalStdlibApi::class)
 val CoroutineScope.requireMainThread: Boolean get() = coroutineContext[CoroutineDispatcher.Key] is MainCoroutineDispatcher
+
 @OptIn(ExperimentalStdlibApi::class)
 fun CoroutineScope.onThread(action: ()->Unit) {
     val d = coroutineContext[CoroutineDispatcher.Key] ?: return action()

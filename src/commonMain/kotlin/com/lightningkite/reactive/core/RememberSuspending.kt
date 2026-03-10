@@ -1,10 +1,7 @@
 package com.lightningkite.reactive.core
 
-import com.lightningkite.reactive.context.CalculationContext
 import com.lightningkite.reactive.context.ReactiveContextSuspending
 import kotlinx.coroutines.*
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
@@ -44,7 +41,7 @@ fun <T> rememberSuspending(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     useLastWhileLoading: Boolean = false,
     deactivationDelay: Duration? = null,
-    action: suspend CalculationContext.() -> T,
+    action: suspend CoroutineScope.() -> T,
 ): Reactive<T> =
     RememberSuspending(coroutineContext, useLastWhileLoading, deactivationDelay, action)
 
@@ -78,8 +75,8 @@ class RememberSuspending<T>(
     val incomingCoroutineContext: CoroutineContext = Dispatchers.Unconfined,
     useLastWhileLoading: Boolean = false,
     private val deactivationDelay: Duration? = null,
-    private val action: suspend CalculationContext.() -> T,
-) : Reactive<T>, CalculationContext, BaseListenable() {
+    private val action: suspend CoroutineScope.() -> T,
+) : Reactive<T>, CoroutineScope, BaseListenable() {
 
     private var job = SupervisorJob()
     private val restOfContext = incomingCoroutineContext +

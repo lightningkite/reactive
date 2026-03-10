@@ -1,14 +1,11 @@
 package com.lightningkite.reactive.core
 
-import com.lightningkite.reactive.context.CalculationContext
 import com.lightningkite.reactive.context.ReactiveContext
 import com.lightningkite.reactive.context.TypedReactiveContext
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.random.Random
 import kotlin.time.Duration
-import kotlin.uuid.Uuid
 
 /**
  * Creates a reactive value that automatically updates when its dependencies change.
@@ -77,7 +74,7 @@ class Remember<T>(
     useLastWhileLoading: Boolean = false,
     private val deactivationDelay: Duration? = null,
     private val action: ReactiveContext.() -> T,
-) : Reactive<T>, CalculationContext, BaseListenable() {
+) : Reactive<T>, CoroutineScope, BaseListenable() {
 
     private var job = SupervisorJob()
     private val restOfContext = incomingCoroutineContext +

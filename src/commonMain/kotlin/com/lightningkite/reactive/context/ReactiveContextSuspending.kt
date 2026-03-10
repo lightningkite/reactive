@@ -126,7 +126,7 @@ class ReactiveContextSuspending<T>(
  * @param action The suspending calculation logic to run reactively.
  * @return A [ReactiveContextSuspending] managing the calculation and its dependencies.
  */
-@Suppress("NOTHING_TO_INLINE") inline fun CalculationContext.reactiveSuspending(noinline action: suspend () -> Unit) =
+@Suppress("NOTHING_TO_INLINE") inline fun CoroutineScope.reactiveSuspending(noinline action: suspend () -> Unit) =
     ReactiveContextSuspending(this, action = action).also {
         it.startCalculation()
         coroutineContext[StatusListener.Key]?.loading(it)
@@ -142,7 +142,7 @@ class ReactiveContextSuspending<T>(
  * @param action The suspending calculation logic to run reactively.
  * @return A [ReactiveContextSuspending] managing the calculation and its dependencies.
  */
-inline fun CalculationContext.reactiveSuspending(crossinline onLoad: () -> Unit, noinline action: suspend () -> Unit): ReactiveContextSuspending<Unit> {
+inline fun CoroutineScope.reactiveSuspending(crossinline onLoad: () -> Unit, noinline action: suspend () -> Unit): ReactiveContextSuspending<Unit> {
     return reactiveSuspending(action = action).also {
         it.addListener { if(!it.state.ready) onLoad() }.let(::onRemove)
     }

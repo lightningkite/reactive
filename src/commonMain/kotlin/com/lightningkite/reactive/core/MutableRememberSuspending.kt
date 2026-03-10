@@ -1,7 +1,7 @@
 package com.lightningkite.reactive.core
 
-import com.lightningkite.reactive.context.CalculationContext
 import com.lightningkite.reactive.context.ReactiveContextSuspending
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
@@ -36,7 +36,7 @@ import kotlin.time.Duration
 fun <T> mutableRememberSuspending(
     useLastWhileLoading: Boolean = false,
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
-    initialValue: suspend CalculationContext.() -> T
+    initialValue: suspend CoroutineScope.() -> T
 ): ReactiveWithMutableValue<T> = MutableRememberSuspending(true, useLastWhileLoading, coroutineContext, null, initialValue)
 
 /**
@@ -63,7 +63,7 @@ class MutableRememberSuspending<T>(
     private val useLastWhileLoading: Boolean = false,
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     deactivationDelay: Duration? = null,
-    initialValue: suspend CalculationContext.() -> T
+    initialValue: suspend CoroutineScope.() -> T
 ) : ReactiveWithMutableValue<T>, BaseReactive<T>() {
     var overridden: Boolean = false
         private set

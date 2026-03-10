@@ -84,15 +84,16 @@ typealias ReactiveContext = TypedReactiveContext<*>
  * @property action The calculation logic to execute in this context.
  */
 class TypedReactiveContext<T>(
-    val scope: CalculationContext,
+    val scope: CoroutineScope,
     val useLastWhileLoading: Boolean = false,
     private val reportTo: RawReactive<T> = RawReactive(),
     val action: TypedReactiveContext<T>.() -> T
-): DependencyTracker(), CalculationContext by scope, Reactive<T> by reportTo {
+): DependencyTracker(), CoroutineScope by scope, Reactive<T> by reportTo {
     companion object
 
     var active = false
         private set
+
     val rerun: () -> Unit = ::startCalculation
 
     private var queued = false
@@ -327,7 +328,7 @@ class TypedReactiveContext<T>(
  * @param action The calculation logic to run reactively.
  * @return A [TypedReactiveContext] managing the calculation and its dependencies.
  */
-fun <T> CalculationContext.reactive(action: ReactiveContext.() -> T): TypedReactiveContext<T> {
+fun <T> CoroutineScope.reactive(action: ReactiveContext.() -> T): TypedReactiveContext<T> {
     val trc = TypedReactiveContext(this, action = action)
     trc.startCalculation()
     coroutineContext[StatusListener.Key]?.loading(trc)
@@ -353,7 +354,7 @@ fun <T> CalculationContext.reactive(action: ReactiveContext.() -> T): TypedReact
  * @param action The calculation logic to run reactively.
  * @return A [TypedReactiveContext] managing the calculation and its dependencies.
  */
-inline fun <T> CalculationContext.reactive(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): TypedReactiveContext<Unit> {
+inline fun <T> CoroutineScope.reactive(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): TypedReactiveContext<Unit> {
     var wasLoadingLastTime = false
     return reactive {
         try {
@@ -378,7 +379,7 @@ inline fun <T> CalculationContext.reactive(crossinline onLoad: () -> Unit, cross
  *
  * @param action The calculation logic to run reactively.
  */
-fun CalculationContext.reactiveScope(action: ReactiveContext.() -> Unit): ReactiveContext = reactive(action = action)
+fun CoroutineScope.reactiveScope(action: ReactiveContext.() -> Unit): ReactiveContext = reactive(action = action)
 
 /**
  * Creates a [ReactiveContext] in which to run the provided [action] reactively, discarding the result, with support for loading state.
@@ -389,6 +390,6 @@ fun CalculationContext.reactiveScope(action: ReactiveContext.() -> Unit): Reacti
  * @param onLoad Callback invoked when the calculation enters a loading state.
  * @param action The calculation logic to run reactively.
  */
-inline fun CalculationContext.reactiveScope(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): ReactiveContext = reactive<Unit>(onLoad = onLoad, action = action)
+inline fun CoroutineScope.reactiveScope(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): ReactiveContext = reactive<Unit>(onLoad = onLoad, action = action)
 
 object ReactiveLoading : Throwable()

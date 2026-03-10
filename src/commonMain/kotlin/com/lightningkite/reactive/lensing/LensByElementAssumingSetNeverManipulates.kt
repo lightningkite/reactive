@@ -1,6 +1,5 @@
 package com.lightningkite.reactive.lensing
 
-import com.lightningkite.reactive.context.CalculationContext
 import com.lightningkite.reactive.core.BaseListenable
 import com.lightningkite.reactive.core.BaseReactiveValue
 import com.lightningkite.reactive.core.Constant
@@ -27,18 +26,18 @@ fun <E> MutableReactive<List<E>>.lensByElementAssumingSetNeverManipulates(): Rea
 /**
  * THIS ONLY WORKS IF THE `set` on the receiver *never* manipulates the input before notifying.
  */
-fun <E, W> MutableReactive<List<E>>.lensByElementAssumingSetNeverManipulates(map: CalculationContext.(MutableReactiveElement<E>) -> W): Reactive<List<W>> =
+fun <E, W> MutableReactive<List<E>>.lensByElementAssumingSetNeverManipulates(map: CoroutineScope.(MutableReactiveElement<E>) -> W): Reactive<List<W>> =
     LensByElementAssumingSetNeverManipulates(this, map)
 
 
 
 private class LensByElementAssumingSetNeverManipulates<E, W>(
     val source: MutableReactive<List<E>>,
-    private val map: CalculationContext.(MutableReactiveElement<E>) -> W
+    private val map: CoroutineScope.(MutableReactiveElement<E>) -> W
 ) :
     Reactive<List<W>>, BaseListenable() {
 
-    inner class Instance(calculationContext: CalculationContext, index: Int, value: E) : MutableReactiveElement<E>,
+    inner class Instance(calculationContext: CoroutineScope, index: Int, value: E) : MutableReactiveElement<E>,
         BaseReactiveValue<E>(value) {
         val mapped = map(calculationContext, this)
         override val index: ReactiveValue<Int> = Constant(index)

@@ -1,6 +1,5 @@
 package com.lightningkite.reactive.extensions
 
-import com.lightningkite.reactive.context.CalculationContext
 import com.lightningkite.reactive.context.DependencyChangeListener
 import com.lightningkite.reactive.context.DependencyTracker
 import com.lightningkite.reactive.context.ReactiveContext
@@ -120,7 +119,7 @@ fun CoroutineScope.using(resourceUse: ResourceUse) {
 }
 
 @Deprecated("Renamed to using", ReplaceWith("using(resourceUse)"))
-fun CalculationContext.use(resourceUse: ResourceUse) = using(resourceUse)
+fun CoroutineScope.use(resourceUse: ResourceUse) = using(resourceUse)
 
 fun <T, WRITE : MutableReactive<T>> WRITE.interceptWrite(action: suspend WRITE.(T) -> Unit): MutableReactive<T> =
     object : MutableReactive<T>, Reactive<T> by this {

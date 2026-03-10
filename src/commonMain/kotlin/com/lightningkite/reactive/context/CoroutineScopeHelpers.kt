@@ -58,7 +58,7 @@ abstract class CoroutineScopeHelpers : CoroutineScope {
     }
 }
 @OptIn(ExperimentalStdlibApi::class)
-private fun <A> CalculationContext.oneAtATime(work: Boolean, action: suspend (A) -> Unit): (A) -> Unit {
+private fun <A> CoroutineScope.oneAtATime(work: Boolean, action: suspend (A) -> Unit): (A) -> Unit {
     var lastJob: Job? = null
     var reportTo = RawReactive(ReactiveState(Unit))
     if (work)

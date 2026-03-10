@@ -1,6 +1,5 @@
 package com.lightningkite.reactive
 
-import com.lightningkite.reactive.context.CalculationContext
 import com.lightningkite.reactive.context.awaitOnce
 import com.lightningkite.reactive.context.reactiveScope
 import com.lightningkite.reactive.core.MutableReactive
@@ -13,6 +12,7 @@ import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.lensing.LensByElement
 import com.lightningkite.reactive.lensing.lens
+import kotlinx.coroutines.CoroutineScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -213,7 +213,7 @@ class MappingKtTest {
         }
     }
 
-    fun perElementTest(action: CalculationContext.(source: MutableReactiveValue<List<Int>>, view: LensByElement<Int, Int, LensByElement<Int, Int, *>.Element>) -> Unit) {
+    fun perElementTest(action: CoroutineScope.(source: MutableReactiveValue<List<Int>>, view: LensByElement<Int, Int, LensByElement<Int, Int, *>.Element>) -> Unit) {
         val source = Signal(listOf(1, 2, 3)).apply {
             addListener {
                 println("source: $value")

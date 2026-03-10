@@ -1,6 +1,5 @@
 package com.lightningkite.reactive.lensing
 
-import com.lightningkite.reactive.context.CalculationContext
 import com.lightningkite.reactive.context.awaitOnce
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.MutableWithReactiveValue
@@ -9,9 +8,8 @@ import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.extensions.invokeAllSafe
 import com.lightningkite.reactive.lensing.validation.IssueNode
 import com.lightningkite.reactive.lensing.validation.MutableValidated
-import com.lightningkite.reactive.lensing.validation.Validated
-import com.lightningkite.reactive.lensing.validation.ValidatedValue
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlin.collections.plus
@@ -20,7 +18,7 @@ import kotlin.jvm.JvmName
 
 fun <E, ID, W> MutableReactive<List<E>>.lensByElementWithIdentity(
     identity: (E) -> ID,
-    map: CalculationContext.(MutableWithReactiveValue<E>) -> W
+    map: CoroutineScope.(MutableWithReactiveValue<E>) -> W
 ) = LensByElement<E, ID, W>(this, identity = identity, elementLens = { it.map(it) })
 
 fun <E, ID> MutableReactive<List<E>>.lensByElementWithIdentity(
@@ -31,7 +29,7 @@ fun <E, ID> MutableReactive<List<E>>.lensByElementWithIdentity(
 @Suppress("Deprecation")
 fun <E, ID, W> MutableReactive<Set<E>>.lensByElementWithIdentity(
     identity: (E) -> ID,
-    map: CalculationContext.(MutableWithReactiveValue<E>) -> W
+    map: CoroutineScope.(MutableWithReactiveValue<E>) -> W
 ) = lens(get = { it.toList() }, set = { it.toSet() }).lensByElement(identity, map)
 
 @JvmName("setLensByElementWithIdentity")
@@ -50,7 +48,7 @@ class LensByElement<E, ID, T>(
 ) : Reactive<List<T>> {
     private val node = IssueNode(parent = (source as? MutableValidated)?.node).apply { connect() }
 
-    inner class Element internal constructor(valueInit: E) : MutableWithReactiveValue<E>, MutableValidated<E>, CalculationContext {
+    inner class Element internal constructor(valueInit: E) : MutableWithReactiveValue<E>, MutableValidated<E>, CoroutineScope {
         override val node: IssueNode = this@LensByElement.node.child()
 
         private var job = Job()
@@ -218,7 +216,7 @@ class LensByElement<E, ID, T>(
 
 
 @Deprecated("Be specific about what kind you need.")
-fun <E, ID, W> MutableReactive<List<E>>.lensByElement(identity: (E) -> ID, map: CalculationContext.(MutableWithReactiveValue<E>) -> W) =
+fun <E, ID, W> MutableReactive<List<E>>.lensByElement(identity: (E) -> ID, map: CoroutineScope.(MutableWithReactiveValue<E>) -> W) =
     LensByElement<E, ID, W>(this, identity = identity, elementLens = { it.map(it) })
 
 @Deprecated("Be specific about what kind you need.")
@@ -228,7 +226,7 @@ fun <E, ID> MutableReactive<List<E>>.lensByElement(identity: (E) -> ID) =
 @Deprecated("Be specific about what kind you need.")
 @JvmName("setLensByElement")
 @Suppress("Deprecation")
-fun <E, ID, W> MutableReactive<Set<E>>.lensByElement(identity: (E) -> ID, map: CalculationContext.(MutableWithReactiveValue<E>) -> W) =
+fun <E, ID, W> MutableReactive<Set<E>>.lensByElement(identity: (E) -> ID, map: CoroutineScope.(MutableWithReactiveValue<E>) -> W) =
     lens(get = { it.toList() }, set = { it.toSet() }).lensByElement(identity, map)
 
 @Deprecated("Be specific about what kind you need.")
