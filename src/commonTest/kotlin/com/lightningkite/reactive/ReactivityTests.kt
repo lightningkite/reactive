@@ -516,7 +516,7 @@ class VirtualDelayer() {
     }
 }
 
-class TestContext : CoroutineScopeHelpers() {
+class TestContext : CoroutineScopeHelpers {
     var error: Throwable? = null
     val job = Job()
     var loadCount = 0

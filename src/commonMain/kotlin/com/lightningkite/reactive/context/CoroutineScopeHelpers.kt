@@ -11,17 +11,40 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.reflect.KMutableProperty0
 
-abstract class CoroutineScopeHelpers : CoroutineScope {
-
+/**
+ * Interface for helper functions which require an additional [CoroutineScope] context. This will eventually
+ * be removed in favor of context receivers.
+ * */
+interface CoroutineScopeHelpers : CoroutineScope {
     @ReactiveDsl
-    inline operator fun <T, IGNORED> ((T) -> IGNORED).invoke(crossinline actionToCalculate: ReactiveContext.() -> T) =
+    operator fun <T, IGNORED> ((T) -> IGNORED).invoke(actionToCalculate: ReactiveContext.() -> T) =
         this@CoroutineScopeHelpers.reactive(action = { this@invoke(actionToCalculate(this)) })
 
+    /**
+     * Syntax sugar for reactively setting values.
+     *
+     * ```kotlin
+     * val reactiveThing: Reactive<Int> = ...
+     * var value = 0
+     *
+     * ::value { reactiveThing() }
+     *
+     * \\ Equivalent To
+     *
+     * reactive {
+     *    value = reactiveThing()
+     * }
+     * ```
+     * */
     @ReactiveDsl
-    inline operator fun <T> KMutableProperty0<T>.invoke(crossinline actionToCalculate: ReactiveContext.() -> T) = this@CoroutineScopeHelpers.reactive(action = { set(actionToCalculate(this)) })
+    operator fun <T> KMutableProperty0<T>.invoke(actionToCalculate: ReactiveContext.() -> T) = this@CoroutineScopeHelpers.reactive(action = { set(actionToCalculate(this)) })
 
+    /**
+     * Bidirectionally binds this [MutableReactive] to another [MutableReactive], keeping both values in sync.
+     * Changes to either reactive value will propagate to the other.
+     */
     infix fun <T> MutableReactive<T>.bind(master: MutableReactive<T>) {
-        var reportTo = RawReactive(ReactiveState(Unit))
+        val reportTo = RawReactive(ReactiveState(Unit))
         coroutineContext[StatusListener]?.loading(reportTo)
         launch {
             reportTo.state = ReactiveState.notReady
@@ -54,10 +77,11 @@ abstract class CoroutineScopeHelpers : CoroutineScope {
         }
     }
 }
+
 @OptIn(ExperimentalStdlibApi::class)
 private fun <A> CoroutineScope.oneAtATime(work: Boolean, action: suspend (A) -> Unit): (A) -> Unit {
     var lastJob: Job? = null
-    var reportTo = RawReactive(ReactiveState(Unit))
+    val reportTo = RawReactive(ReactiveState(Unit))
     if (work)
         coroutineContext[StatusListener]?.working(reportTo)
     else
