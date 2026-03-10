@@ -5,6 +5,7 @@ import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.reactiveState
 import kotlinx.coroutines.*
+import kotlin.coroutines.CoroutineContext
 
 /**
  * [ReactiveContextSuspending] manages the lifecycle and dependency tracking for a single suspending reactive calculation.
@@ -36,37 +37,48 @@ import kotlinx.coroutines.*
 class ReactiveContextSuspending<T>(
     val scope: CoroutineScope,
     val useLastWhileLoading: Boolean = false,
-    private val reportTo: RawReactive<T> = RawReactive<T>(),
-    val action: suspend () -> T,
-) : DependencyChangeListener(), Reactive<T> by reportTo {
-    internal var lastJob: Job? = null
+    private val reportTo: RawReactive<T> = RawReactive(),
+    val action: suspend ReactiveCoroutineScope.() -> T,
+) : DependencyChangeListener(), ReactiveCoroutineScope, Reactive<T> by reportTo {
+    internal var lastLoopJob: Job? = null
 
     var active = false
         private set
 
-    private fun CoroutineScope.launchWithStart(block: suspend CoroutineScope.() -> Unit) =
+    private var job = Job() // doesn't need to be a child because we add a hook in the init block below to cancel on parent cancellation, and we don't want errors to propagate here.
+
+    override val coroutineContext: CoroutineContext get() = scope.coroutineContext + job + this
+
+
+
+    private fun CoroutineScope.launchWithStart(block: suspend () -> Unit) =
         launch(
             start =
                 if (coroutineContext[CoroutineDispatcher]?.isDispatchNeeded(coroutineContext) == false)
                     CoroutineStart.UNDISPATCHED
                 else
                     CoroutineStart.DEFAULT,
-
-            block = block
-        )
+        ) { block() }
 
     fun startCalculation() {
         active = true
-        lastJob?.cancel()
+        lastLoopJob?.cancel()
+
+        job.cancel()
+        job = Job()
+
         dependencyBlockStart()
-        lastJob = (scope + this).let { calculationContext ->
+
+        lastLoopJob = this.let { calculationContext ->
             var done = false
             val job = calculationContext.launchWithStart {
-                val result = reactiveState { action() }
+                val result = reactiveState { this@ReactiveContextSuspending.action() }
                 if (!useLastWhileLoading || result.ready) reportTo.state = result
                 dependencyBlockEnd()
                 done = true
             }
+
+            if (dependencyCount == 0) cancel() // with no dependencies this will never rerun, so cancel and release dependencies
 
             if (done) return@let null
             else {
@@ -78,10 +90,10 @@ class ReactiveContextSuspending<T>(
     }
 
     fun runOnceWhileDead() {
-        lastJob = run {
+        lastLoopJob = run {
             var done = false
             val job = scope.launchWithStart {
-                val result = reactiveState { action() }
+                val result = reactiveState { this@ReactiveContextSuspending.action() }
                 if (!useLastWhileLoading || result.ready) reportTo.state = result
                 done = true
             }
@@ -103,9 +115,11 @@ class ReactiveContextSuspending<T>(
 
     override fun cancel() {
         super.cancel()
+        job.cancel()
+        job = Job()
         active = false
-        lastJob?.let {
-            lastJob = null
+        lastLoopJob?.let {
+            lastLoopJob = null
             it.cancel()
         }
     }
@@ -126,7 +140,7 @@ class ReactiveContextSuspending<T>(
  * @param action The suspending calculation logic to run reactively.
  * @return A [ReactiveContextSuspending] managing the calculation and its dependencies.
  */
-@Suppress("NOTHING_TO_INLINE") inline fun CoroutineScope.reactiveSuspending(noinline action: suspend () -> Unit) =
+fun CoroutineScope.reactiveSuspending(action: suspend ReactiveCoroutineScope.() -> Unit) =
     ReactiveContextSuspending(this, action = action).also {
         it.startCalculation()
         coroutineContext[StatusListener.Key]?.loading(it)
@@ -142,8 +156,8 @@ class ReactiveContextSuspending<T>(
  * @param action The suspending calculation logic to run reactively.
  * @return A [ReactiveContextSuspending] managing the calculation and its dependencies.
  */
-inline fun CoroutineScope.reactiveSuspending(crossinline onLoad: () -> Unit, noinline action: suspend () -> Unit): ReactiveContextSuspending<Unit> {
+inline fun CoroutineScope.reactiveSuspending(crossinline onLoad: () -> Unit, noinline action: suspend ReactiveCoroutineScope.() -> Unit): ReactiveContextSuspending<Unit> {
     return reactiveSuspending(action = action).also {
-        it.addListener { if(!it.state.ready) onLoad() }.let(::onRemove)
+        it.addListener { if (!it.state.ready) onLoad() }.let(::onRemove)
     }
 }

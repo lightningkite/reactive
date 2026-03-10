@@ -4,6 +4,7 @@ import com.lightningkite.reactive.core.BaseListenable
 import com.lightningkite.reactive.core.BasicListenable
 import com.lightningkite.reactive.core.Listenable
 import kotlin.collections.plusAssign
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration
@@ -46,9 +47,9 @@ class DependencyTrackerTest {
             usedDependencies.add(listenable)
             if (dependencies.size > usedDependencies.size) {
                 val maybe = dependencies[usedDependencies.size].first
-                if (maybe == listenable) return listenable
+                if (maybe == listenable) return maybe as T
             }
-            return if (dependencies.any { it.first == listenable }) listenable else null
+            return dependencies.find { it.first == listenable }?.first as? T
         }
 
         override fun registerDependency(any: Any, remove: () -> Unit) {
@@ -76,7 +77,7 @@ class DependencyTrackerTest {
     }
 
     open class HashedDependencyTracker : Tracker {
-        protected val dependencies = HashMap<Any, () -> Unit>()
+        protected val dependencies = HashMap<Any, Pair<Any, () -> Unit>>()
         protected val usedDependencies = HashSet<Any>()
 
         override val collectionSizes: Int get() = dependencies.size + usedDependencies.size
@@ -84,15 +85,15 @@ class DependencyTrackerTest {
         @Suppress("UNCHECKED_CAST")
         override fun <T : Any> existingDependency(listenable: T): T? {
             usedDependencies.add(listenable)
-            return if (dependencies.containsKey(listenable)) listenable else null
+            return dependencies[listenable]?.first as? T
         }
 
         override fun registerDependency(any: Any, remove: () -> Unit) {
-            dependencies[any] = remove
+            dependencies[any] = any to remove
         }
 
         override fun cancel() {
-            dependencies.forEach { it.value() }
+            dependencies.forEach { it.value.second() }
             dependencies.clear()
         }
 
@@ -104,7 +105,7 @@ class DependencyTrackerTest {
             while (iter.hasNext()) {
                 val entry = iter.next()
                 if (entry.key !in usedDependencies) {
-                    entry.value()
+                    entry.value.second()
                     iter.remove()
                 }
             }
@@ -121,7 +122,7 @@ class DependencyTrackerTest {
         @Suppress("UNCHECKED_CAST")
         override fun <T : Any> existingDependency(listenable: T): T? {
             usedDependencies.add(listenable)
-            return if (dependencies.contains(listenable)) listenable else null
+            return if (dependencies.contains(listenable)) dependencies.find { it == listenable } as? T else null
         }
 
         override fun registerDependency(any: Any, remove: () -> Unit) {
@@ -289,8 +290,8 @@ class DependencyTrackerTest {
     fun Collection<Duration>.average() = sumOf { it.inWholeNanoseconds }.div(size.toDouble()).nanoseconds
 
     data class TestMetrics(
-        val min: Duration,
-        val max: Duration,
+        val min: IndexedValue<Duration>,
+        val max: IndexedValue<Duration>,
         val mean: Duration
     )
 
@@ -300,6 +301,7 @@ class DependencyTrackerTest {
         val hashed2: TestMetrics
     )
 
+    @Ignore
     @Test
     fun microBenchmark() {
         fun Tracker.runLoop(size: Int) {
@@ -320,15 +322,17 @@ class DependencyTrackerTest {
         fun Tracker.test(size: Int): List<Duration> {
             repeat(500) { runLoop(size) }
 
-            return List(1000) {
+            return List(5000) {
                 measureTime { runLoop(size) }
             }
         }
 
-        fun List<Duration>.metrics(): TestMetrics =
-            TestMetrics(min = min(), max = max(), mean = average())
+        fun List<Duration>.metrics(): TestMetrics {
+            val indexed = withIndex().toList()
+            return TestMetrics(min = indexed.minBy { it.value }, max = indexed.maxBy { it.value }, mean = average())
+        }
 
-        val sizes = arrayOf(1, 3, 5, 10, 20, 100, 500, 1000)
+        val sizes = arrayOf(1, 3, 5, 10, 20, 100, 200)
 
         val results = sizes.associateWith { size ->
             Results(
@@ -338,15 +342,17 @@ class DependencyTrackerTest {
             ).also { println("Finished Size=$size") }
         }
 
-        fun table(name: String, metric: (TestMetrics) -> Duration) {
+        fun table(name: String, metric: (TestMetrics) -> Pair<Int?, Duration>) {
 
             fun row(a: Any, b: Any, c: Any, d: Any, e: Any) {
-                println("${a.toString().padEnd(10)} | ${b.toString().padEnd(15)} | ${c.toString().padEnd(15)} | ${d.toString().padEnd(15)} | $e")
+                println("${a.toString().padEnd(10)} | ${b.toString().padEnd(20)} | ${c.toString().padEnd(20)} | ${d.toString().padEnd(20)} | $e")
             }
 
             println("__ $name __")
             row("Size", "Normal", "Hashed", "Hashed2", "Winner")
-            println("-".repeat(85))
+            println("-".repeat(110))
+
+            fun Pair<Int?, Duration>.runStr() = if (first != null) "$second (${first!! + 1})" else second.toString()
 
             for ((size, result) in results) {
                 val normal = metric(result.normal)
@@ -354,19 +360,20 @@ class DependencyTrackerTest {
                 val hashed2 = metric(result.hashed2)
 
                 val entries = listOf("Normal" to normal, "Hashed" to hashed, "Hashed2" to hashed2)
-                val (winnerName, winnerTime) = entries.minBy { it.second }
-                val slowest = entries.maxOf { it.second }
-                val factor = if (winnerTime.inWholeNanoseconds > 0L) {
-                    slowest.inWholeNanoseconds.toDouble() / winnerTime.inWholeNanoseconds.toDouble()
+                val (winnerName, winnerTime) = entries.minBy { it.second.second }
+                val slowest = entries.maxOf { it.second.second }
+                val factor = if (winnerTime.second.inWholeNanoseconds > 0L) {
+                    slowest.inWholeNanoseconds.toDouble() / winnerTime.second.inWholeNanoseconds.toDouble()
                 } else 0.0
                 val winnerStr = "$winnerName ${(factor * 100).toInt() / 100.0}x"
 
-                row(size, normal, hashed, hashed2, winnerStr)
+
+                row(size, normal.runStr(), hashed.runStr(), hashed2.runStr(), winnerStr)
             }
         }
 
-        table("MEAN") { it.mean }
-        table("MIN") { it.min }
-        table("MAX") { it.max }
+        table("MEAN") { null to it.mean }
+        table("MIN") { it.min.index to it.min.value }
+        table("MAX") { it.max.index to it.max.value }
     }
 }

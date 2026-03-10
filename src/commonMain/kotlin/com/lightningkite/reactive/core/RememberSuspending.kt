@@ -80,14 +80,15 @@ class RememberSuspending<T>(
 
     private var job = SupervisorJob()
     private val restOfContext = incomingCoroutineContext +
-            CoroutineExceptionHandler { coroutineContext, throwable ->
+            CoroutineExceptionHandler { _, throwable ->
                 if (throwable !is CancellationException) {
                     Reactive.reportException(throwable)
                 }
             }
+
     override val coroutineContext: CoroutineContext get() = restOfContext + job
 
-    private val scope = ReactiveContextSuspending(this, useLastWhileLoading) { this.action() }
+    private val scope = ReactiveContextSuspending(this, useLastWhileLoading, action = action)
 
     override val state: ReactiveState<T>
         get() {

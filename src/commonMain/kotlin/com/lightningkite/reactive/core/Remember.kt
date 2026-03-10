@@ -78,7 +78,7 @@ class Remember<T>(
 
     private var job = SupervisorJob()
     private val restOfContext = incomingCoroutineContext +
-            CoroutineExceptionHandler { coroutineContext, throwable ->
+            CoroutineExceptionHandler { _, throwable ->
                 if (throwable !is CancellationException) {
                     Reactive.reportException(throwable)
                 }
@@ -128,7 +128,7 @@ class Remember<T>(
 
     override fun deactivate() {
         if (deactivationDelay != null) {
-            if(deactivating != null) return
+            if (deactivating != null) return
             deactivating = launch {
                 delay(deactivationDelay)
                 ensureActive()

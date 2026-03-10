@@ -6,13 +6,12 @@ import com.lightningkite.reactive.core.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlin.coroutines.CoroutineContext
 import kotlin.native.concurrent.ThreadLocal
-
-@ThreadLocal
-var reactiveContext: ReactiveContext? = null
 
 /**
  * [ReactiveContext] provides an environment for observing and reacting to changes in [Reactive] or [Listenable] values.
@@ -88,7 +87,7 @@ class TypedReactiveContext<T>(
     val useLastWhileLoading: Boolean = false,
     private val reportTo: RawReactive<T> = RawReactive(),
     val action: TypedReactiveContext<T>.() -> T
-): DependencyTracker(), CoroutineScope by scope, Reactive<T> by reportTo {
+): DependencyChangeListener(), ReactiveCoroutineScope, Reactive<T> by reportTo {
     companion object
 
     var active = false
@@ -98,22 +97,28 @@ class TypedReactiveContext<T>(
 
     private var queued = false
 
+    private var job = Job() // doesn't need to be a child because we add a hook in the init block below to cancel on parent cancellation, and we don't want errors to propagate here.
+
+    override val coroutineContext: CoroutineContext get() = scope.coroutineContext + job + this
+
     fun startCalculation() {
         active = true
         if (queued) return
         queued = true
+
+        job.cancel()
+        job = Job()
+
         scope.onThread {
             queued = false
-            if (!active) {
-                return@onThread
-            }
-            val old = reactiveContext
-            reactiveContext = this
+            if (!active) return@onThread
             dependencyBlockStart()
             val state = reactiveState { action(this@TypedReactiveContext) }
             if (!useLastWhileLoading || state.ready) reportTo.state = state
             dependencyBlockEnd()
-            reactiveContext = old
+
+            // If there are no dependencies, this will never run again, so cancel the scope to release unneeded resources.
+            if (dependencyCount == 0) cancel()
         }
     }
 
@@ -126,7 +131,14 @@ class TypedReactiveContext<T>(
         scope.onRemove { cancel() }
     }
 
+    override fun onDependencyChange() { startCalculation() }
+    override fun onDependencyNotReady() {
+        if (!useLastWhileLoading || state.ready) reportTo.state = ReactiveState.notReady
+    }
+
     override fun cancel() {
+        job.cancel()
+        job = Job()
         active = false
         queued = false
         super.cancel()
@@ -151,26 +163,25 @@ class TypedReactiveContext<T>(
         registerDependency(listenable, listenable.addListener(rerun))
     }
 
-    operator fun <R> Reactive<R>.invoke(): R {
-        if (existingDependency(this) == null) {
-            registerDependency(this, addListener(rerun))
-        }
-        return state.handle(
+    private fun <R> ReactiveState<R>.getOrLoading() =
+        handle(
             success = { it },
             exception = { throw it },
             notReady = { throw ReactiveLoading }
         )
+
+    operator fun <R> Reactive<R>.invoke(): R {
+        if (existingDependency(this) == null) {
+            registerDependency(this, addListener(rerun))
+        }
+        return state.getOrLoading()
     }
 
     fun <R> Reactive<R?>.awaitNotNull(): R {
         if (existingDependency(this) == null) {
             registerDependency(this, addListener(rerun))
         }
-        return state.handle(
-            success = { it ?: throw ReactiveLoading },
-            exception = { throw it },
-            notReady = { throw ReactiveLoading }
-        )
+        return state.getOrLoading() ?: throw ReactiveLoading
     }
 
     fun <R> Reactive<R>.state(): ReactiveState<R> {
@@ -232,7 +243,6 @@ class TypedReactiveContext<T>(
     @Deprecated("Just use the once function", ReplaceWith("this.once()"))
     fun <T> Reactive<T>.awaitOnce(): T = once()
 
-
     // Suspending calculations
 
     private class SuspendCalculation<T>(val key: Any) : BaseReactive<T>() {
@@ -251,17 +261,14 @@ class TypedReactiveContext<T>(
         val key = setOf(*dependencies)
         val calc = SuspendCalculation<T>(key)
         existingDependency(calc)?.let {
-            return it.invoke()
+            return it.state.getOrLoading()
         }
         scope.launch {
             calc.state = reactiveState { action() }
         }
         registerDependency(calc, calc.addListener(rerun))
-        return calc.state.handle(
-            success = { it },
-            exception = { throw it },
-            notReady = { throw ReactiveLoading }
-        )
+
+        return calc.state.getOrLoading()
     }
 
     operator fun <T> Deferred<T>.invoke(): T {
@@ -273,11 +280,8 @@ class TypedReactiveContext<T>(
             calc.state = reactiveState { this@invoke.await() }
         }
         registerDependency(calc, calc.addListener(rerun))
-        return calc.state.handle(
-            success = { it },
-            exception = { throw it },
-            notReady = { throw ReactiveLoading }
-        )
+
+        return calc.state.getOrLoading()
     }
 
 
@@ -354,7 +358,7 @@ fun <T> CoroutineScope.reactive(action: ReactiveContext.() -> T): TypedReactiveC
  * @param action The calculation logic to run reactively.
  * @return A [TypedReactiveContext] managing the calculation and its dependencies.
  */
-inline fun <T> CoroutineScope.reactive(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): TypedReactiveContext<Unit> {
+inline fun CoroutineScope.reactive(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): TypedReactiveContext<Unit> {
     var wasLoadingLastTime = false
     return reactive {
         try {
@@ -379,6 +383,7 @@ inline fun <T> CoroutineScope.reactive(crossinline onLoad: () -> Unit, crossinli
  *
  * @param action The calculation logic to run reactively.
  */
+@Deprecated("renamed to 'reactive'", ReplaceWith("this.reactive(action)"))
 fun CoroutineScope.reactiveScope(action: ReactiveContext.() -> Unit): ReactiveContext = reactive(action = action)
 
 /**
@@ -390,6 +395,8 @@ fun CoroutineScope.reactiveScope(action: ReactiveContext.() -> Unit): ReactiveCo
  * @param onLoad Callback invoked when the calculation enters a loading state.
  * @param action The calculation logic to run reactively.
  */
-inline fun CoroutineScope.reactiveScope(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): ReactiveContext = reactive<Unit>(onLoad = onLoad, action = action)
+@Deprecated("renamed to 'reactive'", ReplaceWith("this.reactive(onLoad, action)"))
+inline fun CoroutineScope.reactiveScope(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): ReactiveContext = reactive(onLoad = onLoad, action = action)
 
+@InternalReactiveApi
 object ReactiveLoading : Throwable()

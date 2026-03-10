@@ -1,11 +1,13 @@
 package com.lightningkite.reactive.context
 
-open class DependencyTracker {
-    protected val dependencies = ArrayList<Pair<Any, () -> Unit>>()
-    protected val usedDependencies = ArrayList<Any?>()
+abstract class DependencyTracker {
+    private val dependencies = ArrayList<Pair<Any, () -> Unit>>()
+    private val usedDependencies = ArrayList<Any>()
+
+    protected val dependencyCount: Int get() = dependencies.size
 
     @Suppress("UNCHECKED_CAST")
-    fun <T> existingDependency(listenable: T): T? {
+    fun <T : Any> existingDependency(listenable: T): T? {
         usedDependencies.add(listenable)
         if (dependencies.size > usedDependencies.size) {
             val maybe = dependencies[usedDependencies.size].first

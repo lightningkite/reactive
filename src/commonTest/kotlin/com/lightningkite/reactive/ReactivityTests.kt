@@ -7,11 +7,9 @@ import com.lightningkite.reactive.context.await
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.context.reactiveScope
-import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.addAndRunListener
-import com.lightningkite.reactive.extensions.asyncReactive
 import com.lightningkite.reactive.extensions.interceptWrite
 import com.lightningkite.reactive.extensions.value
 import com.lightningkite.reactive.extensions.waitForNotNull
@@ -81,11 +79,14 @@ class ReactivityTests {
 
     @Test
     fun sharedShutdownTest() {
+        val dependency = Signal(0)
+
         var onRemoveCalled = 0
         var scopeCalled = 0
         val shared = remember(Dispatchers.Unconfined) {
+            rerunOn(dependency)    // without a dependency this will shut down immediately
             scopeCalled++
-            onRemove { onRemoveCalled++ }
+            onRemove { onRemoveCalled++ } // should invoke on loop refresh
             42
         }
         assertEquals(0, scopeCalled)
@@ -369,6 +370,69 @@ class ReactivityTests {
             launch { a set 3 }
             launch { a set 4 }
             permitAll()
+        }
+    }
+
+    @Test
+    fun innerScopeIsCancelledOnRefresh() {
+        testContext {
+            var cancelled = 0
+            val dependency = Signal(0)
+            reactive {
+                dependency()
+                onRemove { cancelled += 1 }
+            }
+            assertEquals(0, cancelled)
+            dependency.value += 1
+            assertEquals(1, cancelled)
+            dependency.value += 1
+            assertEquals(2, cancelled)
+        }
+    }
+
+    @Test
+    fun nestedScopesWorks() {
+        testContext {
+            var outerCancelled = 0
+            var innerCancelled = 0
+            val nestedDependency = Signal(Signal(0))
+
+            reactive {
+                val inner = nestedDependency()
+                reactive {
+                    inner()
+                    onRemove { innerCancelled += 1 }
+                }
+                onRemove { outerCancelled += 1 }
+            }
+
+            assertEquals(0, outerCancelled)
+            assertEquals(0, innerCancelled)
+
+            nestedDependency.value.value = 1
+
+            assertEquals(0, outerCancelled)
+            assertEquals(1, innerCancelled)
+
+            nestedDependency.value.value = 2
+
+            assertEquals(0, outerCancelled)
+            assertEquals(2, innerCancelled)
+
+            nestedDependency.value = Signal(0)
+
+            assertEquals(1, outerCancelled)
+            assertEquals(3, innerCancelled)
+
+            nestedDependency.value.value = 1
+
+            assertEquals(1, outerCancelled)
+            assertEquals(4, innerCancelled)
+
+            nestedDependency.value.value = 2
+
+            assertEquals(1, outerCancelled)
+            assertEquals(5, innerCancelled)
         }
     }
 

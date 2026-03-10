@@ -4,6 +4,8 @@ import com.lightningkite.reactive.context.await
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.context.reactiveSuspending
+import com.lightningkite.reactive.context.rerunOn
+import com.lightningkite.reactive.core.BasicListenable
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.extensions.value
 import com.lightningkite.reactive.core.LateInitSignal
@@ -58,9 +60,11 @@ class RememberSuspendingTests {
     }
 
     @Test fun sharedTerminatesWhenNoOneIsListening() {
+        val dependency = BasicListenable()
         var onRemoveCalled = 0
         var scopeCalled = 0
         val sharedSuspending = rememberSuspending(Dispatchers.Unconfined) {
+            rerunOn(dependency)
             scopeCalled++
             onRemove { onRemoveCalled++ }
             42

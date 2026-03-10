@@ -64,7 +64,9 @@ class RememberTests {
     fun sharedTerminatesWhenNoOneIsListening() {
         var onRemoveCalled = 0
         var scopeCalled = 0
+        var dependency = BasicListenable()
         val shared = remember {
+            rerunOn(dependency) // without dependency cancels immediately
             scopeCalled++
             onRemove { onRemoveCalled++ }
             42

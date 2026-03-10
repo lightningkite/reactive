@@ -10,7 +10,9 @@ import kotlin.coroutines.*
 
 abstract class DependencyChangeListener : DependencyTracker(), CoroutineContext.Element {
     override val key: CoroutineContext.Key<DependencyChangeListener> get() = Key
-    object Key : CoroutineContext.Key<DependencyChangeListener> {}
+
+    object Key : CoroutineContext.Key<DependencyChangeListener>
+
     abstract fun onDependencyChange()
     open fun onDependencyNotReady() = onDependencyChange()
 }
