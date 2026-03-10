@@ -1,6 +1,8 @@
 package com.lightningkite.reactive.extensions
 
 import com.lightningkite.reactive.context.CalculationContext
+import com.lightningkite.reactive.context.DependencyChangeListener
+import com.lightningkite.reactive.context.DependencyTracker
 import com.lightningkite.reactive.context.ReactiveContext
 import com.lightningkite.reactive.context.await
 import com.lightningkite.reactive.context.awaitOnce
@@ -92,10 +94,33 @@ suspend infix fun <T> MutableReactiveValue<T>.modify(action: suspend (T) -> T) {
 suspend fun MutableReactive<Boolean>.toggle() { set(!awaitOnce()) }
 fun MutableReactiveValue<Boolean>.toggle() { value = !value }
 
-fun CalculationContext.use(resourceUse: ResourceUse) {
-    val x = resourceUse.beginUse()
-    onRemove { x() }
+/**
+ * Starts using this [ResourceUse] and tracks it as a dependency in future loops.
+ * */
+fun DependencyTracker.using(resourceUse: ResourceUse) {
+    if (existingDependency(resourceUse) == null) {
+        registerDependency(resourceUse, resourceUse.beginUse())
+    }
 }
+
+/**
+ * Starts using this [ResourceUse], attaching its use to the lifecycle of
+ * this [CoroutineScope].
+ *
+ * If this scope contains a [DependencyChangeListener] then the resource use
+ * is attached as a dependency.
+ * */
+fun CoroutineScope.using(resourceUse: ResourceUse) {
+    coroutineContext[DependencyChangeListener.Key]?.let {
+        it.using(resourceUse)
+        return
+    }
+    // If there's no dependency tracker just attach it to the lifetime of the scope.
+    resourceUse.beginUse().also(::onRemove)
+}
+
+@Deprecated("Renamed to using", ReplaceWith("using(resourceUse)"))
+fun CalculationContext.use(resourceUse: ResourceUse) = using(resourceUse)
 
 fun <T, WRITE : MutableReactive<T>> WRITE.interceptWrite(action: suspend WRITE.(T) -> Unit): MutableReactive<T> =
     object : MutableReactive<T>, Reactive<T> by this {

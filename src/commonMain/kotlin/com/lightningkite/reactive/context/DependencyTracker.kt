@@ -1,6 +1,6 @@
 package com.lightningkite.reactive.context
 
-abstract class DependencyTracker{
+open class DependencyTracker {
     protected val dependencies = ArrayList<Pair<Any, () -> Unit>>()
     protected val usedDependencies = ArrayList<Any?>()
 

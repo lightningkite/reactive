@@ -23,17 +23,20 @@ value class ReactiveState<out T>(val raw: T) {
         notReady = { null }
     )
     inline val exception: Exception? get() = (raw as? InternalReactiveThrownException)?.exception
+
     @Deprecated("Only use this if you are *Absolutely Sure* that there is a value ready to retrieve. Otherwise, use `handle`.")
     fun get(): T = handle(
         success = { it },
         exception = { throw it },
         notReady = { throw NotReadyException() }
     )
+
     fun getOrNull(): T? = handle(
         success = { it },
         exception = { null },
         notReady = { null }
     )
+
     companion object Companion {
         @Suppress("UNCHECKED_CAST")
         val notReady: ReactiveState<Nothing> = ReactiveState<Any?>(InternalReactiveNotReady) as ReactiveState<Nothing>

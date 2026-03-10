@@ -20,6 +20,7 @@ fun CoroutineScope.onRemove(action: () -> Unit) {
     this.coroutineContext[Job]?.invokeOnCompletion { action() }
 }
 
+
 typealias CalculationContext = CoroutineScope
 @OptIn(ExperimentalStdlibApi::class)
 val CoroutineScope.requireMainThread: Boolean get() = coroutineContext[CoroutineDispatcher.Key] is MainCoroutineDispatcher

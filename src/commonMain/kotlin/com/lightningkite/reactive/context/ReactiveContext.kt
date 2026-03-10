@@ -2,17 +2,13 @@
 
 package com.lightningkite.reactive.context
 
-import com.lightningkite.reactive.core.BaseReactive
-import com.lightningkite.reactive.core.RawReactive
-import com.lightningkite.reactive.core.InternalReactiveApi
-import com.lightningkite.reactive.core.Listenable
-import com.lightningkite.reactive.core.Reactive
-import com.lightningkite.reactive.core.ReactiveState
-import com.lightningkite.reactive.core.reactiveState
-import com.lightningkite.reactive.lensing.validation.IssueNode
-import kotlinx.coroutines.*
+import com.lightningkite.reactive.core.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlin.native.concurrent.ThreadLocal
 
 @ThreadLocal
@@ -141,6 +137,14 @@ class TypedReactiveContext<T>(
     //////////////////////////////////////////////////////////////////////////////////
 
     // Operators for standard reactive tools
+    /**
+     * Starts using this [ResourceUse] and tracks it as a dependency in future loops.
+     * */
+    fun using(resourceUse: ResourceUse) {
+        if (existingDependency(resourceUse) != null) return
+        registerDependency(resourceUse, resourceUse.beginUse())
+    }
+
     fun rerunOn(listenable: Listenable) {
         if (existingDependency(listenable) != null) return
         registerDependency(listenable, listenable.addListener(rerun))
@@ -173,6 +177,21 @@ class TypedReactiveContext<T>(
             registerDependency(this, addListener(rerun))
         }
         return state
+    }
+
+    inline fun <R, V> Reactive<R>.state(crossinline get: (ReactiveState<R>) -> V): V {
+        var current: V = state.let(get)
+        if (existingDependency(this) == null) {
+            registerDependency(this, addListener {
+                state.let(get)
+                    .takeUnless { it == current }
+                    ?.let {
+                        current = it
+                        rerun()
+                    }
+            })
+        }
+        return current
     }
 
     private data class Once<T>(val wraps: Reactive<T>)
