@@ -1,15 +1,21 @@
 package com.lightningkite.reactive.context
 
+import com.lightningkite.reactive.core.Listenable
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.reactiveState
 import com.lightningkite.reactive.core.RawReactive
+import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.extensions.DebounceListenable
+import com.lightningkite.reactive.extensions.DebounceReactive
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.reflect.KMutableProperty0
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Interface for helper functions which require an additional [CoroutineScope] context. This will eventually
@@ -76,6 +82,30 @@ interface CoroutineScopeHelpers : CoroutineScope {
             }
         }
     }
+
+    /**
+     * Debounces listener notifications by [timeMs] milliseconds using this scope. State is always current.
+     * @see DebounceReactive
+     */
+    fun <T> Reactive<T>.debounce(timeMs: Long): Reactive<T> = DebounceReactive(this, this@CoroutineScopeHelpers, timeMs.milliseconds)
+
+    /**
+     * Debounces listener notifications by [duration] using this scope. State is always current.
+     * @see DebounceReactive
+     */
+    fun <T> Reactive<T>.debounce(duration: Duration): Reactive<T> = DebounceReactive(this, this@CoroutineScopeHelpers, duration)
+
+    /**
+     * Debounces listener notifications by [timeMs] milliseconds using this scope.
+     * @see DebounceListenable
+     */
+    fun Listenable.debounce(timeMs: Long): Listenable = DebounceListenable(this, this@CoroutineScopeHelpers, timeMs.milliseconds)
+
+    /**
+     * Debounces listener notifications by [duration] using this scope.
+     * @see DebounceListenable
+     */
+    fun Listenable.debounce(duration: Duration): Listenable = DebounceListenable(this, this@CoroutineScopeHelpers, duration)
 }
 
 @OptIn(ExperimentalStdlibApi::class)
