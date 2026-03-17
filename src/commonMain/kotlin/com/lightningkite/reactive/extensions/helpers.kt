@@ -15,6 +15,7 @@ import com.lightningkite.reactive.core.ResourceUse
 import com.lightningkite.reactive.core.BaseReactive
 import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.Listenable
+import com.lightningkite.reactive.core.Release
 import com.lightningkite.reactive.core.remember
 import kotlinx.coroutines.*
 import kotlinx.coroutines.launch
@@ -42,7 +43,7 @@ var <T> MutableValue<T>.value: T
     }
 
 operator fun Listenable.plus(other: Listenable): Listenable = object: Listenable {
-    override fun addListener(listener: () -> Unit): () -> Unit {
+    override fun addListener(listener: () -> Unit): Release {
         val a = this@plus.addListener(listener)
         val b = other.addListener(listener)
         return {
@@ -59,20 +60,20 @@ fun <T> Reactive<T>.withWrite(action: suspend Reactive<T>.(T) -> Unit): MutableR
         }
     }
 
-fun <T> Reactive<T>.onNextSuccess(action: (T) -> Unit): (() -> Unit)? {
+fun <T> Reactive<T>.onNextSuccess(action: (T) -> Unit): Release? {
     if (state.success) {
         state.onSuccess(action)
         return null
     }
 
-    var remover: (() -> Unit)? = null
-    remover = addListener {
+    var release: Release? = null
+    release = addListener {
         state.onSuccess {
             action(it)
-            remover?.invoke()
+            release?.invoke()
         }
     }
-    return remover
+    return release
 }
 
 fun <T : Any> MutableReactive<T>.nullable(): MutableReactive<T?> =

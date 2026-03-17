@@ -87,7 +87,7 @@ class RememberTests {
         var scopeCalled = 0
         var dependencyListeners = 0
         val listener = object : Listenable {
-            override fun addListener(listener: () -> Unit): () -> Unit {
+            override fun addListener(listener: () -> Unit): Release {
                 dependencyListeners++
                 return { dependencyListeners-- }
             }

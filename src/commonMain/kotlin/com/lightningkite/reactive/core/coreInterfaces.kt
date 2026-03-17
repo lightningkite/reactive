@@ -10,6 +10,27 @@ import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
 /**
+ * A function handle that releases resources or removes a listener/subscription.
+ *
+ * [Release] functions are idempotent - calling them multiple times is safe and has no additional effect
+ * after the first call. This makes them safe to use in cleanup code where the exact state may be uncertain.
+ *
+ * Common uses:
+ * - Removing a listener added via [Listenable.addListener]
+ * - Releasing resources acquired via [ResourceUse.beginUse]
+ * - Cleaning up subscriptions or registrations
+ *
+ * Example:
+ * ```kotlin
+ * val release = myListenable.addListener { println("Changed!") }
+ * // ... later ...
+ * release() // Removes the listener
+ * release() // Safe to call again, no effect
+ * ```
+ */
+typealias Release = () -> Unit
+
+/**
  * Represents a resource that can be used and released.
  * Implementations should provide logic for starting and stopping resource usage.
  *
@@ -19,8 +40,9 @@ interface ResourceUse {
     /**
      * Begins using the resource. Returns a function to stop using the resource.
      */
-    fun beginUse(): () -> Unit
+    fun beginUse(): Release
 }
+
 
 /**
  * Represents an object that can have listeners attached for change events.
@@ -33,24 +55,27 @@ interface ResourceUse {
 interface Listenable : ResourceUse {
     /**
      * Adds the [listener] to be called every time this event fires.
-     * @return a function to remove the [listener] that was added.  Removing multiple times should not cause issues.
+     * @return a [Release] handle to remove the [listener] that was added. Removing multiple times should not cause issues.
      */
-    fun addListener(listener: () -> Unit): () -> Unit
-    override fun beginUse(): () -> Unit = addListener { }
+    fun addListener(listener: () -> Unit): Release
+
+    override fun beginUse(): Release = addListener { }
 
     object Never: Listenable {
-        override fun addListener(listener: () -> Unit): () -> Unit = {}
+        public val NOOP_RELEASE: Release = {}
+
+        override fun addListener(listener: () -> Unit): Release = NOOP_RELEASE
     }
 }
 
 /**
  * Adds a listener and immediately runs it once.
- * @return a function to remove the listener.
+ * @return a [Release] handle to remove the listener.
  */
-fun Listenable.addAndRunListener(listener: () -> Unit): () -> Unit {
-    val remover = addListener(listener)
+fun Listenable.addAndRunListener(listener: () -> Unit): Release {
+    val release = addListener(listener)
     listener()
-    return remover
+    return release
 }
 
 /**
@@ -68,9 +93,10 @@ fun Listenable.addAndRunListener(listener: () -> Unit): () -> Unit {
  */
 interface Reactive<out T> : Listenable {
     val state: ReactiveState<T>
+
     object Never: Reactive<Nothing> {
-        override val state: ReactiveState<Nothing> get() = ReactiveState.Companion.notReady
-        override fun addListener(listener: () -> Unit): () -> Unit = {}
+        override val state: ReactiveState<Nothing> get() = ReactiveState.notReady
+        override fun addListener(listener: () -> Unit): Release = Listenable.Never.NOOP_RELEASE
     }
 
     companion object Companion {

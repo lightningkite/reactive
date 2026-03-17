@@ -4,6 +4,7 @@ import com.lightningkite.reactive.context.await
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
+import com.lightningkite.reactive.core.Release
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 internal class WaitForNotNull<T : Any>(val wraps: Reactive<T?>) : Reactive<T> {
@@ -11,7 +12,7 @@ internal class WaitForNotNull<T : Any>(val wraps: Reactive<T?>) : Reactive<T> {
     override val state: ReactiveState<T>
         get() = if(wraps.state.raw == null) ReactiveState.notReady else wraps.state as ReactiveState<T>
 
-    override fun addListener(listener: () -> Unit): () -> Unit {
+    override fun addListener(listener: () -> Unit): Release {
         return wraps.addListener(listener)
     }
 

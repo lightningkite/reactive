@@ -5,6 +5,7 @@ import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveMutableList
 import com.lightningkite.reactive.core.ReactiveValue
+import com.lightningkite.reactive.core.Release
 import com.lightningkite.reactive.core.ResourceUse
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
@@ -84,7 +85,7 @@ class IssueNode(val parent: IssueNode? = null) : ResourceUse {
         parent.children.remove(this)
     }
 
-    override fun beginUse(): () -> Unit {
+    override fun beginUse(): Release {
         connect()
         return ::disconnect
     }

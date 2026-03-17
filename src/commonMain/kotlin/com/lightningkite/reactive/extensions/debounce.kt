@@ -2,6 +2,7 @@ package com.lightningkite.reactive.extensions
 
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Listenable
+import com.lightningkite.reactive.core.Release
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
@@ -14,7 +15,7 @@ data class DebounceReactive<T>(val source: Reactive<T>, val duration: Duration) 
     override val state: ReactiveState<T> get() = source.state
 }
 data class DebounceListenable(val source: Listenable, val duration: Duration) : Listenable {
-    override fun addListener(listener: () -> Unit): () -> Unit {
+    override fun addListener(listener: () -> Unit): Release {
         var changeCount = 0
         return source.addListener {
             val num = ++changeCount

@@ -14,6 +14,7 @@ import com.lightningkite.reactive.core.BaseReactive
 import com.lightningkite.reactive.core.BasicListenable
 import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.Signal
+import com.lightningkite.reactive.core.Release
 import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.extensions.invoke
 import kotlinx.coroutines.Dispatchers
@@ -356,7 +357,7 @@ class ReactivitySuspendingTests {
                 get() = super.state
                 public set(value) { super.state = value }
 
-            override fun addListener(listener: () -> Unit): () -> Unit {
+            override fun addListener(listener: () -> Unit): Release {
                 val r = super.addListener(listener)
                 return {
                     r()

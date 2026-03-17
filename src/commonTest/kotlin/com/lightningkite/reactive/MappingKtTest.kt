@@ -7,6 +7,7 @@ import com.lightningkite.reactive.core.MutableReactiveValue
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.ReactiveValue
+import com.lightningkite.reactive.core.Release
 import com.lightningkite.reactive.extensions.value
 import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.Signal
@@ -358,7 +359,7 @@ class MappingKtTest {
         val setGate = WaitGate()
         val source = object : ReactiveValue<List<Int>>, MutableReactive<List<Int>> {
             override val value: List<Int> get() = backing.value
-            override fun addListener(listener: () -> Unit): () -> Unit = backing.addListener(listener)
+            override fun addListener(listener: () -> Unit): Release = backing.addListener(listener)
 
             override suspend fun set(value: List<Int>) {
                 setGate.await()
@@ -398,7 +399,7 @@ class MappingKtTest {
         val setGate = WaitGate()
         val source = object : ReactiveValue<List<Int>>, MutableReactive<List<Int>> {
             override val value: List<Int> get() = backing.value
-            override fun addListener(listener: () -> Unit): () -> Unit = backing.addListener(listener)
+            override fun addListener(listener: () -> Unit): Release = backing.addListener(listener)
 
             override suspend fun set(value: List<Int>) {
                 setGate.await()

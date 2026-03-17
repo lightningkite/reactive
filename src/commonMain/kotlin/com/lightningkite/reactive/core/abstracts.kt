@@ -28,13 +28,15 @@ abstract class BaseListenable : Listenable {
      * Override to start calculations, resource usage, or subscriptions.
      */
     protected open fun activate() {}
+
     /**
      * Called when the last listener is removed.
      * Override to stop calculations, release resources, or unsubscribe.
      */
     protected open fun deactivate() {}
+
     private val listeners = ArrayList<() -> Unit>()
-    override fun addListener(listener: () -> Unit): () -> Unit {
+    override fun addListener(listener: () -> Unit): Release {
         if (listeners.isEmpty()) activate()
         listeners.add(listener)
         return {

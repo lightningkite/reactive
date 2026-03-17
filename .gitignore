@@ -5,3 +5,4 @@ local.properties
 .kotlin
 build
 local.version.txt
+/.claude/settings.local.json

@@ -40,7 +40,7 @@ class ReactiveMutableList<T>(private val list: ArrayList<T>): MutableList<T> by 
     fun reactiveContains(element: T) = object : MutableReactiveValue<Boolean> {
         private val lens = this@ReactiveMutableList.lens { element in it }
 
-        override fun addListener(listener: () -> Unit): () -> Unit = lens.addListener(listener)
+        override fun addListener(listener: () -> Unit): Release = lens.addListener(listener)
 
         override var value: Boolean
             get() = lens.value

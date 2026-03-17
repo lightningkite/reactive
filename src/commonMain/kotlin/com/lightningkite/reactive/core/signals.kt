@@ -72,9 +72,5 @@ class LateInitSignal<T>() : ReactiveWithMutableValue<T>, BaseReactive<T>() {
  */
 @JvmInline
 value class Constant<T>(override val value: T) : ReactiveValue<T> {
-    companion object {
-        private val NOOP = {}
-    }
-
-    override fun addListener(listener: () -> Unit): () -> Unit = NOOP
+    override fun addListener(listener: () -> Unit): Release = Listenable.Never.NOOP_RELEASE
 }

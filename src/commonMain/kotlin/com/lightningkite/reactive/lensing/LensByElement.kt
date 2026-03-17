@@ -5,6 +5,7 @@ import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.MutableWithReactiveValue
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
+import com.lightningkite.reactive.core.Release
 import com.lightningkite.reactive.extensions.invokeAllSafe
 import com.lightningkite.reactive.lensing.validation.IssueNode
 import com.lightningkite.reactive.lensing.validation.MutableValidated
@@ -102,7 +103,7 @@ class LensByElement<E, ID, T>(
             }
         }
 
-        override fun addListener(listener: () -> Unit): () -> Unit {
+        override fun addListener(listener: () -> Unit): Release {
             listeners.add(listener)
             return {
                 val pos = listeners.indexOfFirst { it === listener }
@@ -140,7 +141,7 @@ class LensByElement<E, ID, T>(
 
         private val myListeners = ArrayList<() -> Unit>()
         internal var myListen: (() -> Unit)? = null
-        override fun addListener(listener: () -> Unit): () -> Unit {
+        override fun addListener(listener: () -> Unit): Release {
             if (myListeners.isEmpty()) {
                 myListen = source.addListener {
                     state = getStateFromSource()
@@ -211,7 +212,7 @@ class LensByElement<E, ID, T>(
     override val state: ReactiveState<List<T>>
         get() = elements.state.map { it.map { it.view } }
 
-    override fun addListener(listener: () -> Unit): () -> Unit = elements.addListener(listener)
+    override fun addListener(listener: () -> Unit): Release = elements.addListener(listener)
 }
 
 

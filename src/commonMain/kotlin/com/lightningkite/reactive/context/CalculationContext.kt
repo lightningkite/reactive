@@ -1,6 +1,7 @@
 package com.lightningkite.reactive.context
 
 import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.Release
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 
@@ -41,9 +42,9 @@ public interface StatusListener : CoroutineContext.Element {
      * for background calculations.
      *
      * @param status The reactive status of the process
-     * @return A removal lambda to stop listening to the process
+     * @return A [Release] lambda to stop listening to the process
      */
-    fun backgroundProcess(status: Reactive<*>): () -> Unit
+    fun backgroundProcess(status: Reactive<*>): Release
 
     /**
      * Called when a reactive calculation is happening in the foreground, so this listener can respond accordingly.
@@ -52,9 +53,9 @@ public interface StatusListener : CoroutineContext.Element {
      * user action (e.g. clicking a button).
      *
      * @param status The reactive status of the process
-     * @return A removal lambda to stop listening to the process
+     * @return A [Release] lambda to stop listening to the process
      */
-    fun foregroundProcess(status: Reactive<*>): () -> Unit = backgroundProcess(status)
+    fun foregroundProcess(status: Reactive<*>): Release = backgroundProcess(status)
 }
 
 /**

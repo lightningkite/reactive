@@ -43,7 +43,7 @@ class ReactiveMutableMap<K, V>(private val map: HashMap<K, V>): MutableMap<K, V>
     private inner class Element(private val key: K) : MutableReactiveValue<V?> {
         private val lens = this@ReactiveMutableMap.lens { it[key] }
 
-        override fun addListener(listener: () -> Unit): () -> Unit = lens.addListener(listener)
+        override fun addListener(listener: () -> Unit): Release = lens.addListener(listener)
 
         override var value: V?
             get() = lens.value

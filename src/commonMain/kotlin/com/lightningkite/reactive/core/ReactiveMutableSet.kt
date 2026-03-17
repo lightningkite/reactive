@@ -37,7 +37,7 @@ class ReactiveMutableSet<T>(private val hashSet: LinkedHashSet<T>): MutableSet<T
     fun reactiveContains(element: T) = object : MutableReactiveValue<Boolean> {
         private val lens = this@ReactiveMutableSet.lens { element in it }
 
-        override fun addListener(listener: () -> Unit): () -> Unit = lens.addListener(listener)
+        override fun addListener(listener: () -> Unit): Release = lens.addListener(listener)
 
         override var value: Boolean
             get() = lens.value
