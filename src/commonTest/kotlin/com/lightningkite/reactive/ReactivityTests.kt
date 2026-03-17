@@ -532,7 +532,7 @@ class TestContext : CoroutineScopeHelpers {
                 } +
                 Dispatchers.Unconfined +
                 object : StatusListener {
-        override fun backgroundProcess(status: Reactive<*>): () -> Unit {
+        override fun watchBackgroundProcess(status: Reactive<*>): () -> Unit {
             var loading = false
             var excEnder: (() -> Unit)? = null
             return status.addAndRunListener {

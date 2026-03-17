@@ -713,7 +713,7 @@ class TypedReactiveContext<T>(
 fun <T> CoroutineScope.reactive(action: ReactiveContext.() -> T): TypedReactiveContext<T> {
     val trc = TypedReactiveContext(this, action = action)
     trc.startCalculation()
-    coroutineContext[StatusListener]?.backgroundProcess(trc)
+    coroutineContext[StatusListener]?.watchBackgroundProcess(trc)
     return trc
 }
 

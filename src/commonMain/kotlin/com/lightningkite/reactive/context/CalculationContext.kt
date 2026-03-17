@@ -44,18 +44,18 @@ public interface StatusListener : CoroutineContext.Element {
      * @param status The reactive status of the process
      * @return A [Release] lambda to stop listening to the process
      */
-    fun backgroundProcess(status: Reactive<*>): Release
+    fun watchBackgroundProcess(status: Reactive<*>): Release
 
     /**
      * Called when a reactive calculation is happening in the foreground, so this listener can respond accordingly.
      *
-     * The difference between this and [backgroundProcess] is semantic, `foregroundProcess` should be called when a calculation is the direct result of a
+     * The difference between this and [watchBackgroundProcess] is semantic, `foregroundProcess` should be called when a calculation is the direct result of a
      * user action (e.g. clicking a button).
      *
      * @param status The reactive status of the process
      * @return A [Release] lambda to stop listening to the process
      */
-    fun foregroundProcess(status: Reactive<*>): Release = backgroundProcess(status)
+    fun watchForegroundProcess(status: Reactive<*>): Release = watchBackgroundProcess(status)
 }
 
 /**

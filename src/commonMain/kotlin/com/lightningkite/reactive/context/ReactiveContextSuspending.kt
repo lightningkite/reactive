@@ -346,7 +346,7 @@ class ReactiveContextSuspending<T>(
 fun CoroutineScope.reactiveSuspending(action: suspend ReactiveCoroutineScope.() -> Unit) =
     ReactiveContextSuspending(this, action = action).also {
         it.startCalculation()
-        coroutineContext[StatusListener.Key]?.backgroundProcess(it)
+        coroutineContext[StatusListener.Key]?.watchBackgroundProcess(it)
     }
 
 /**

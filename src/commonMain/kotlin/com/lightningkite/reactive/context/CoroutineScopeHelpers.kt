@@ -51,7 +51,7 @@ interface CoroutineScopeHelpers : CoroutineScope {
      */
     infix fun <T> MutableReactive<T>.bind(master: MutableReactive<T>) {
         val reportTo = RawReactive(ReactiveState(Unit))
-        coroutineContext[StatusListener]?.backgroundProcess(reportTo)
+        coroutineContext[StatusListener]?.watchBackgroundProcess(reportTo)
         launch {
             reportTo.state = ReactiveState.notReady
             reportTo.state = reactiveState {
@@ -114,9 +114,9 @@ private fun <A> CoroutineScope.oneAtATime(work: Boolean, action: suspend (A) -> 
     val reportTo = RawReactive(ReactiveState(Unit))
 
     if (work)
-        coroutineContext[StatusListener]?.foregroundProcess(reportTo)
+        coroutineContext[StatusListener]?.watchForegroundProcess(reportTo)
     else
-        coroutineContext[StatusListener]?.backgroundProcess(reportTo)
+        coroutineContext[StatusListener]?.watchBackgroundProcess(reportTo)
 
     return {
         lastJob?.cancel()
