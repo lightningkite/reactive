@@ -532,10 +532,10 @@ class TestContext : CoroutineScopeHelpers {
                 } +
                 Dispatchers.Unconfined +
                 object : StatusListener {
-        override fun backgroundProcess(status: Reactive<*>) {
+        override fun backgroundProcess(status: Reactive<*>): () -> Unit {
             var loading = false
             var excEnder: (() -> Unit)? = null
-            status.addAndRunListener {
+            return status.addAndRunListener {
                 val s = status.state
                 println("${status} reports ${s}")
                 if (loading != !s.ready) {
@@ -551,7 +551,7 @@ class TestContext : CoroutineScopeHelpers {
                     t.printStackTrace()
                     error = t
                 }
-            }.let { onRemove(it) }
+            }.also { onRemove(it) }
         }
     }
 }

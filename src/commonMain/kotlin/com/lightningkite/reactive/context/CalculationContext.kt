@@ -41,8 +41,9 @@ public interface StatusListener : CoroutineContext.Element {
      * for background calculations.
      *
      * @param status The reactive status of the process
+     * @return A removal lambda to stop listening to the process
      */
-    fun backgroundProcess(status: Reactive<*>)
+    fun backgroundProcess(status: Reactive<*>): () -> Unit
 
     /**
      * Called when a reactive calculation is happening in the foreground, so this listener can respond accordingly.
@@ -51,8 +52,9 @@ public interface StatusListener : CoroutineContext.Element {
      * user action (e.g. clicking a button).
      *
      * @param status The reactive status of the process
+     * @return A removal lambda to stop listening to the process
      */
-    fun foregroundProcess(status: Reactive<*>) = backgroundProcess(status)
+    fun foregroundProcess(status: Reactive<*>): () -> Unit = backgroundProcess(status)
 }
 
 /**
