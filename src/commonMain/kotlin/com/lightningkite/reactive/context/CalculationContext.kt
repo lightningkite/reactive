@@ -37,19 +37,22 @@ public interface StatusListener : CoroutineContext.Element {
     public companion object Key : CoroutineContext.Key<StatusListener>
 
     /**
-     * Called when a reactive calculation enters a loading state.
+     * Called when a reactive calculation is happening in the background, so this listener can respond accordingly. For example, to display loading states
+     * for background calculations.
      *
-     * @param reactive The reactive value that is loading
+     * @param status The reactive status of the process
      */
-    fun loading(reactive: Reactive<*>)
+    fun backgroundProcess(status: Reactive<*>)
 
     /**
-     * Called when a reactive calculation is working (performing computation).
-     * Default implementation delegates to [loading].
+     * Called when a reactive calculation is happening in the foreground, so this listener can respond accordingly.
      *
-     * @param reactive The reactive value that is working
+     * The difference between this and [backgroundProcess] is semantic, `foregroundProcess` should be called when a calculation is the direct result of a
+     * user action (e.g. clicking a button).
+     *
+     * @param status The reactive status of the process
      */
-    fun working(reactive: Reactive<*>) = loading(reactive)
+    fun foregroundProcess(status: Reactive<*>) = backgroundProcess(status)
 }
 
 /**

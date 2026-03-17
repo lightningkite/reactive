@@ -143,7 +143,7 @@ class TypedReactiveContext<T>(
     val useLastWhileLoading: Boolean = false,
     private val reportTo: RawReactive<T> = RawReactive(),
     val action: TypedReactiveContext<T>.() -> T
-): DependencyChangeListener(), ReactiveCoroutineScope, Reactive<T> by reportTo {
+) : DependencyChangeListener(), ReactiveCoroutineScope, Reactive<T> by reportTo {
     companion object
 
     /**
@@ -248,7 +248,9 @@ class TypedReactiveContext<T>(
      * Called by the dependency tracker when a dependency changes.
      * Triggers a recalculation with [startCalculation].
      */
-    override fun onDependencyChange() { startCalculation() }
+    override fun onDependencyChange() {
+        startCalculation()
+    }
 
     /**
      * Called by the dependency tracker when a dependency becomes not ready.
@@ -711,7 +713,7 @@ class TypedReactiveContext<T>(
 fun <T> CoroutineScope.reactive(action: ReactiveContext.() -> T): TypedReactiveContext<T> {
     val trc = TypedReactiveContext(this, action = action)
     trc.startCalculation()
-    coroutineContext[StatusListener.Key]?.loading(trc)
+    coroutineContext[StatusListener]?.backgroundProcess(trc)
     return trc
 }
 
@@ -740,13 +742,13 @@ inline fun CoroutineScope.reactive(crossinline onLoad: () -> Unit, crossinline a
         try {
             action(this)
             wasLoadingLastTime = false
-        } catch(e: ReactiveLoading) {
-            if(wasLoadingLastTime) {
+        } catch (e: ReactiveLoading) {
+            if (wasLoadingLastTime) {
                 onLoad()
                 wasLoadingLastTime = true
             }
             throw e
-        } catch(e: Exception) {
+        } catch (e: Exception) {
             wasLoadingLastTime = false
         }
     }

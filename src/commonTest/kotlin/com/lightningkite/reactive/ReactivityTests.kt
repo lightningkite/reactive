@@ -6,7 +6,6 @@ import com.lightningkite.reactive.context.TypedReactiveContext
 import com.lightningkite.reactive.context.await
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.context.reactive
-import com.lightningkite.reactive.context.reactiveSuspending
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.addAndRunListener
@@ -16,10 +15,8 @@ import com.lightningkite.reactive.extensions.waitForNotNull
 import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.RawReactive
 import com.lightningkite.reactive.core.Remember
-import com.lightningkite.reactive.core.ResourceUse
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
-import com.lightningkite.reactive.extensions.use
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.coroutines.Continuation
@@ -535,12 +532,12 @@ class TestContext : CoroutineScopeHelpers {
                 } +
                 Dispatchers.Unconfined +
                 object : StatusListener {
-        override fun loading(reactive: Reactive<*>) {
+        override fun backgroundProcess(status: Reactive<*>) {
             var loading = false
             var excEnder: (() -> Unit)? = null
-            reactive.addAndRunListener {
-                val s = reactive.state
-                println("${reactive} reports ${s}")
+            status.addAndRunListener {
+                val s = status.state
+                println("${status} reports ${s}")
                 if (loading != !s.ready) {
                     if (s.ready) {
                         loadCount--

@@ -182,10 +182,10 @@ class ReactiveContextSuspending<T>(
                 if (!useLastWhileLoading || result.ready) reportTo.state = result
                 dependencyBlockEnd() // Clean up dependencies not used in this run
                 done = true
-            }
 
-            // If no dependencies, this will never rerun, so cancel and release resources
-            if (dependencyCount == 0) cancel()
+                // If no dependencies, this will never rerun, so cancel and release resources
+                if (dependencyCount == 0) cancel()
+            }
 
             // Check if calculation completed synchronously
             if (done) return@let null
@@ -346,7 +346,7 @@ class ReactiveContextSuspending<T>(
 fun CoroutineScope.reactiveSuspending(action: suspend ReactiveCoroutineScope.() -> Unit) =
     ReactiveContextSuspending(this, action = action).also {
         it.startCalculation()
-        coroutineContext[StatusListener.Key]?.loading(it)
+        coroutineContext[StatusListener.Key]?.backgroundProcess(it)
     }
 
 /**
