@@ -45,6 +45,26 @@ interface CoroutineScopeHelpers : CoroutineScope {
     @ReactiveDsl
     operator fun <T> KMutableProperty0<T>.invoke(actionToCalculate: ReactiveContext.() -> T) = this@CoroutineScopeHelpers.reactive(action = { set(actionToCalculate(this)) })
 
+
+    /**
+     * Syntax sugar for reactively setting a value equal to a reactive value..
+     *
+     * ```kotlin
+     * val reactiveThing: Reactive<Int> = ...
+     * var value = 0
+     *
+     * ::value bind reactiveThing
+     *
+     * \\ Equivalent To
+     *
+     * reactive {
+     *    value = reactiveThing()
+     * }
+     * ```
+     * */
+    @ReactiveDsl
+    infix fun <T> KMutableProperty0<T>.bind(reactive: Reactive<T>) = this@CoroutineScopeHelpers.reactive(action = { set(reactive()) })
+
     /**
      * Bidirectionally binds this [MutableReactive] to another [MutableReactive], keeping both values in sync.
      * Changes to either reactive value will propagate to the other.
