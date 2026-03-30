@@ -47,7 +47,7 @@ interface CoroutineScopeHelpers : CoroutineScope {
 
 
     /**
-     * Syntax sugar for reactively setting a value equal to a reactive value..
+     * Syntax sugar for reactively setting a value equal to a reactive value.
      *
      * ```kotlin
      * val reactiveThing: Reactive<Int> = ...
