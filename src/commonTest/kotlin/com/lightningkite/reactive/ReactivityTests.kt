@@ -116,13 +116,13 @@ class ReactivityTests {
 
         testContext {
             reactive(action = {
-                            println("#1 Got ${c()}")
-                            hits++
-                        })
+                println("#1 Got ${c()}")
+                hits++
+            })
             reactive(action = {
-                            println("#2 Got ${c()}")
-                            hits++
-                        })
+                println("#2 Got ${c()}")
+                hits++
+            })
             assertEquals(2, hits)
             a.value = 2
             assertEquals(4, hits)
@@ -532,35 +532,35 @@ class TestContext : CoroutineScopeHelpers {
                 } +
                 Dispatchers.Unconfined +
                 object : StatusListener {
-        override fun watchBackgroundProcess(status: Reactive<*>): () -> Unit {
-            var loading = false
-            var excEnder: (() -> Unit)? = null
-            return status.addAndRunListener {
-                val s = status.state
-                println("${status} reports ${s}")
-                if (loading != !s.ready) {
-                    if (s.ready) {
-                        loadCount--
-                    } else {
-                        loadCount++
+                    override fun watchBackgroundProcess(status: Reactive<*>): () -> Unit {
+                        var loading = false
+                        var excEnder: (() -> Unit)? = null
+                        return status.addAndRunListener {
+                            val s = status.state
+                            println("${status} reports ${s}")
+                            if (loading != !s.ready) {
+                                if (s.ready) {
+                                    loadCount--
+                                } else {
+                                    loadCount++
+                                }
+                                loading = !s.ready
+                            }
+                            excEnder?.invoke()
+                            s.exception?.let { t ->
+                                t.printStackTrace()
+                                error = t
+                            }
+                        }.also { onRemove(it) }
                     }
-                    loading = !s.ready
                 }
-                excEnder?.invoke()
-                s.exception?.let { t ->
-                    t.printStackTrace()
-                    error = t
-                }
-            }.also { onRemove(it) }
-        }
-    }
 }
 
-fun testContext(action: TestContext.() -> Unit) {
+inline fun <T> testContext(action: TestContext.() -> T): T =
     with(TestContext()) {
-        action()
+        val r = action()
         job.cancel()
         if (error != null) throw Exception("Unexpected error", error!!)
         assertEquals(0, loadCount, "Some work was not completed: ${incompleteKeys}")
+        r
     }
-}

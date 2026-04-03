@@ -3,7 +3,7 @@ package com.lightningkite.reactive
 import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.core.BaseReactiveValue
 import com.lightningkite.reactive.core.MutableReactiveValue
-import com.lightningkite.reactive.core.Signal
+import kotlin.reflect.KProperty0
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -50,13 +50,32 @@ private fun printBenchmarkTable(results: Map<String, BenchmarkResults>) {
     if (results.isEmpty()) return
 
     val headers = listOf("Benchmark", "Min", "Max", "Median", "Mean")
+
+    // Find the minimum value for each metric
+    val minMin = results.values.minOf { it.min }
+    val minMax = results.values.minOf { it.max }
+    val minMedian = results.values.minOf { it.median }
+    val minMean = results.values.minOf { it.mean }
+
     val rows = results.map { (name, result) ->
+        fun formatWithMultiple(value: Duration, fastest: Duration): String {
+            val multiple = value / fastest
+            return if (multiple > 1.01) { // Use small threshold to account for floating point
+                "$value (${multiple.toString().let { 
+                    if (it.contains('.')) it.substringBefore('.') + '.' + it.substringAfter('.').take(2)
+                    else it
+                }}x)"
+            } else {
+                value.toString()
+            }
+        }
+
         listOf(
             name,
-            result.min.toString(),
-            result.max.toString(),
-            result.median.toString(),
-            result.mean.toString()
+            formatWithMultiple(result.min, minMin),
+            formatWithMultiple(result.max, minMax),
+            formatWithMultiple(result.median, minMedian),
+            formatWithMultiple(result.mean, minMean)
         )
     }
 
@@ -96,6 +115,8 @@ class Benchmarks {
         }
     }
 
+    class HasVariable<T>(var value: T)
+
     @Test
     fun `single value reactive contexts vs direct listener`() {
         testContext {
@@ -120,4 +141,69 @@ class Benchmarks {
             )
         }
     }
+
+    @Test
+    fun `indirect vs direct bind`() {
+        val signal = TestSignal(0)
+
+        fun testBind(bind: TestContext.(HasVariable<Int>) -> Unit): BenchmarkResults {
+            signal.value = 0
+            val r = testContext {
+                val v = HasVariable(0)
+                val d = measureTime { bind(v) }
+
+                println("Took $d to bind")
+
+                val r = coldBenchmark { signal.value += 1 }
+
+                assertEquals(signal.value, v.value)
+
+                r
+            }
+            assertFalse(signal.active)
+            return r
+        }
+
+        val indirect = testBind { it::value { signal() } }
+        val direct = testBind { it::value bind signal }
+
+        printBenchmarkTable(
+            "indirect" to indirect,
+            "direct" to direct
+        )
+    }
+
+//    @Test
+//    fun `bind ReactiveValue optimization`() {
+//        val signal = TestSignal(0)
+//
+//        class HasVariable(var value: Int = 0)
+//
+//        fun testBind(bind: TestContext.(HasVariable) -> Unit): BenchmarkResults {
+//            signal.value = 0
+//            return testContext {
+//                val hasVariable = HasVariable()
+//
+//                val declaration = measureTime { bind(hasVariable) }
+//
+//                println("Took $declaration to initialize")
+//
+//                val r = coldBenchmark { signal.value += 1 }
+//
+//                assertEquals(hasVariable.value, signal.value)
+//
+//                r
+//            }
+//        }
+//
+//        val slow = testBind { it::value bind (signal as Reactive<Int>) }
+//        val fast = testBind { it::value bind signal }
+//        val alt = testBind { it::value bindAlt signal }
+//
+//        printBenchmarkTable(
+//            "slow" to slow,
+//            "fast" to fast,
+//            "alt" to alt
+//        )
+//    }
 }

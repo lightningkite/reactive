@@ -6,6 +6,7 @@ import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.reactiveState
 import com.lightningkite.reactive.core.RawReactive
 import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.ReactiveValue
 import com.lightningkite.reactive.extensions.DebounceListenable
 import com.lightningkite.reactive.extensions.DebounceReactive
 import kotlinx.coroutines.CoroutineDispatcher
@@ -13,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlin.jvm.JvmName
 import kotlin.reflect.KMutableProperty0
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -67,6 +69,13 @@ interface CoroutineScopeHelpers : CoroutineScope {
      * */
     @ReactiveDsl
     infix fun <T> KMutableProperty0<T>.bind(reactive: Reactive<T>) {
+        if (reactive is ReactiveValue<T>) { // I did benchmarks, this is just as fast as overloading and easier to use.
+            val release = reactive.addListener { this@bind.set(reactive.value) }
+            // no need for status listener since result is infallible
+            onRemove(release)
+            return
+        }
+
         val release = reactive.addListener {
             reactive.state.onSuccess { this@bind.set(it) }
         }
