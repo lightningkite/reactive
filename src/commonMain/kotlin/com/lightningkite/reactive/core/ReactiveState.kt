@@ -92,6 +92,7 @@ object InternalReactiveNotReady
 class NotReadyException(message: String? = null) : IllegalStateException(message)
 
 inline fun <T> reactiveState(action: () -> T): ReactiveState<T> {
+    @OptIn(InternalReactiveApi::class)
     return try {
         ReactiveState(action())
     } catch (_: CancellationException) {
@@ -103,7 +104,7 @@ inline fun <T> reactiveState(action: () -> T): ReactiveState<T> {
     }
 }
 
-inline fun <T> Result<T>.toReactiveState(): ReactiveState<T> {
+fun <T> Result<T>.toReactiveState(): ReactiveState<T> {
     @Suppress("UNCHECKED_CAST")
     return if(this.isFailure) ReactiveState.exception(this.exceptionOrNull() as Exception)
     else ReactiveState.wrap(this.getOrNull() as T)

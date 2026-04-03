@@ -133,6 +133,7 @@ suspend fun <T> Reactive<T>.await(): T {
 
 suspend fun <T> Reactive<T>.awaitOnce(): T {
     val state = state
+    @Suppress("DEPRECATION")
     return if (state.ready) state.get()
     else suspendCancellableCoroutine {
         // If it's not ready, we need to wait until it is then never bother with this again.
@@ -150,6 +151,6 @@ suspend fun <T> Reactive<T>.awaitOnce(): T {
             }
         }
         if (alreadyRun) remover.invoke()
-        it.invokeOnCancellation {  remover.invoke() }
+        it.invokeOnCancellation { remover.invoke() }
     }
 }

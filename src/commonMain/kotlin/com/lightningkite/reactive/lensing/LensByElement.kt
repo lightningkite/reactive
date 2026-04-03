@@ -83,6 +83,7 @@ class LensByElement<E, ID, T>(
         internal val queuedOrValue: E
             get() {
                 val qs = queuedSet
+                @Suppress("DEPRECATION")
                 return if (qs.success) qs.get() else value
             }
         internal var usedFlag = false
@@ -124,6 +125,7 @@ class LensByElement<E, ID, T>(
         private var lastElements: List<Element> = listOf()
         private var _state: ReactiveState<List<Element>> = ReactiveState.notReady
             set(value) {
+                @Suppress("DEPRECATION")
                 if (value.success) lastElements = value.get()
                 field = value
             }

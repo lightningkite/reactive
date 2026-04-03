@@ -5,6 +5,7 @@ import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.BaseReactive
 import com.lightningkite.reactive.core.BaseReactiveValue
 import com.lightningkite.reactive.core.Emitter
+import com.lightningkite.reactive.core.InternalReactiveApi
 import com.lightningkite.reactive.core.InternalReactiveWrapper
 import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.MutableReactive
@@ -65,6 +66,7 @@ typealias LazyProperty<T> = MutableRemember<T>
 @Deprecated("Use DebounceReactive", ReplaceWith("DebounceReactive", "com.lightningkite.reactive.extensions"))
 typealias DebounceReadable<T> = DebounceReactive<T>
 
+@OptIn(InternalReactiveApi::class)
 @Deprecated("Use InternalSignalWrapper", ReplaceWith("InternalSignalWrapper", "com.lightningkite.reactive.core"))
 typealias InternalReadableWrapper<T> = InternalReactiveWrapper<T>
 
@@ -110,4 +112,4 @@ fun <T> CoroutineScope.sharedProcess(emitter: suspend Emitter<T>.() -> Unit): Re
 inline fun <T> readableState(action: () -> T): ReactiveState<T> = reactiveState(action)
 
 @Deprecated("Use toReactiveState", ReplaceWith("toReactiveState", "com.lightningkite.reactive.core"))
-inline fun <T> Result<T>.toReadableState(): ReactiveState<T> = toReactiveState()
+fun <T> Result<T>.toReadableState(): ReactiveState<T> = toReactiveState()
