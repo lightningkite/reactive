@@ -47,7 +47,7 @@ interface CoroutineScopeHelpers : CoroutineScope {
 
 
     /**
-     * Syntax sugar for reactively setting a value equal to a reactive value.
+     * Syntax sugar for reactively setting a value equal to a reactive value very efficiently.
      *
      * ```kotlin
      * val reactiveThing: Reactive<Int> = ...
@@ -61,14 +61,24 @@ interface CoroutineScopeHelpers : CoroutineScope {
      *    value = reactiveThing()
      * }
      * ```
+     *
+     * Note: The above example isn't quite true, because we know there is only one dependency we can
+     * actually optimize and cut out the overhead of a full `reactive` context.
      * */
     @ReactiveDsl
-    infix fun <T> KMutableProperty0<T>.bind(reactive: Reactive<T>) = this@CoroutineScopeHelpers.reactive(action = { set(reactive()) })
+    infix fun <T> KMutableProperty0<T>.bind(reactive: Reactive<T>) {
+        val release = reactive.addListener {
+            reactive.state.onSuccess { this@bind.set(it) }
+        }
+        coroutineContext[StatusListener]?.watchBackgroundProcess(reactive)
+        onRemove(release)
+    }
 
     /**
      * Bidirectionally binds this [MutableReactive] to another [MutableReactive], keeping both values in sync.
      * Changes to either reactive value will propagate to the other.
      */
+    @ReactiveDsl
     infix fun <T> MutableReactive<T>.bind(master: MutableReactive<T>) {
         val reportTo = RawReactive(ReactiveState(Unit))
         coroutineContext[StatusListener]?.watchBackgroundProcess(reportTo)
