@@ -11,15 +11,15 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.reflect.KMutableProperty0
 
-abstract class CoroutineScopeHelpers : CoroutineScope {
+interface CoroutineScopeHelpers : CoroutineScope {
 
     @ReactiveDsl
-    inline operator fun <T, IGNORED> ((T) -> IGNORED).invoke(crossinline actionToCalculate: ReactiveContext.() -> T) = reactiveScope {
+    operator fun <T, IGNORED> ((T) -> IGNORED).invoke(actionToCalculate: ReactiveContext.() -> T) = reactiveScope {
         this@invoke(actionToCalculate(this))
     }
 
     @ReactiveDsl
-    inline operator fun <T> KMutableProperty0<T>.invoke(crossinline actionToCalculate: ReactiveContext.() -> T) = reactiveScope {
+    operator fun <T> KMutableProperty0<T>.invoke(actionToCalculate: ReactiveContext.() -> T) = reactiveScope {
         this@invoke.set(actionToCalculate(this))
     }
 

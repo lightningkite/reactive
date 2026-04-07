@@ -9,6 +9,8 @@ import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
+typealias Release = () -> Unit
+
 /**
  * Represents a resource that can be used and released.
  * Implementations should provide logic for starting and stopping resource usage.
