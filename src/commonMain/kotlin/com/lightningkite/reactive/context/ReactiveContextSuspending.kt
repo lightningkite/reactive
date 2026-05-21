@@ -182,9 +182,6 @@ class ReactiveContextSuspending<T>(
                 if (!useLastWhileLoading || result.ready) reportTo.state = result
                 dependencyBlockEnd() // Clean up dependencies not used in this run
                 done = true
-
-                // If no dependencies, this will never rerun, so cancel and release resources
-                if (dependencyCount == 0) cancel()
             }
 
             // Check if calculation completed synchronously
