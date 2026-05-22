@@ -219,9 +219,6 @@ class TypedReactiveContext<T>(
             if (!useLastWhileLoading || state.ready) reportTo.state = state
 
             dependencyBlockEnd() // Clean up dependencies not used in this run
-
-            // If there are no dependencies, this will never run again, so cancel the scope to release unneeded resources.
-            if (dependencyCount == 0) cancel()
         }
     }
 
