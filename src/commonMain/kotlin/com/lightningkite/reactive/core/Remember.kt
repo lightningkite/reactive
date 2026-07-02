@@ -84,7 +84,13 @@ class Remember<T>(
                 }
             }
 
-    override val coroutineContext get() = job + restOfContext
+    // NOTE: `job` must come AFTER `restOfContext` so this Remember's own SupervisorJob is the
+    // authoritative `[Job]` of the scope. If `incomingCoroutineContext` carries a long-lived Job
+    // (e.g. AppScope's AppJob), putting `job` first lets that incoming Job win the `[Job]` key,
+    // and TypedReactiveContext.init's `scope.onRemove { cancel() }` then attaches an
+    // invokeOnCompletion handler to the app-lifetime Job that never fires — leaking every
+    // Remember/shared reactive graph forever. Matches RememberSuspending's ordering.
+    override val coroutineContext get() = restOfContext + job
 
     private val scope = TypedReactiveContext(this, useLastWhileLoading, action = action)
 
