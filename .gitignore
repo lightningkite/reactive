@@ -6,3 +6,8 @@ local.properties
 build
 local.version.txt
 /.claude/settings.local.json
+Build.kt
+KBuildAnnotations.kt
+.kbuild
+.fork
+karma.config.d/chrome-no-sandbox.js
