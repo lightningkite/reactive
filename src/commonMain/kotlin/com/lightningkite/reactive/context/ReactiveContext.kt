@@ -166,6 +166,15 @@ class TypedReactiveContext<T>(
     private var queued = false
 
     /**
+     * True while this context's [action] is executing. Used to detect reentrancy: if the
+     * calculation writes to a signal it also reads, the write synchronously re-invokes
+     * [startCalculation] on this same context, which would otherwise recurse until the stack
+     * overflows (or livelock under a dispatching scheduler). Detecting it lets us fail fast with
+     * a clear message instead.
+     */
+    private var calculating = false
+
+    /**
      * The current job for this calculation run.
      * Gets cancelled and replaced with a new job on each [startCalculation] call.
      *
@@ -200,6 +209,11 @@ class TypedReactiveContext<T>(
      * Thread safety: Uses [queued] flag to prevent multiple simultaneous executions.
      */
     fun startCalculation() {
+        // A rerun requested while we're mid-calculation means the calculation triggered its own
+        // dependency to change (e.g. wrote to a signal it reads). Fail fast rather than recurse
+        // until the stack overflows. The listener dispatch that called us is synchronous, so this
+        // check catches the offending write even under a dispatching scheduler.
+        if (calculating) throw ReactiveReentrancyException(this)
         active = true
         if (queued) return // Prevent duplicate queuing
         queued = true
@@ -212,13 +226,18 @@ class TypedReactiveContext<T>(
             queued = false
             if (!active) return@onThread // Check if cancelled while queued
 
-            dependencyBlockStart() // Begin tracking dependencies
-            val state = reactiveState { action(this@TypedReactiveContext) }
+            calculating = true
+            try {
+                dependencyBlockStart() // Begin tracking dependencies
+                val state = reactiveState { action(this@TypedReactiveContext) }
 
-            // Update state unless useLastWhileLoading is true and result isn't ready
-            if (!useLastWhileLoading || state.ready) reportTo.state = state
+                // Update state unless useLastWhileLoading is true and result isn't ready
+                if (!useLastWhileLoading || state.ready) reportTo.state = state
 
-            dependencyBlockEnd() // Clean up dependencies not used in this run
+                dependencyBlockEnd() // Clean up dependencies not used in this run
+            } finally {
+                calculating = false
+            }
         }
     }
 
@@ -781,3 +800,14 @@ inline fun CoroutineScope.reactiveScope(crossinline onLoad: () -> Unit, crossinl
 
 @InternalReactiveApi
 object ReactiveLoading : Throwable()
+
+/**
+ * Thrown when a reactive calculation triggers its own re-execution, typically by writing to a
+ * signal it also reads inside the same [reactive] block. This would otherwise recurse until the
+ * stack overflows (or livelock under a dispatching scheduler), so it is surfaced as a clear error.
+ */
+class ReactiveReentrancyException(context: ReactiveContext) : IllegalStateException(
+    "A reactive calculation triggered its own re-execution ($context). This usually means the " +
+            "calculation wrote to a signal it also reads. Break the cycle so the calculation does " +
+            "not mutate its own dependencies."
+)

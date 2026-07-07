@@ -6,6 +6,7 @@ import com.lightningkite.reactive.context.TypedReactiveContext
 import com.lightningkite.reactive.context.await
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.context.reactive
+import com.lightningkite.reactive.context.ReactiveReentrancyException
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.addAndRunListener
@@ -516,6 +517,50 @@ class ReactivityTests {
         source.value = 2
         assertEquals(computesAfterRead, computeCount, "mutating the source must not recompute a dead Remember")
         assertEquals(0, source.listenerCount, "source must still have zero listeners after mutation")
+    }
+
+    @Test
+    fun reentrancyThrowsClearError() {
+        val previous = Reactive.reportException
+        val captured = ArrayList<Throwable>()
+        Reactive.reportException = { captured.add(it) }
+        try {
+            testContext {
+                val s = Signal(0)
+                // Writing to a signal the calculation also reads re-triggers this same calculation.
+                // Without reentrancy detection this recurses until the stack overflows.
+                reactive {
+                    val v = s()
+                    s.value = v + 1
+                }
+            }
+        } finally {
+            Reactive.reportException = previous
+        }
+        assertTrue(
+            captured.any { it is ReactiveReentrancyException },
+            "Expected a ReactiveReentrancyException, but captured: $captured"
+        )
+    }
+
+    @Test
+    fun writingUnrelatedSignalDuringCalculationIsAllowed() {
+        testContext {
+            val trigger = Signal(0)
+            val unrelated = Signal(100)
+            var runs = 0
+            reactive {
+                runs++
+                val t = trigger()
+                // Writing to a signal this calculation does NOT read must remain legal.
+                unrelated.value = t + 100
+            }
+            assertEquals(1, runs)
+            assertEquals(100, unrelated.value)
+            trigger.value = 5
+            assertEquals(2, runs)
+            assertEquals(105, unrelated.value)
+        }
     }
 }
 
