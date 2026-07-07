@@ -251,14 +251,8 @@ class TypedReactiveContext<T>(
      * the calculation will not rerun when dependencies change.
      */
     fun runOnceWhileDead() {
-        dependencyBlockStart()
         val state = reactiveState { action(this) }
         if (!useLastWhileLoading || state.ready) reportTo.state = state
-        // Release any dependency listeners registered by the calculation during this throwaway run.
-        // The `invoke()` operators register `rerun` as a listener on every source they touch; without
-        // releasing them here a later source change would fire `rerun`, resurrecting this supposedly
-        // dead, zero-listener context into a permanently-computing graph node (violating laziness).
-        cancel()
     }
 
     init {
