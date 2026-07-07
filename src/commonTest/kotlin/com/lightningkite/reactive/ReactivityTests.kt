@@ -16,6 +16,7 @@ import com.lightningkite.reactive.extensions.waitForNotNull
 import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.RawReactive
 import com.lightningkite.reactive.core.Remember
+import com.lightningkite.reactive.core.ReactiveThreadCheck
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
 import kotlinx.coroutines.*
@@ -490,6 +491,32 @@ class ReactivityTests {
 
             // Leave in a ready state so testContext's loadCount balance check passes.
             signal.value = 6
+        }
+    }
+
+    @Test
+    fun threadConfinementAssertionCatchesForeignMutation() {
+        var thread: Any = "thread-A"
+        val prevEnabled = ReactiveThreadCheck.enabled
+        val prevHook = ReactiveThreadCheck.currentThread
+        ReactiveThreadCheck.currentThread = { thread }
+        ReactiveThreadCheck.enabled = true
+        try {
+            val s = Signal(0)
+            s.value = 1 // captures thread-A as the owner
+            s.value = 2 // same thread, allowed
+
+            thread = "thread-B"
+            assertFailsWith<IllegalStateException>("mutation from a foreign thread must fail fast") {
+                s.value = 3
+            }
+
+            // Disabled again: foreign mutations are no longer checked.
+            ReactiveThreadCheck.enabled = false
+            s.value = 4
+        } finally {
+            ReactiveThreadCheck.enabled = prevEnabled
+            ReactiveThreadCheck.currentThread = prevHook
         }
     }
 

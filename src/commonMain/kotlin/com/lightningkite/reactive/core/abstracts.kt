@@ -49,7 +49,29 @@ abstract class BaseListenable : Listenable {
         }
     }
 
+    /**
+     * The thread that first mutated this listenable, captured lazily when [ReactiveThreadCheck] is
+     * enabled. Used only for the opt-in thread-confinement assertion.
+     */
+    private var owningThread: Any? = null
+
+    private fun assertThreadConfinement() {
+        if (!ReactiveThreadCheck.enabled) return
+        val current = ReactiveThreadCheck.currentThread() ?: return
+        val owner = owningThread
+        if (owner == null) {
+            owningThread = current
+        } else if (owner != current) {
+            throw IllegalStateException(
+                "Reactive graph mutated from thread '$current' but it is confined to thread " +
+                        "'$owner'. The reactive graph is single-threaded; mutate it only from its " +
+                        "owning thread (typically the UI/main thread)."
+            )
+        }
+    }
+
     protected fun invokeAllListeners() {
+        assertThreadConfinement()
         listeners.toList().forEach {
             try {
                 it()
