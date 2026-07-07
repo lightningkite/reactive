@@ -491,6 +491,32 @@ class ReactivityTests {
             signal.value = 6
         }
     }
+
+    @Test
+    fun readingDeadStateDoesNotLeakOrResurrect() {
+        val source = Signal(1)
+        var computeCount = 0
+        val r = remember {
+            computeCount++
+            source()
+        }
+
+        // No listener added, so the Remember is lazy/dead.
+        assertEquals(0, source.listenerCount, "precondition: no listeners before touching dead state")
+
+        // Reading .state on a dead Remember computes a one-off value.
+        assertEquals(1, r.state.get(), "dead read should still compute the current value")
+        val computesAfterRead = computeCount
+        assertTrue(computesAfterRead > 0, "dead read should have computed at least once")
+
+        // The throwaway computation must not leave a listener on the source.
+        assertEquals(0, source.listenerCount, "reading dead .state must not leave a dangling listener on the source")
+
+        // Mutating the source must NOT resurrect the Remember.
+        source.value = 2
+        assertEquals(computesAfterRead, computeCount, "mutating the source must not recompute a dead Remember")
+        assertEquals(0, source.listenerCount, "source must still have zero listeners after mutation")
+    }
 }
 
 class VirtualDelay<T>(val action: () -> T) {
