@@ -740,9 +740,9 @@ inline fun CoroutineScope.reactive(crossinline onLoad: () -> Unit, crossinline a
             action(this)
             wasLoadingLastTime = false
         } catch (e: ReactiveLoading) {
-            if (wasLoadingLastTime) {
-                onLoad()
+            if (!wasLoadingLastTime) {
                 wasLoadingLastTime = true
+                onLoad()
             }
             throw e
         } catch (e: Exception) {

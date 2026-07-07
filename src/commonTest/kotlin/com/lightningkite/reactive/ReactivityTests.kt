@@ -469,6 +469,28 @@ class ReactivityTests {
 //            println("Tearing down B")
 //        }
 //    }
+
+    @Test
+    fun onLoadFiresWhenEnteringLoading() {
+        testContext {
+            val signal = LateInitSignal<Int>()
+            var loadCalls = 0
+            reactive(onLoad = { loadCalls++ }) {
+                signal()
+            }
+            // Starts not-ready, so entering the calculation is a transition into loading.
+            assertEquals(1, loadCalls, "onLoad should fire once when first entering loading")
+
+            signal.value = 5
+            assertEquals(1, loadCalls, "onLoad should not fire again once the value is ready")
+
+            signal.unset()
+            assertEquals(2, loadCalls, "onLoad should fire again when re-entering loading")
+
+            // Leave in a ready state so testContext's loadCount balance check passes.
+            signal.value = 6
+        }
+    }
 }
 
 class VirtualDelay<T>(val action: () -> T) {
