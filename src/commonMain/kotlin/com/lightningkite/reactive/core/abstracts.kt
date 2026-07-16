@@ -37,6 +37,12 @@ abstract class BaseListenable : Listenable {
 
     private val listeners = ArrayList<() -> Unit>()
 
+    /**
+     * Number of currently-registered listeners. Exposed for tests that need to assert
+     * that a listenable is not leaking subscriptions.
+     */
+    val listenerCount: Int get() = listeners.size
+
     override fun addListener(listener: () -> Unit): Release {
         if (listeners.isEmpty()) activate()
         listeners.add(listener)
