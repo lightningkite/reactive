@@ -1,7 +1,5 @@
 package com.lightningkite.reactive.context
 
-import com.lightningkite.reactive.core.checkThreadConfinement
-
 abstract class DependencyTracker {
     private val dependencies = ArrayList<Pair<Any, () -> Unit>>()
     private val usedDependencies = ArrayList<Any>()
