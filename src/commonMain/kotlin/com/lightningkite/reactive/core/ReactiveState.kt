@@ -95,8 +95,11 @@ inline fun <T> reactiveState(action: () -> T): ReactiveState<T> {
     @OptIn(InternalReactiveApi::class)
     return try {
         ReactiveState(action())
-    } catch (_: CancellationException) {
-        ReactiveState.notReady
+    } catch (e: CancellationException) {
+        // A cancellation means the coroutine running `action` was torn down mid-calculation - it
+        // must propagate so the caller's suspension point actually stops, rather than being
+        // reinterpreted as "not ready" and letting the calculation resume past its cancellation.
+        throw e
     } catch (_: ReactiveLoading) {
         ReactiveState.notReady
     } catch (e: Exception) {

@@ -1,6 +1,7 @@
 package com.lightningkite.reactive
 
 import com.lightningkite.reactive.context.ReactiveContext
+import com.lightningkite.reactive.context.ReactiveContextSuspending
 import com.lightningkite.reactive.context.await
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.onRemove
@@ -8,6 +9,7 @@ import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.context.reactiveSuspending
 import com.lightningkite.reactive.context.rerunOn
 import com.lightningkite.reactive.core.ReactiveState
+import com.lightningkite.reactive.core.reactiveState
 import com.lightningkite.reactive.extensions.value
 import com.lightningkite.reactive.extensions.waitForNotNull
 import com.lightningkite.reactive.core.BaseReactive
@@ -17,9 +19,15 @@ import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.Release
 import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.extensions.invoke
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -401,6 +409,44 @@ class ReactivitySuspendingTests {
             dependency.value += 1
             assertEquals(2, cancelled)
         }
+    }
+
+    @Test
+    fun reactiveStateRethrowsCancellationInsteadOfSwallowingIt() {
+        // reactiveState must propagate CancellationException rather than converting it to
+        // notReady - swallowing it would let a cancelled suspending calculation resume past its
+        // suspension point and write state / clean up dependencies for a run that should be dead.
+        assertFailsWith<CancellationException> {
+            reactiveState<Unit> { throw CancellationException("cancelled") }
+        }
+    }
+
+    @Test
+    fun cancelledSuspendDoesNotWriteStaleStateAfterRerun() = runTest {
+        val trigger = Signal(0)
+        var completions = 0
+        val ctx = ReactiveContextSuspending(this) {
+            val t = trigger()
+            if (t == 0) delay(100) // first run suspends here; gets cancelled before it elapses
+            completions++
+        }
+        ctx.startCalculation()
+        runCurrent()
+        assertEquals(0, completions, "first run should still be suspended in delay()")
+
+        // Cancels the still-suspended first run and starts a second run that doesn't delay.
+        trigger.value = 1
+        runCurrent()
+        assertEquals(1, completions, "only the fresh second run should have completed")
+
+        // Let the first run's delay() elapse, as if nothing had cancelled it. If cancellation
+        // were swallowed instead of rethrown, the dead first run would resume here and write
+        // stale state (completions incrementing a second time).
+        advanceTimeBy(200)
+        runCurrent()
+        assertEquals(1, completions, "the cancelled first run must not resume and complete")
+
+        ctx.cancel()
     }
 
     @Test

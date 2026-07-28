@@ -1,38 +1,53 @@
 package com.lightningkite.reactive.core
 
 /**
- * Opt-in debug aid that asserts the reactive graph is only mutated from a single thread.
+ * Assertion that the reactive graph is only ever mutated from a single thread.
  *
- * The reactive graph is designed to be single-threaded (typically the UI/main thread): listener
- * lists and dependency trackers are plain unsynchronized [ArrayList]s. Mutating them from more than
- * one thread corrupts them silently. When [enabled], each [BaseListenable] records the thread that
- * first mutated it (via [currentThread]) and throws a clear [IllegalStateException] if a later
- * mutation comes from a different thread, surfacing the violation instead of producing corruption.
+ * The reactive graph is single-threaded by design (typically the UI/main thread): listener lists and
+ * dependency trackers are plain unsynchronized [ArrayList]s, so mutating them from more than one
+ * thread corrupts them silently. Each [BaseListenable] and
+ * [com.lightningkite.reactive.context.DependencyTracker] records the thread that first mutated it and
+ * throws a clear [IllegalStateException] if a later mutation arrives from a different thread.
  *
- * This is intentionally an assertion, not real synchronization — it only reports misuse.
+ * This is an assertion, not synchronization - it reports misuse, it does not make anything safe.
  *
- * ### Why opt-in / off by default
- * This library has only a common source set (no per-platform `expect`/`actual`), so there is no
- * built-in way to identify the current thread portably. Instead of adding platform source sets, the
- * thread identity is pluggable via [currentThread]. A platform consumer that wants the check enables
- * it and installs a hook, e.g. on the JVM:
- *
- * ```kotlin
- * ReactiveThreadCheck.currentThread = { Thread.currentThread() }
- * ReactiveThreadCheck.enabled = true
- * ```
- *
- * With [enabled] left `false` (the default) the check is a single boolean read and does nothing,
- * so it is safe for existing single-threaded code and tests.
+ * On Kotlin/JS the check compiles away: web workers do not share an object graph, so there is no way
+ * for two threads to touch the same reactive node.
  */
 object ReactiveThreadCheck {
-    /** When true, mutations of [BaseListenable]s are checked for thread confinement. */
-    var enabled: Boolean = false
-
     /**
-     * Returns an identity for the current thread, or `null` if thread identity is unavailable
-     * (in which case the check is skipped). Defaults to `null`; platform consumers install a real
-     * implementation such as `{ Thread.currentThread() }`.
+     * Kill switch for the confinement assertion, on by default.
+     *
+     * Set to `false` to unblock an app that trips the assertion in code that cannot be fixed
+     * immediately. That does not make the offending mutation safe; it only stops reporting it.
      */
-    var currentThread: () -> Any? = { null }
+    var enabled: Boolean = true
+}
+
+/**
+ * Identity of the current thread, or `null` on platforms with no shared-memory threads - in which
+ * case confinement cannot be violated and the check is skipped.
+ */
+internal expect fun currentReactiveThread(): Any?
+
+/**
+ * Backs the thread-confinement assertion.
+ *
+ * Callers keep a single nullable `owningThread` field and write the result back:
+ * `owningThread = checkThreadConfinement(owningThread)`. Keeping that field in the caller rather than
+ * in a helper object avoids an extra allocation per reactive node, of which there are many.
+ *
+ * @param owningThread the thread that previously mutated the structure, or `null` if never mutated.
+ * @return the owning thread, to be stored back by the caller.
+ */
+internal fun checkThreadConfinement(owningThread: Any?): Any? {
+    if (!ReactiveThreadCheck.enabled) return owningThread
+    val current = currentReactiveThread() ?: return owningThread
+    if (owningThread == null) return current
+    if (owningThread != current) throw IllegalStateException(
+        "Reactive graph mutated from thread '$current' but it is confined to thread '$owningThread'. " +
+                "The reactive graph is single-threaded; mutate it only from its owning thread " +
+                "(typically the UI/main thread)."
+    )
+    return owningThread
 }

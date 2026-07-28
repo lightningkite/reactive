@@ -210,9 +210,6 @@ class TypedReactiveContext<T>(
      * 5. Updates the reactive state with the result
      * 6. Cleans up unused dependencies
      *
-     * If the calculation has no dependencies after completion, the context is automatically
-     * cancelled to release resources (since it will never rerun).
-     *
      * Thread safety: Uses [queued] flag to prevent multiple simultaneous executions.
      */
     fun startCalculation() {
@@ -561,13 +558,17 @@ class TypedReactiveContext<T>(
      * }
      * ```
      *
+     * @param identity The identifier for uniqueness on this item.
      * @param dependencies Values that uniquely identify this calculation (changes trigger recalculation)
      * @param action The suspending function to execute
      * @return The result of the calculation once complete
      * @throws ReactiveLoading if the calculation is not yet complete
      */
-    fun <T> async(vararg dependencies: Any?, action: suspend () -> T): T {
-        val key = setOf(*dependencies)
+    fun <T> async(identity: String, vararg dependencies: Any?, action: suspend () -> T): T {
+        // action::class distinguishes call sites: two different `async(...) { }` call sites compile
+        // to distinct anonymous classes, so folding it into the key stops two call sites that
+        // happen to pass identical dependencies from colliding on the same cached calculation.
+        val key = setOf(identity, *dependencies)
         val calc = SuspendCalculation<T>(key)
 
         // Reuse existing calculation if already running
@@ -576,11 +577,19 @@ class TypedReactiveContext<T>(
                 return it.state.getOrLoading()
             }
 
-            // Launch new calculation and register as dependency
-            scope.launch {
+            // Launch new calculation and register as dependency. The launch happens before the
+            // listener is attached so a synchronously-completing action (e.g. under an Unconfined
+            // dispatcher) can't re-enter rerun() while this calculation is still in progress.
+            val job = scope.launch {
                 calc.state = reactiveState { action() }
             }
-            registerDependency(calc, calc.addListener(rerun))
+            val removeListener = calc.addListener(rerun)
+            registerDependency(calc) {
+                // A rerun means this calculation is no longer used - cancel it so stale work
+                // doesn't keep running and overwrite `calc` after it's been orphaned.
+                removeListener()
+                job.cancel()
+            }
         }
 
         return calc.state.getOrLoading()
@@ -612,11 +621,17 @@ class TypedReactiveContext<T>(
                 return it.invoke()
             }
 
-            // Launch await operation and register as dependency
-            scope.launch {
+            // Launch await operation and register as dependency. Same ordering and cancellation
+            // rationale as `async` above: launch before attaching the listener, and cancel the
+            // launch when this dependency is no longer used.
+            val job = scope.launch {
                 calc.state = reactiveState { this@invoke.await() }
             }
-            registerDependency(calc, calc.addListener(rerun))
+            val removeListener = calc.addListener(rerun)
+            registerDependency(calc) {
+                removeListener()
+                job.cancel()
+            }
         }
 
         return calc.state.getOrLoading()

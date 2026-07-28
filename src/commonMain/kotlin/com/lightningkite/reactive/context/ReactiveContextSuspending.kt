@@ -160,9 +160,6 @@ class ReactiveContextSuspending<T>(
      *
      * The calculation may complete synchronously (if already on correct dispatcher and no suspension points)
      * or asynchronously. If [useLastWhileLoading] is false, the state is set to notReady during async execution.
-     *
-     * If the calculation has no dependencies after completion, the context is automatically
-     * cancelled to release resources (since it will never rerun).
      */
     fun startCalculation() {
         active = true

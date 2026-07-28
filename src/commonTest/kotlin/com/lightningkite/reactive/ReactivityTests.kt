@@ -16,11 +16,13 @@ import com.lightningkite.reactive.extensions.waitForNotNull
 import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.RawReactive
 import com.lightningkite.reactive.core.Remember
-import com.lightningkite.reactive.core.ReactiveThreadCheck
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.resume
@@ -495,32 +497,6 @@ class ReactivityTests {
     }
 
     @Test
-    fun threadConfinementAssertionCatchesForeignMutation() {
-        var thread: Any = "thread-A"
-        val prevEnabled = ReactiveThreadCheck.enabled
-        val prevHook = ReactiveThreadCheck.currentThread
-        ReactiveThreadCheck.currentThread = { thread }
-        ReactiveThreadCheck.enabled = true
-        try {
-            val s = Signal(0)
-            s.value = 1 // captures thread-A as the owner
-            s.value = 2 // same thread, allowed
-
-            thread = "thread-B"
-            assertFailsWith<IllegalStateException>("mutation from a foreign thread must fail fast") {
-                s.value = 3
-            }
-
-            // Disabled again: foreign mutations are no longer checked.
-            ReactiveThreadCheck.enabled = false
-            s.value = 4
-        } finally {
-            ReactiveThreadCheck.enabled = prevEnabled
-            ReactiveThreadCheck.currentThread = prevHook
-        }
-    }
-
-    @Test
     fun reentrancyThrowsClearError() {
         val previous = Reactive.reportException
         val captured = ArrayList<Throwable>()
@@ -562,6 +538,58 @@ class ReactivityTests {
             assertEquals(2, runs)
             assertEquals(105, unrelated.value)
         }
+    }
+
+    @Test
+    fun asyncDistinguishesCallSitesWithIdenticalDependencies() = runTest {
+        // Two different `async {}` call sites passed the exact same dependency (1). Under the old
+        // deps-only cache key, both would hash/equal to the same SuspendCalculation and the second
+        // call site would silently reuse the first's result.
+        var resultA = -1
+        var resultB = -1
+        val ctx = TypedReactiveContext(this) {
+            resultA = async("a", 1) { 100 }
+            resultB = async("b", 1) { 200 }
+        }
+        ctx.startCalculation()
+        runCurrent()
+
+        assertEquals(100, resultA, "first call site should get its own result")
+        assertEquals(200, resultB, "second call site must not have collided with the first")
+
+        ctx.cancel()
+    }
+
+    @Test
+    fun asyncCancelsStaleLaunchOnRerun() = runTest {
+        // The async's own dependency is `trigger()`'s value, so changing `trigger` gives the async
+        // block a new cache key each run - the old entry becomes unused and should be torn down
+        // (job cancelled) rather than left running to write into an orphaned calc.
+        val trigger = Signal(0)
+        var completions = 0
+        val ctx = TypedReactiveContext(this) {
+            val t = trigger()
+            async("A", t) {
+                delay(100)
+                completions++
+            }
+        }
+        ctx.startCalculation()
+        runCurrent()
+        assertEquals(0, completions, "first run's async should still be delaying")
+
+        trigger.value = 1 // gives the async a new key; the stale (t=0) launch must be cancelled
+        runCurrent()
+        assertEquals(0, completions, "second run's async should also still be delaying")
+
+        // Let the stale run's delay(100) elapse, as if nothing had cancelled it.
+        advanceTimeBy(150)
+        runCurrent()
+
+        // Only the fresh (t=1) async should ever complete - the cancelled (t=0) one must not.
+        assertEquals(1, completions, "the cancelled first launch must not have completed")
+
+        ctx.cancel()
     }
 
     @Test

@@ -7,12 +7,100 @@ import kotlin.collections.plusAssign
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.TimeSource
 import kotlin.time.measureTime
 
 class DependencyTrackerTest {
+    /**
+     * Exposes the real [com.lightningkite.reactive.context.DependencyTracker]'s protected block
+     * methods for direct testing. Fully qualified because this file also declares its own nested
+     * `DependencyTracker` benchmark helper below, which would otherwise shadow the real one.
+     */
+    private class TestableDependencyTracker : com.lightningkite.reactive.context.DependencyTracker() {
+        public override fun cancel() = super.cancel()
+        fun blockStart() = dependencyBlockStart()
+        fun blockEnd() = dependencyBlockEnd()
+    }
+
+    /** A [Listenable] that counts every `equals()` comparison it's involved in. */
+    private class CountingListenable(val id: Int) : BaseListenable() {
+        override fun equals(other: Any?): Boolean {
+            calls++
+            return other is CountingListenable && id == other.id
+        }
+        override fun hashCode(): Int = id
+        companion object { var calls = 0 }
+    }
+
+    @Test
+    fun orderedFastPathAvoidsLinearScanOnSteadyStateRerun() {
+        val tracker = TestableDependencyTracker()
+        val deps = List(30) { CountingListenable(it) }
+
+        // First run: nothing is registered yet, so this just populates `dependencies`.
+        tracker.blockStart()
+        for (d in deps) if (tracker.existingDependency(d) == null) tracker.registerDependency(d, d.addListener {})
+        tracker.blockEnd()
+
+        // Second, steady-state run: same dependencies read in the same order. The ordered fast
+        // path should find each one with a single comparison at its expected slot. Before the
+        // B1 fix, the off-by-one probe missed every slot and fell back to the O(n) linear scan,
+        // costing roughly deps.size comparisons per read (~deps.size^2 total instead of ~deps.size).
+        // Measured around just the reads - dependencyBlockEnd's own cleanup does an unrelated
+        // O(n) `!in` scan per dependency and would otherwise swamp the count being tested here.
+        CountingListenable.calls = 0
+        tracker.blockStart()
+        for (d in deps) tracker.existingDependency(d)
+        val callsDuringReads = CountingListenable.calls
+        tracker.blockEnd()
+
+        assertTrue(
+            callsDuringReads <= deps.size,
+            "expected the ordered fast path to fire (~${deps.size} comparisons), but saw $callsDuringReads"
+        )
+    }
+
+    @Test
+    fun repeatedReadsInOneRunDoNotBreakTheFastPathOnTheNextRerun() {
+        val tracker = TestableDependencyTracker()
+        val deps = List(30) { CountingListenable(it) }
+
+        // First run: register everything, reading the first dependency an extra, repeated time
+        // partway through - mimicking a call site that reads the same reactive value twice.
+        tracker.blockStart()
+        for ((i, d) in deps.withIndex()) {
+            if (tracker.existingDependency(d) == null) tracker.registerDependency(d, d.addListener {})
+            if (i == 0) tracker.existingDependency(d) // repeated read of the same dependency
+        }
+        tracker.blockEnd()
+
+        // Steady-state rerun with the same repeated read pattern. The repeated read of `d[0]`
+        // itself necessarily misses the fast path once (it falls on `d[1]`'s slot) and pays a
+        // small, constant number of extra comparisons (a failed fast-path probe, a linear find,
+        // and an `in` check). What R4 actually guards against is that this one-off miss does NOT
+        // cascade: every read after it (`d[1]`..`d[29]`) must still land on its fast-path slot. If
+        // R4 regressed (the repeated read added a duplicate to `usedDependencies`), the whole rest
+        // of the run would be misaligned and fall back to the O(n) linear scan, costing roughly
+        // deps.size comparisons per read instead of one. Measured around just the reads - see the
+        // comment in the test above for why dependencyBlockEnd is excluded from the window.
+        CountingListenable.calls = 0
+        tracker.blockStart()
+        for ((i, d) in deps.withIndex()) {
+            tracker.existingDependency(d)
+            if (i == 0) tracker.existingDependency(d)
+        }
+        val callsDuringReads = CountingListenable.calls
+        tracker.blockEnd()
+
+        assertTrue(
+            callsDuringReads <= deps.size + 5,
+            "expected only a small, constant overhead from the repeated read (not O(n) cascading misalignment), but saw $callsDuringReads comparisons"
+        )
+    }
+
     data class LoopTimings(
         val registerAll: Duration,
         val duplicateLoop: Duration,
@@ -44,12 +132,17 @@ class DependencyTrackerTest {
 
         @Suppress("UNCHECKED_CAST")
         override fun <T : Any> existingDependency(listenable: T): T? {
-            usedDependencies.add(listenable)
-            if (dependencies.size > usedDependencies.size) {
-                val maybe = dependencies[usedDependencies.size].first
-                if (maybe == listenable) return maybe as T
+            val index = usedDependencies.size
+            if (index < dependencies.size) {
+                val maybe = dependencies[index].first
+                if (maybe == listenable) {
+                    usedDependencies.add(listenable)
+                    return maybe as T
+                }
             }
-            return dependencies.find { it.first == listenable }?.first as? T
+            val found = dependencies.find { it.first == listenable }?.first as? T
+            if (listenable !in usedDependencies) usedDependencies.add(listenable)
+            return found
         }
 
         override fun registerDependency(any: Any, remove: () -> Unit) {
