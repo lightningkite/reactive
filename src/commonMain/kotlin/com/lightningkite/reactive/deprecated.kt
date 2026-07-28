@@ -32,84 +32,84 @@ import kotlin.jvm.JvmName
 
 
 @Deprecated("Only exists to not break imports", level = DeprecationLevel.ERROR)
-fun <T> Nothing.bind(): Nothing = TODO()
+public fun <T> Nothing.bind(): Nothing = TODO()
 
 // Naming deprecations
 
 @Deprecated("Use Reactive", ReplaceWith("Reactive", "com.lightningkite.reactive.core"))
-typealias Readable<T> = Reactive<T>
+public typealias Readable<T> = Reactive<T>
 
 @Deprecated("Use MutableReactive", ReplaceWith("MutableReactive", "com.lightningkite.reactive.core"))
-typealias Writable<T> = MutableReactive<T>
+public typealias Writable<T> = MutableReactive<T>
 
 @Deprecated("Use Remember", ReplaceWith("Remember", "com.lightningkite.reactive.core"))
-typealias SharedReadable<T> = Remember<T>
+public typealias SharedReadable<T> = Remember<T>
 
 @Deprecated("Use ReactiveValue", ReplaceWith("ReactiveValue", "com.lightningkite.reactive.core"))
-typealias ImmediateReadable<T> = ReactiveValue<T>
+public typealias ImmediateReadable<T> = ReactiveValue<T>
 
 @Deprecated("Use MutableReactiveValue", ReplaceWith("MutableReactiveValue", "com.lightningkite.reactive.core"))
-typealias ImmediateWritable<T> = MutableReactiveValue<T>
+public typealias ImmediateWritable<T> = MutableReactiveValue<T>
 
 @Deprecated("Use ReactiveWithMutableValue", ReplaceWith("ReactiveWithMutableValue", "com.lightningkite.reactive.core"))
-typealias ReadableWithImmediateWrite<T> = ReactiveWithMutableValue<T>
+public typealias ReadableWithImmediateWrite<T> = ReactiveWithMutableValue<T>
 
 @Deprecated("Use MutableWithReactiveValue", ReplaceWith("MutableWithReactiveValue", "com.lightningkite.reactive.core"))
-typealias ImmediateReadableWithWrite<T> = MutableWithReactiveValue<T>
+public typealias ImmediateReadableWithWrite<T> = MutableWithReactiveValue<T>
 
 @Deprecated("Use Signal", ReplaceWith("Signal", "com.lightningkite.reactive.core"))
-typealias Property<T> = Signal<T>
+public typealias Property<T> = Signal<T>
 
 @Deprecated("Use MutableRemember", ReplaceWith("MutableRemember", "com.lightningkite.reactive.core"))
-typealias LazyProperty<T> = MutableRemember<T>
+public typealias LazyProperty<T> = MutableRemember<T>
 
 @Deprecated("Use DebounceReactive", ReplaceWith("DebounceReactive", "com.lightningkite.reactive.extensions"))
-typealias DebounceReadable<T> = DebounceReactive<T>
+public typealias DebounceReadable<T> = DebounceReactive<T>
 
 @OptIn(InternalReactiveApi::class)
 @Deprecated("Use InternalSignalWrapper", ReplaceWith("InternalSignalWrapper", "com.lightningkite.reactive.core"))
-typealias InternalReadableWrapper<T> = InternalReactiveWrapper<T>
+public typealias InternalReadableWrapper<T> = InternalReactiveWrapper<T>
 
 @Deprecated("Use RawReactive", ReplaceWith("RawReactive", "com.lightningkite.reactive.core"))
-typealias RawReadable<T> = RawReactive<T>
+public typealias RawReadable<T> = RawReactive<T>
 
 @Deprecated("Use ReactiveState", ReplaceWith("ReactiveState", "com.lightningkite.reactive.core"))
-typealias ReadableState<T> = ReactiveState<T>
+public typealias ReadableState<T> = ReactiveState<T>
 
 @Deprecated("Use SignalEmitter", ReplaceWith("SignalEmitter", "com.lightningkite.reactive.core"))
-typealias ReadableEmitter<T> = Emitter<T>
+public typealias ReadableEmitter<T> = Emitter<T>
 
 @Deprecated("Use MutableValue", ReplaceWith("MutableValue", "com.lightningkite.reactive.core"))
-typealias ImmediateWriteOnly<T> = MutableValue<T>
+public typealias ImmediateWriteOnly<T> = MutableValue<T>
 
 @Deprecated("Use BaseReactiveValue", ReplaceWith("BaseReactiveValue", "com.lightningkite.reactive.core"))
-typealias BaseImmediateReadable<T> = BaseReactiveValue<T>
+public typealias BaseImmediateReadable<T> = BaseReactiveValue<T>
 
 @Deprecated("Use BaseReactive", ReplaceWith("BaseReactive", "com.lightningkite.reactive.core"))
-typealias BaseReadable<T> = BaseReactive<T>
+public typealias BaseReadable<T> = BaseReactive<T>
 
 @Deprecated("Use BaseReactive", ReplaceWith("BaseReactive", "com.lightningkite.reactive.core"))
-typealias BaseWritable<T> = BaseReactive<T>
+public typealias BaseWritable<T> = BaseReactive<T>
 
 @Deprecated("Use BaseReactiveValue", ReplaceWith("BaseReactiveValue", "com.lightningkite.reactive.core"))
-typealias BaseReadWrite<T> = BaseReactiveValue<T>
+public typealias BaseReadWrite<T> = BaseReactiveValue<T>
 
 @Deprecated("Use LateInitReactiveValue", ReplaceWith("LateInitReactiveValue", "com.lightningkite.reactive.core"))
-typealias LateInitProperty<T> = LateInitSignal<T>
+public typealias LateInitProperty<T> = LateInitSignal<T>
 
 @Deprecated("Use remember", ReplaceWith("remember", "com.lightningkite.reactive.core"))
-fun <T> shared(coroutineContext: CoroutineContext = Dispatchers.Unconfined, useLastWhileLoading: Boolean = false, action: ReactiveContext.() -> T): Reactive<T> =
+public fun <T> shared(coroutineContext: CoroutineContext = Dispatchers.Unconfined, useLastWhileLoading: Boolean = false, action: ReactiveContext.() -> T): Reactive<T> =
     remember(coroutineContext, useLastWhileLoading, null, action = action)
 
 @Deprecated("Use reactiveProcess", ReplaceWith("reactiveProcess", "com.lightningkite.reactive.core"))
-fun <T> sharedProcess(scope: CoroutineScope = AppScope, emitter: suspend Emitter<T>.() -> Unit): Reactive<T> = reactiveProcess(scope, emitter)
+public fun <T> sharedProcess(scope: CoroutineScope = AppScope, emitter: suspend Emitter<T>.() -> Unit): Reactive<T> = reactiveProcess(scope, emitter)
 
 @Deprecated("Use reactiveProcess", ReplaceWith("reactiveProcess", "com.lightningkite.reactive.core"))
 @JvmName("sharedProcessReceiving")
-fun <T> CoroutineScope.sharedProcess(emitter: suspend Emitter<T>.() -> Unit): Reactive<T> = reactiveProcess(emitter)
+public fun <T> CoroutineScope.sharedProcess(emitter: suspend Emitter<T>.() -> Unit): Reactive<T> = reactiveProcess(emitter)
 
 @Deprecated("Use reactiveState", ReplaceWith("reactiveState", "com.lightningkite.reactive.core"))
-inline fun <T> readableState(action: () -> T): ReactiveState<T> = reactiveState(action)
+public inline fun <T> readableState(action: () -> T): ReactiveState<T> = reactiveState(action)
 
 @Deprecated("Use toReactiveState", ReplaceWith("toReactiveState", "com.lightningkite.reactive.core"))
-fun <T> Result<T>.toReadableState(): ReactiveState<T> = toReactiveState()
+public fun <T> Result<T>.toReadableState(): ReactiveState<T> = toReactiveState()

@@ -8,7 +8,7 @@ import com.lightningkite.reactive.core.Draft
  * @see Draft
  * @see MutableValidated
  * */
-interface ValidatedDraft<T> : Draft<T>, MutableValidated<T>
+public interface ValidatedDraft<T> : Draft<T>, MutableValidated<T>
 
 private class RootValidatedDraft<T>(val draft: Draft<T>, reportTo: IssueNode? = null) : ValidatedDraft<T>, Draft<T> by draft {
     override val node: IssueNode = reportTo?.child() ?: IssueNode()
@@ -17,4 +17,4 @@ private class RootValidatedDraft<T>(val draft: Draft<T>, reportTo: IssueNode? = 
     override fun <L> lens(get: (T) -> L, modify: (T, L) -> T): MutableValidated<L> = ValidatedModifyLens(this, get, modify)
 }
 
-fun <T> Draft<T>.validated(reportTo: IssueNode? = null): ValidatedDraft<T> = RootValidatedDraft(this, reportTo)
+public fun <T> Draft<T>.validated(reportTo: IssueNode? = null): ValidatedDraft<T> = RootValidatedDraft(this, reportTo)

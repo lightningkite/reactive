@@ -6,10 +6,10 @@ import com.lightningkite.reactive.lensing.lens
 /**
  * A wrapper around [LinkedHashSet] that signals its listeners whenever it is mutated
  * */
-class ReactiveMutableSet<T>(private val hashSet: LinkedHashSet<T>): MutableSet<T> by hashSet, MutableReactiveValue<Set<T>>, BaseListenable() {
-    constructor() : this(LinkedHashSet<T>())
-    constructor(items: Set<T>) : this(LinkedHashSet(items))
-    constructor(vararg startingItems: T) : this(LinkedHashSet(startingItems.toList()))
+public class ReactiveMutableSet<T>(private val hashSet: LinkedHashSet<T>): MutableSet<T> by hashSet, MutableReactiveValue<Set<T>>, BaseListenable() {
+    public constructor() : this(LinkedHashSet<T>())
+    public constructor(items: Set<T>) : this(LinkedHashSet(items))
+    public constructor(vararg startingItems: T) : this(LinkedHashSet(startingItems.toList()))
 
     override var value: Set<T>
         get() = hashSet
@@ -34,7 +34,7 @@ class ReactiveMutableSet<T>(private val hashSet: LinkedHashSet<T>): MutableSet<T
     override fun add(element: T): Boolean = signal { add(element) }
     override fun remove(element: T): Boolean = signal { remove(element) }
 
-    fun reactiveContains(element: T) = object : MutableReactiveValue<Boolean> {
+    public fun reactiveContains(element: T): MutableReactiveValue<Boolean> = object : MutableReactiveValue<Boolean> {
         private val lens = this@ReactiveMutableSet.lens { element in it }
 
         override fun addListener(listener: () -> Unit): Release = lens.addListener(listener)

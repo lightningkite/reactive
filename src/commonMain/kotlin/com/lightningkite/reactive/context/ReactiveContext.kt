@@ -32,7 +32,7 @@ import kotlin.coroutines.CoroutineContext
  * }
  * ```
  */
-typealias ReactiveContext = TypedReactiveContext<*>
+public typealias ReactiveContext = TypedReactiveContext<*>
 
 /**
  * Implements the core logic for a single reactive calculation, managing its dependencies and lifecycle.
@@ -154,20 +154,20 @@ typealias ReactiveContext = TypedReactiveContext<*>
  * @property reportTo The underlying [RawReactive] to report state updates to.
  * @property action The calculation logic to execute in this context.
  */
-class TypedReactiveContext<T>(
-    val scope: CoroutineScope,
-    val useLastWhileLoading: Boolean = false,
-    val reentrancyLimit: Int = 0,
+public class TypedReactiveContext<T>(
+    public val scope: CoroutineScope,
+    public val useLastWhileLoading: Boolean = false,
+    public val reentrancyLimit: Int = 0,
     private val reportTo: RawReactive<T> = RawReactive(),
-    val action: TypedReactiveContext<T>.() -> T
+    public val action: TypedReactiveContext<T>.() -> T
 ) : DependencyChangeListener(), ReactiveCoroutineScope, Reactive<T> by reportTo {
-    companion object
+    public companion object {}
 
     /**
      * Whether this context is currently active and tracking dependencies.
      * Set to false when [cancel] is called.
      */
-    var active = false
+    public var active: Boolean = false
         private set
 
     /**
@@ -180,7 +180,7 @@ class TypedReactiveContext<T>(
      * arrives through this path while the calculation is still running is indistinguishable from
      * the calculation triggering itself, and so spends [reentrancyLimit].
      */
-    val rerun: () -> Unit = ::startCalculation
+    public val rerun: () -> Unit = ::startCalculation
 
     /**
      * The current job for this calculation run.
@@ -229,7 +229,7 @@ class TypedReactiveContext<T>(
      * than recursing until the stack overflows, or livelocking under a dispatching scheduler. The
      * default limit of zero forbids self-triggering outright.
      */
-    fun startCalculation() {
+    public fun startCalculation() {
         active = true
         if (queued) return // Prevent duplicate queuing; the pending run will see the new state
         queued = true
@@ -324,7 +324,7 @@ class TypedReactiveContext<T>(
     /**
      * Starts using this [ResourceUse] and tracks it as a dependency in future loops.
      * */
-    fun use(resourceUse: ResourceUse) {
+    public fun use(resourceUse: ResourceUse) {
         if (existingDependency(resourceUse) != null) return
         registerDependency(resourceUse, resourceUse.beginUse())
     }
@@ -343,7 +343,7 @@ class TypedReactiveContext<T>(
      * }
      * ```
      */
-    fun rerunOn(listenable: Listenable) {
+    public fun rerunOn(listenable: Listenable) {
         if (existingDependency(listenable) != null) return
         registerDependency(listenable, listenable.addListener(rerun))
     }
@@ -383,7 +383,7 @@ class TypedReactiveContext<T>(
      * @return The current value of this reactive
      * @throws ReactiveLoading if the value is not ready
      */
-    operator fun <R> Reactive<R>.invoke(): R {
+    public operator fun <R> Reactive<R>.invoke(): R {
         if (existingDependency(this) == null) {
             registerDependency(this, addListener(rerun))
         }
@@ -407,7 +407,7 @@ class TypedReactiveContext<T>(
      * @return The non-null value
      * @throws ReactiveLoading if the value is null or not ready
      */
-    fun <R> Reactive<R?>.awaitNotNull(): R {
+    public fun <R> Reactive<R?>.awaitNotNull(): R {
         if (existingDependency(this) == null) {
             registerDependency(this, addListener(rerun))
         }
@@ -433,7 +433,7 @@ class TypedReactiveContext<T>(
      *
      * @return The current [ReactiveState]
      */
-    fun <R> Reactive<R>.state(): ReactiveState<R> {
+    public fun <R> Reactive<R>.state(): ReactiveState<R> {
         if (existingDependency(this) == null) {
             registerDependency(this, addListener(rerun))
         }
@@ -457,7 +457,7 @@ class TypedReactiveContext<T>(
      * @param get Function to extract a value from the [ReactiveState]
      * @return The transformed value
      */
-    fun <R, V> Reactive<R>.state(get: (ReactiveState<R>) -> V): V {
+    public fun <R, V> Reactive<R>.state(get: (ReactiveState<R>) -> V): V {
         var current: V = state.let(get)
         if (existingDependency(this) == null) {
             registerDependency(this, addListener {
@@ -501,7 +501,7 @@ class TypedReactiveContext<T>(
      * @return The value once it's ready
      * @throws ReactiveLoading if the value is not ready yet
      */
-    fun <T> Reactive<T>.once(): T {
+    public fun <T> Reactive<T>.once(): T {
         val key = existingDependency(Once(this)) ?: Once(this).also { key ->
             registerDependency(key, addListener { if (!key.have) rerun() })
         }
@@ -512,19 +512,19 @@ class TypedReactiveContext<T>(
 
     // Hack: fixes compiler weirdness around lambdas with 'this'
     @Suppress("NOTHING_TO_INLINE")
-    inline operator fun <T> (ReactiveContext.() -> T).invoke(): T = invoke(this@TypedReactiveContext)
+    public inline operator fun <T> (ReactiveContext.() -> T).invoke(): T = invoke(this@TypedReactiveContext)
 
     @Suppress("NOTHING_TO_INLINE")
-    inline operator fun <A, T> (ReactiveContext.(A) -> T).invoke(a: A): T = invoke(this@TypedReactiveContext, a)
+    public inline operator fun <A, T> (ReactiveContext.(A) -> T).invoke(a: A): T = invoke(this@TypedReactiveContext, a)
 
     @Suppress("NOTHING_TO_INLINE")
-    inline operator fun <A, B, T> (ReactiveContext.(A, B) -> T).invoke(a: A, b: B): T = invoke(this@TypedReactiveContext, a, b)
+    public inline operator fun <A, B, T> (ReactiveContext.(A, B) -> T).invoke(a: A, b: B): T = invoke(this@TypedReactiveContext, a, b)
 
     @Deprecated("Just use the invoke operator", ReplaceWith("this()"))
-    fun <T> Reactive<T>.await(): T = invoke()
+    public fun <T> Reactive<T>.await(): T = invoke()
 
     @Deprecated("Just use the once function", ReplaceWith("this.once()"))
-    fun <T> Reactive<T>.awaitOnce(): T = once()
+    public fun <T> Reactive<T>.awaitOnce(): T = once()
 
     // Suspending calculations
 
@@ -568,7 +568,7 @@ class TypedReactiveContext<T>(
      * @return The result of the calculation once complete
      * @throws ReactiveLoading if the calculation is not yet complete
      */
-    fun <T> async(identity: String, vararg dependencies: Any?, action: suspend () -> T): T {
+    public fun <T> async(identity: String, vararg dependencies: Any?, action: suspend () -> T): T {
         // action::class distinguishes call sites: two different `async(...) { }` call sites compile
         // to distinct anonymous classes, so folding it into the key stops two call sites that
         // happen to pass identical dependencies from colliding on the same cached calculation.
@@ -614,7 +614,7 @@ class TypedReactiveContext<T>(
      * @return The deferred value once available
      * @throws ReactiveLoading if the deferred is not yet complete
      */
-    operator fun <T> Deferred<T>.invoke(): T {
+    public operator fun <T> Deferred<T>.invoke(): T {
         val calc = SuspendCalculation<T>(this)
 
         // Reuse existing calculation if already running
@@ -671,7 +671,7 @@ class TypedReactiveContext<T>(
      * @return The latest emitted value
      * @throws ReactiveLoading if no value has been emitted yet (except for StateFlow)
      */
-    operator fun <T> Flow<T>.invoke(): T {
+    public operator fun <T> Flow<T>.invoke(): T {
         val new = FlowLoader(this)
 
         val existing = existingDependency(new)
@@ -775,7 +775,7 @@ class TypedReactiveContext<T>(
  * @see TypedReactiveContext for implementation details
  * @see reactiveSuspending for suspending calculations
  */
-fun <T> CoroutineScope.reactive(reentrancyLimit: Int = 0, action: ReactiveContext.() -> T): TypedReactiveContext<T> {
+public fun <T> CoroutineScope.reactive(reentrancyLimit: Int = 0, action: ReactiveContext.() -> T): TypedReactiveContext<T> {
     val trc = TypedReactiveContext(this, reentrancyLimit = reentrancyLimit, action = action)
     trc.startCalculation()
     coroutineContext[StatusListener]?.watchBackgroundProcess(trc)
@@ -801,7 +801,7 @@ fun <T> CoroutineScope.reactive(reentrancyLimit: Int = 0, action: ReactiveContex
  * @param action The calculation logic to run reactively.
  * @return A [TypedReactiveContext] managing the calculation and its dependencies.
  */
-inline fun CoroutineScope.reactive(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): TypedReactiveContext<Unit> {
+public inline fun CoroutineScope.reactive(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): TypedReactiveContext<Unit> {
     var wasLoadingLastTime = false
     return reactive {
         try {
@@ -827,7 +827,7 @@ inline fun CoroutineScope.reactive(crossinline onLoad: () -> Unit, crossinline a
  * @param action The calculation logic to run reactively.
  */
 @Deprecated("renamed to 'reactive'", ReplaceWith("this.reactive(action)"))
-fun CoroutineScope.reactiveScope(action: ReactiveContext.() -> Unit): ReactiveContext = reactive(action = action)
+public fun CoroutineScope.reactiveScope(action: ReactiveContext.() -> Unit): ReactiveContext = reactive(action = action)
 
 /**
  * Creates a [ReactiveContext] in which to run the provided [action] reactively, discarding the result, with support for loading state.
@@ -839,17 +839,17 @@ fun CoroutineScope.reactiveScope(action: ReactiveContext.() -> Unit): ReactiveCo
  * @param action The calculation logic to run reactively.
  */
 @Deprecated("renamed to 'reactive'", ReplaceWith("this.reactive(onLoad, action)"))
-inline fun CoroutineScope.reactiveScope(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): ReactiveContext = reactive(onLoad = onLoad, action = action)
+public inline fun CoroutineScope.reactiveScope(crossinline onLoad: () -> Unit, crossinline action: ReactiveContext.() -> Unit): ReactiveContext = reactive(onLoad = onLoad, action = action)
 
 @InternalReactiveApi
-object ReactiveLoading : Throwable()
+public object ReactiveLoading : Throwable()
 
 /**
  * Thrown when a reactive calculation triggers its own re-execution, typically by writing to a
  * signal it also reads inside the same [reactive] block. This would otherwise recurse until the
  * stack overflows (or livelock under a dispatching scheduler), so it is surfaced as a clear error.
  */
-class ReactiveReentrancyException(context: ReactiveContext, reentrancyLimit: Int) : IllegalStateException(
+public class ReactiveReentrancyException(context: ReactiveContext, reentrancyLimit: Int) : IllegalStateException(
     if (reentrancyLimit <= 0)
         "A reactive calculation triggered its own re-execution ($context). This usually means the " +
                 "calculation wrote to a signal it also reads. Break the cycle so the calculation " +

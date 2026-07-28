@@ -8,7 +8,7 @@ import com.lightningkite.reactive.lensing.ModifyValueLens
 import com.lightningkite.reactive.lensing.SetLens
 import com.lightningkite.reactive.lensing.SetValueLens
 
-class ValidatedSetLens<T, L>(
+public class ValidatedSetLens<T, L>(
     source: MutableValidated<T>,
     get: (T) -> L,
     set: (L) -> T
@@ -24,7 +24,7 @@ class ValidatedSetLens<T, L>(
     }
 }
 
-class ValidatedModifyLens<T, L>(
+public class ValidatedModifyLens<T, L>(
     source: MutableValidated<T>,
     get: (T) -> L,
     modify: (T, L) -> T
@@ -40,7 +40,7 @@ class ValidatedModifyLens<T, L>(
     }
 }
 
-class ValidatedSetValueLens<T, L>(
+public class ValidatedSetValueLens<T, L>(
     source: MutableValidatedValue<T>,
     get: (T) -> L,
     set: (L) -> T
@@ -56,7 +56,7 @@ class ValidatedSetValueLens<T, L>(
     }
 }
 
-class ValidatedModifyValueLens<T, L>(
+public class ValidatedModifyValueLens<T, L>(
     source: MutableValidatedValue<T>,
     get: (T) -> L,
     modify: (T, L) -> T

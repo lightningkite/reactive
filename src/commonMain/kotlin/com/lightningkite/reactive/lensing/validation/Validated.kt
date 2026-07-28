@@ -35,14 +35,14 @@ import com.lightningkite.reactive.core.ReactiveValue
  *
  * @see Issue
  */
-interface IssueTracking {
-    val node: IssueNode
+public interface IssueTracking {
+    public val node: IssueNode
 }
 
 /**
  * Returns the current list of issues, this includes issues from this node and any child nodes.
  */
-val IssueTracking.issues get() = node.issues
+public val IssueTracking.issues: Reactive<List<Issue>> get() = node.issues
 
 /**
  * Reports a new issue to this node.
@@ -51,7 +51,7 @@ val IssueTracking.issues get() = node.issues
  *
  * @param issue The issue to report, or null to clear this node's issue.
  */
-fun IssueTracking.report(issue: Issue?) = node.report(issue)
+public fun IssueTracking.report(issue: Issue?): Unit = node.report(issue)
 
 /**
  * Represents a validated reactive value. See [IssueTracking] for more details about
@@ -60,7 +60,7 @@ fun IssueTracking.report(issue: Issue?) = node.report(issue)
  * @see IssueTracking
  * @see Reactive
  */
-interface Validated<T> : IssueTracking, Reactive<T>
+public interface Validated<T> : IssueTracking, Reactive<T>
 
 /**
  * Represents a validated reactive value with direct value access. See [IssueTracking] for more details about
@@ -69,7 +69,7 @@ interface Validated<T> : IssueTracking, Reactive<T>
  * @see IssueTracking
  * @see ReactiveValue
  */
-interface ValidatedValue<T> : IssueTracking, ReactiveValue<T>, Validated<T>
+public interface ValidatedValue<T> : IssueTracking, ReactiveValue<T>, Validated<T>
 
 /**
  * Represents a mutable validated reactive value.
@@ -77,7 +77,7 @@ interface ValidatedValue<T> : IssueTracking, ReactiveValue<T>, Validated<T>
  * Lensing a [MutableValidated] creates a child of this node in the validation tree.
  * See [IssueTracking] for more details about validation trees.
  */
-interface MutableValidated<T> : IssueTracking, MutableReactive<T>, Validated<T> {
+public interface MutableValidated<T> : IssueTracking, MutableReactive<T>, Validated<T> {
     /**
      * Creates a transforming lens for type conversion.
      * Returns a [MutableValidated] for the sub-value, preserving validation.
@@ -112,7 +112,7 @@ interface MutableValidated<T> : IssueTracking, MutableReactive<T>, Validated<T> 
  * @see IssueTracking
  * @see MutableReactiveValue
  */
-interface MutableValidatedValue<T> : IssueTracking, MutableReactiveValue<T>, ValidatedValue<T>, MutableValidated<T> {
+public interface MutableValidatedValue<T> : IssueTracking, MutableReactiveValue<T>, ValidatedValue<T>, MutableValidated<T> {
     /**
      * Creates a transforming lens for type conversion.
      * Returns a [MutableValidatedValue] for the sub-value, preserving validation.

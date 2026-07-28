@@ -14,10 +14,10 @@ import com.lightningkite.reactive.core.Signal
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  * @param validate Function that returns a string issue message or null for valid values.
  */
-fun <T> MutableValidated<T>.validate(
+public fun <T> MutableValidated<T>.validate(
     setOnIssue: Boolean = true,
     validate: (T) -> String?
-) = checkForIssue { value ->
+): MutableValidated<T> = checkForIssue { value ->
     validate(value)?.let {
         if (setOnIssue) Issue.Warning(it)
         else Issue.Invalid(it)
@@ -33,10 +33,10 @@ fun <T> MutableValidated<T>.validate(
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  * @param validate Function that returns a string issue message or null for valid values.
  */
-fun <T> MutableValidatedValue<T>.validate(
+public fun <T> MutableValidatedValue<T>.validate(
     setOnIssue: Boolean = true,
     validate: (T) -> String?
-) = checkForIssue { value ->
+): MutableValidatedValue<T> = checkForIssue { value ->
     validate(value)?.let {
         if (setOnIssue) Issue.Warning(it)
         else Issue.Invalid(it)
@@ -51,12 +51,12 @@ fun <T> MutableValidatedValue<T>.validate(
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  * @param condition Function that returns true if valid, false if invalid.
  */
-fun <T> MutableValidated<T>.assert(
+public fun <T> MutableValidated<T>.assert(
     summary: String,
     description: String = summary,
     setOnIssue: Boolean = true,
     condition: (T) -> Boolean
-) = checkForIssue {
+): MutableValidated<T> = checkForIssue {
     if (condition(it)) return@checkForIssue null
 
     if (setOnIssue) Issue.Warning(summary, description)
@@ -71,12 +71,12 @@ fun <T> MutableValidated<T>.assert(
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  * @param condition Function that returns true if valid, false if invalid.
  */
-fun <T> MutableValidatedValue<T>.assert(
+public fun <T> MutableValidatedValue<T>.assert(
     summary: String,
     description: String = summary,
     setOnIssue: Boolean = true,
     condition: (T) -> Boolean
-) = checkForIssue {
+): MutableValidatedValue<T> = checkForIssue {
     if (condition(it)) return@checkForIssue null
 
     if (setOnIssue) Issue.Warning(summary, description)
@@ -90,11 +90,11 @@ fun <T> MutableValidatedValue<T>.assert(
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun <T : Any> MutableValidated<T?>.assertNotNull(
+public fun <T : Any> MutableValidated<T?>.assertNotNull(
     summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
-) = assert(summary, description, setOnIssue) { it != null }
+): MutableValidated<T?> = assert(summary, description, setOnIssue) { it != null }
 
 /**
  * Validates that the value of this [MutableValidatedValue] is not null.
@@ -103,11 +103,11 @@ fun <T : Any> MutableValidated<T?>.assertNotNull(
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun <T : Any> MutableValidatedValue<T?>.assertNotNull(
+public fun <T : Any> MutableValidatedValue<T?>.assertNotNull(
     summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
-) = assert(summary, description, setOnIssue) { it != null }
+): MutableValidatedValue<T?> = assert(summary, description, setOnIssue) { it != null }
 
 /**
  * Validates that the value of this [MutableValidated] is not blank.
@@ -116,11 +116,11 @@ fun <T : Any> MutableValidatedValue<T?>.assertNotNull(
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun MutableValidated<String>.assertNotBlank(
+public fun MutableValidated<String>.assertNotBlank(
     summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
-) = assert(summary, description, setOnIssue) { it.isNotBlank() }
+): MutableValidated<String> = assert(summary, description, setOnIssue) { it.isNotBlank() }
 
 /**
  * Validates that the value of this [MutableValidatedValue] is not blank.
@@ -129,11 +129,11 @@ fun MutableValidated<String>.assertNotBlank(
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun MutableValidatedValue<String>.assertNotBlank(
+public fun MutableValidatedValue<String>.assertNotBlank(
     summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
-) = assert(summary, description, setOnIssue) { it.isNotBlank() }
+): MutableValidatedValue<String> = assert(summary, description, setOnIssue) { it.isNotBlank() }
 
 /**
  * Adds a validation check to this [MutableReactive] instance.
@@ -144,10 +144,10 @@ fun MutableValidatedValue<String>.assertNotBlank(
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  * @param validate Function that returns a string issue message or null for valid values.
  */
-fun <T> MutableReactive<T>.validate(
+public fun <T> MutableReactive<T>.validate(
     setOnIssue: Boolean = true,
     validate: (T) -> String?
-) = checkForIssue { value ->
+): MutableValidated<T> = checkForIssue { value ->
     validate(value)?.let {
         if (setOnIssue) Issue.Warning(it)
         else Issue.Invalid(it)
@@ -163,10 +163,10 @@ fun <T> MutableReactive<T>.validate(
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  * @param validate Function that returns a string issue message or null for valid values.
  */
-fun <T> MutableReactiveValue<T>.validate(
+public fun <T> MutableReactiveValue<T>.validate(
     setOnIssue: Boolean = true,
     validate: (T) -> String?
-) = checkForIssue { value ->
+): MutableValidatedValue<T> = checkForIssue { value ->
     validate(value)?.let {
         if (setOnIssue) Issue.Warning(it)
         else Issue.Invalid(it)
@@ -181,12 +181,12 @@ fun <T> MutableReactiveValue<T>.validate(
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  * @param condition Function that returns true if valid, false if invalid.
  */
-fun <T> MutableReactive<T>.assert(
+public fun <T> MutableReactive<T>.assert(
     summary: String,
     description: String = summary,
     setOnIssue: Boolean = true,
     condition: (T) -> Boolean
-) = checkForIssue {
+): MutableValidated<T> = checkForIssue {
     if (condition(it)) return@checkForIssue null
 
     if (setOnIssue) Issue.Warning(summary, description)
@@ -201,12 +201,12 @@ fun <T> MutableReactive<T>.assert(
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  * @param condition Function that returns true if valid, false if invalid.
  */
-fun <T> MutableReactiveValue<T>.assert(
+public fun <T> MutableReactiveValue<T>.assert(
     summary: String,
     description: String = summary,
     setOnIssue: Boolean = true,
     condition: (T) -> Boolean
-) = checkForIssue {
+): MutableValidatedValue<T> = checkForIssue {
     if (condition(it)) return@checkForIssue null
 
     if (setOnIssue) Issue.Warning(summary, description)
@@ -220,11 +220,11 @@ fun <T> MutableReactiveValue<T>.assert(
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun <T : Any> MutableReactive<T?>.assertNotNull(
+public fun <T : Any> MutableReactive<T?>.assertNotNull(
     summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
-) = assert(summary, description, setOnIssue) { it != null }
+): MutableValidated<T?> = assert(summary, description, setOnIssue) { it != null }
 
 /**
  * Validates that the value of this [MutableReactiveValue] is not null.
@@ -233,11 +233,11 @@ fun <T : Any> MutableReactive<T?>.assertNotNull(
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun <T : Any> MutableReactiveValue<T?>.assertNotNull(
+public fun <T : Any> MutableReactiveValue<T?>.assertNotNull(
     summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
-) = assert(summary, description, setOnIssue) { it != null }
+): MutableValidatedValue<T?> = assert(summary, description, setOnIssue) { it != null }
 
 /**
  * Validates that the value of this [MutableReactive] is not blank.
@@ -246,11 +246,11 @@ fun <T : Any> MutableReactiveValue<T?>.assertNotNull(
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun MutableReactive<String>.assertNotBlank(
+public fun MutableReactive<String>.assertNotBlank(
     summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
-) = assert(summary, description, setOnIssue) { it.isNotBlank() }
+): MutableValidated<String> = assert(summary, description, setOnIssue) { it.isNotBlank() }
 
 /**
  * Validates that the value of this [MutableReactiveValue] is not blank.
@@ -259,16 +259,16 @@ fun MutableReactive<String>.assertNotBlank(
  * @param description Detailed description of the issue (defaults to [summary]).
  * @param setOnIssue If true, issues are reported as [Issue.Warning]; if false, as [Issue.Invalid].
  */
-fun MutableReactiveValue<String>.assertNotBlank(
+public fun MutableReactiveValue<String>.assertNotBlank(
     summary: String = "Cannot be blank",
     description: String = summary,
     setOnIssue: Boolean = true
-) = assert(summary, description, setOnIssue) { it.isNotBlank() }
+): MutableValidatedValue<String> = assert(summary, description, setOnIssue) { it.isNotBlank() }
 
 /**
  * Runs the provided validation condition reactively, reporting to a child of this [IssueTracking] node.
  * */
-fun IssueTracking.report(issue: ReactiveContext.() -> Issue?) {
+public fun IssueTracking.report(issue: ReactiveContext.() -> Issue?) {
     val child = IssueNode(parent = node)
     child.connect()
     child.reactiveReport(issue)
@@ -277,13 +277,13 @@ fun IssueTracking.report(issue: ReactiveContext.() -> Issue?) {
 /**
  * Runs the provided validation condition reactively, reporting to a child of this [IssueTracking] node.
  * */
-fun <T> Validated<T>.validateReactive(issue: ReactiveContext.(T) -> String?) = report { issue(this@validateReactive.invoke())?.let(Issue::Warning) }
+public fun <T> Validated<T>.validateReactive(issue: ReactiveContext.(T) -> String?): Unit = report { issue(this@validateReactive.invoke())?.let(Issue::Warning) }
 
 /**
  * Asserts the provided condition reactively, constructing and reporting an [Issue.Warning] to a child of this [IssueTracking] node.
  * */
-fun <T> Validated<T>.assertReactive(
+public fun <T> Validated<T>.assertReactive(
     summary: String,
     description: String = summary,
     condition: ReactiveContext.(T) -> Boolean
-) = report { if (condition(this@assertReactive.invoke())) null else Issue.Warning(summary, description) }
+): Unit = report { if (condition(this@assertReactive.invoke())) null else Issue.Warning(summary, description) }

@@ -37,11 +37,11 @@ import com.lightningkite.reactive.core.remember
  *
  * @property parent The parent node in the validation tree, or null if this is the root.
  */
-class IssueNode(val parent: IssueNode? = null) : ResourceUse {
+public class IssueNode(public val parent: IssueNode? = null) : ResourceUse {
     private val nodeIssue = Signal<Reactive<Issue?>>(Constant(null))
 
-    fun report(issue: Issue?) { nodeIssue.value = Constant(issue) }
-    fun reactiveReport(issue: ReactiveContext.() -> Issue?) {
+    public fun report(issue: Issue?) { nodeIssue.value = Constant(issue) }
+    public fun reactiveReport(issue: ReactiveContext.() -> Issue?) {
         nodeIssue.value = remember(action = issue)
     }
 
@@ -58,7 +58,7 @@ class IssueNode(val parent: IssueNode? = null) : ResourceUse {
      * Instead, consider using [child] outside of the [ReactiveContext], and then report to that outside
      * node inside any reactive code.
      * */
-    fun child() = IssueNode(this).apply { connect() }
+    public fun child(): IssueNode = IssueNode(this).apply { connect() }
 
     private var connected = false
 
@@ -68,7 +68,7 @@ class IssueNode(val parent: IssueNode? = null) : ResourceUse {
      *
      * Useful for establishing validation dependencies once a set of data has become relevant.
      * */
-    fun connect() {
+    public fun connect() {
         if (connected || parent == null) return
         connected = true
         parent.children.add(this)
@@ -79,7 +79,7 @@ class IssueNode(val parent: IssueNode? = null) : ResourceUse {
      *
      * Useful for removing validation dependencies on data that is no longer relevant.
      * */
-    fun disconnect() {
+    public fun disconnect() {
         if (!connected || parent == null) return
         connected = false
         parent.children.remove(this)
@@ -90,7 +90,7 @@ class IssueNode(val parent: IssueNode? = null) : ResourceUse {
         return ::disconnect
     }
 
-    val issues : Reactive<List<Issue>> = remember {
+    public val issues : Reactive<List<Issue>> = remember {
         listOfNotNull(nodeIssue()()) + children().flatMap { it.issues() }
     }
 }
@@ -98,16 +98,16 @@ class IssueNode(val parent: IssueNode? = null) : ResourceUse {
 /**
  * Represents a validation issue, which can be either a warning or an invalid state.
  */
-sealed interface Issue {
-    val summary: String
-    val description: String
+public sealed interface Issue {
+    public val summary: String
+    public val description: String
 
     /**
      * Represents a warning issue. Does not necessarily prevent usage, but should be addressed.
      *
      * Values that result in an [Issue.Warning] being reported will still be used.
      */
-    data class Warning(
+    public data class Warning(
         override val summary: String,
         override val description: String = summary
     ) : Issue
@@ -118,7 +118,7 @@ sealed interface Issue {
      * Values that result in an [Issue.Invalid] being reported will be **discarded**.
      * I.e., if a lensed child of a [MutableValidated] reports [Issue.Invalid] on a value, it will not modify its parent.
      */
-    data class Invalid(
+    public data class Invalid(
         override val summary : String,
         override val description: String = summary
     ) : Issue

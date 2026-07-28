@@ -92,11 +92,11 @@ import kotlin.coroutines.CoroutineContext
  * @property reportTo The underlying [RawReactive] to report state updates to.
  * @property action The suspending calculation logic to execute in this context.
  */
-class ReactiveContextSuspending<T>(
-    val scope: CoroutineScope,
-    val useLastWhileLoading: Boolean = false,
+public class ReactiveContextSuspending<T>(
+    public val scope: CoroutineScope,
+    public val useLastWhileLoading: Boolean = false,
     private val reportTo: RawReactive<T> = RawReactive(),
-    val action: suspend ReactiveCoroutineScope.() -> T,
+    public val action: suspend ReactiveCoroutineScope.() -> T,
 ) : DependencyChangeListener(), ReactiveCoroutineScope, Reactive<T> by reportTo {
     /**
      * The job for the current calculation run's coroutine.
@@ -108,7 +108,7 @@ class ReactiveContextSuspending<T>(
      * Whether this context is currently active and tracking dependencies.
      * Set to false when [cancel] is called.
      */
-    var active = false
+    public var active: Boolean = false
         private set
 
     /**
@@ -161,7 +161,7 @@ class ReactiveContextSuspending<T>(
      * The calculation may complete synchronously (if already on correct dispatcher and no suspension points)
      * or asynchronously. If [useLastWhileLoading] is false, the state is set to notReady during async execution.
      */
-    fun startCalculation() {
+    public fun startCalculation() {
         active = true
         lastLoopJob?.cancel() // Cancel previous calculation if still running
 
@@ -310,7 +310,7 @@ class ReactiveContextSuspending<T>(
  * @see ReactiveContextSuspending for implementation details
  * @see reactive for non-suspending calculations
  */
-fun CoroutineScope.reactiveSuspending(action: suspend ReactiveCoroutineScope.() -> Unit) =
+public fun CoroutineScope.reactiveSuspending(action: suspend ReactiveCoroutineScope.() -> Unit): ReactiveContextSuspending<Unit> =
     ReactiveContextSuspending(this, action = action).also {
         it.startCalculation()
         coroutineContext[StatusListener.Key]?.watchBackgroundProcess(it)
@@ -326,7 +326,7 @@ fun CoroutineScope.reactiveSuspending(action: suspend ReactiveCoroutineScope.() 
  * @param action The suspending calculation logic to run reactively.
  * @return A [ReactiveContextSuspending] managing the calculation and its dependencies.
  */
-inline fun CoroutineScope.reactiveSuspending(crossinline onLoad: () -> Unit, noinline action: suspend ReactiveCoroutineScope.() -> Unit): ReactiveContextSuspending<Unit> {
+public inline fun CoroutineScope.reactiveSuspending(crossinline onLoad: () -> Unit, noinline action: suspend ReactiveCoroutineScope.() -> Unit): ReactiveContextSuspending<Unit> {
     return reactiveSuspending(action = action).also {
         it.addListener { if (!it.state.ready) onLoad() }.let(::onRemove)
     }

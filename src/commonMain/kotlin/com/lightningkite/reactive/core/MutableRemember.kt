@@ -32,7 +32,7 @@ import kotlin.time.Duration
  *
  * @see remember
  */
-fun <T> mutableRemember(
+public fun <T> mutableRemember(
     useLastWhileLoading: Boolean = false,
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     initialValue: ReactiveContext.() -> T
@@ -57,14 +57,14 @@ fun <T> mutableRemember(
  *
  * @see Remember
  */
-class MutableRemember<T>(
+public class MutableRemember<T>(
     private val stopListeningWhenOverridden: Boolean = true,
     private val useLastWhileLoading: Boolean = false,
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     deactivationDelay: Duration? = null,
     initialValue: ReactiveContext.() -> T
 ): ReactiveWithMutableValue<T>, BaseReactive<T>() {
-    var overridden: Boolean = false
+    public var overridden: Boolean = false
         private set
 
     private val remember = Remember(coroutineContext, useLastWhileLoading, deactivationDelay, action = initialValue)
@@ -117,7 +117,7 @@ class MutableRemember<T>(
      * - This does not forcefully notify listeners. If the value calculated after resetting is the same as the previously set value,
      *   then no listeners will be notified.
      */
-    fun reset() {
+    public fun reset() {
         if (overridden) {
             overridden = false
             if (stopListeningWhenOverridden) startListening()

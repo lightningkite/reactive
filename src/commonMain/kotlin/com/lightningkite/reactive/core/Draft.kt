@@ -24,28 +24,28 @@ import com.lightningkite.reactive.context.awaitOnce
  * draft.cancel() // discards changes and resets the draft. draft now reads '42' again.
  * ```
  */
-interface Draft<T> : ReactiveWithMutableValue<T> {
+public interface Draft<T> : ReactiveWithMutableValue<T> {
     /**
      * The current saved value that this [Draft] is buffering.
      *
      * NOTE: Manually setting values for [published] will not by-default update values in the draft buffer.
      * */
-    val published: MutableReactive<T>
+    public val published: MutableReactive<T>
 
     /**
      * Saves all changes made to this [Draft] to the published [MutableReactive]
      * */
-    suspend fun publish(): T
+    public suspend fun publish(): T
 
     /**
      * Discards all changes made to this [Draft] and reverts back to the [published] state
      * */
-    fun cancel()
+    public fun cancel()
 
     /**
      * Reads `true` if there are any differences between the [published] value and the value stored in the draft buffer.
      * */
-    val changesMade: Reactive<Boolean>
+    public val changesMade: Reactive<Boolean>
 }
 
 private class BaseDraft<T> private constructor(
@@ -67,14 +67,14 @@ private class BaseDraft<T> private constructor(
 /**
  * Creates a [Draft] using the specified [MutableReactive] as the published value.
  * */
-fun <T> Draft(published: MutableReactive<T>): Draft<T> = BaseDraft(published)
+public fun <T> Draft(published: MutableReactive<T>): Draft<T> = BaseDraft(published)
 
 /**
  * Creates a [Draft] where the published value is the provided [initialValue]
  * */
-fun <T> Draft(initialValue: T): Draft<T> = BaseDraft(Signal(initialValue))
+public fun <T> Draft(initialValue: T): Draft<T> = BaseDraft(Signal(initialValue))
 
 /**
  * Creates a [Draft] where the published value is calculated based off the provided [initialValue] calculation.
  * */
-fun <T> Draft(initialValue: ReactiveContext.() -> T): Draft<T> = BaseDraft(MutableRemember(useLastWhileLoading = true, initialValue = initialValue))
+public fun <T> Draft(initialValue: ReactiveContext.() -> T): Draft<T> = BaseDraft(MutableRemember(useLastWhileLoading = true, initialValue = initialValue))

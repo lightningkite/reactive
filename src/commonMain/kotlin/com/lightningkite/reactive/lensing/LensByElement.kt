@@ -14,42 +14,43 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlin.collections.plus
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.jvm.JvmName
 
-fun <E, ID, W> MutableReactive<List<E>>.lensByElementWithIdentity(
+public fun <E, ID, W> MutableReactive<List<E>>.lensByElementWithIdentity(
     identity: (E) -> ID,
     map: CoroutineScope.(MutableWithReactiveValue<E>) -> W
-) = LensByElement<E, ID, W>(this, identity = identity, elementLens = { it.map(it) })
+): LensByElement<E, ID, W> = LensByElement<E, ID, W>(this, identity = identity, elementLens = { it.map(it) })
 
-fun <E, ID> MutableReactive<List<E>>.lensByElementWithIdentity(
+public fun <E, ID> MutableReactive<List<E>>.lensByElementWithIdentity(
     identity: (E) -> ID
-) = LensElements<E, ID>(this, identity = identity, elementLens = { it })
+): LensElements<E, ID> = LensElements<E, ID>(this, identity = identity, elementLens = { it })
 
 @JvmName("setLensByElementWithIdentity")
 @Suppress("Deprecation")
-fun <E, ID, W> MutableReactive<Set<E>>.lensByElementWithIdentity(
+public fun <E, ID, W> MutableReactive<Set<E>>.lensByElementWithIdentity(
     identity: (E) -> ID,
     map: CoroutineScope.(MutableWithReactiveValue<E>) -> W
-) = lens(get = { it.toList() }, set = { it.toSet() }).lensByElement(identity, map)
+): LensByElement<E, ID, W> = lens(get = { it.toList() }, set = { it.toSet() }).lensByElement(identity, map)
 
 @JvmName("setLensByElementWithIdentity")
 @Suppress("Deprecation")
-fun <E, ID> MutableReactive<Set<E>>.lensByElementWithIdentity(
+public fun <E, ID> MutableReactive<Set<E>>.lensByElementWithIdentity(
     identity: (E) -> ID
-) = lens(get = { it.toList() }, set = { it.toSet() }).lensByElement(identity)
+): LensElements<E, ID> = lens(get = { it.toList() }, set = { it.toSet() }).lensByElement(identity)
 
 
-typealias LensElements<E, ID> = LensByElement<E, ID, LensByElement<E, ID, *>.Element>
+public typealias LensElements<E, ID> = LensByElement<E, ID, LensByElement<E, ID, *>.Element>
 
-class LensByElement<E, ID, T>(
-    val source: MutableReactive<List<E>>,
-    val identity: (E) -> ID,
-    val elementLens: (LensByElement<E, ID, T>.Element) -> T
+public class LensByElement<E, ID, T>(
+    public val source: MutableReactive<List<E>>,
+    public val identity: (E) -> ID,
+    public val elementLens: (LensByElement<E, ID, T>.Element) -> T
 ) : Reactive<List<T>> {
     private val node = IssueNode(parent = (source as? MutableValidated)?.node).apply { connect() }
 
-    inner class Element internal constructor(valueInit: E) : MutableWithReactiveValue<E>, MutableValidated<E>, CoroutineScope {
+    public inner class Element internal constructor(valueInit: E) : MutableWithReactiveValue<E>, MutableValidated<E>, CoroutineScope {
         override val node: IssueNode = this@LensByElement.node.child()
 
         private var job = Job()
@@ -58,7 +59,7 @@ class LensByElement<E, ID, T>(
                 Reactive.reportException(throwable)
             }
         }
-        override val coroutineContext get() = restOfContext + job
+        override val coroutineContext: CoroutineContext get() = restOfContext + job
 
         internal var dead = false
             set(value) {
@@ -68,7 +69,7 @@ class LensByElement<E, ID, T>(
                 job.cancel()
                 job = Job()
             }
-        var id: ID = identity(valueInit)
+        public var id: ID = identity(valueInit)
             private set
         private val listeners = ArrayList<() -> Unit>()
         override var value: E = valueInit
@@ -114,10 +115,10 @@ class LensByElement<E, ID, T>(
             }
         }
 
-        val view = elementLens(this)
+        public val view: T = elementLens(this)
     }
 
-    inner class Elements : MutableReactive<List<Element>> {
+    public inner class Elements : MutableReactive<List<Element>> {
         override suspend fun set(value: List<Element>) {
             source.set(value.map { it.queuedOrValue })
         }
@@ -178,22 +179,22 @@ class LensByElement<E, ID, T>(
         }
     }
 
-    val elements = Elements()
+    public val elements: Elements = Elements()
 
-    fun newElement(e: E): Element = Element(e)
-    suspend fun add(index: Int, value: E): T {
+    public fun newElement(e: E): Element = Element(e)
+    public suspend fun add(index: Int, value: E): T {
         val newly = newElement(value)
         elements.set(elements.awaitOnce().toMutableList().apply { add(index, newly) })
         return newly.view
     }
 
-    suspend fun add(value: E): T {
+    public suspend fun add(value: E): T {
         val newly = newElement(value)
         elements.set(elements.awaitOnce() + newly)
         return newly.view
     }
 
-    suspend fun upsert(value: E): T {
+    public suspend fun upsert(value: E): T {
         val id = identity(value)
         val existing = elements.awaitOnce().find { it.id == id }
         return if (existing == null) add(value) else {
@@ -202,12 +203,12 @@ class LensByElement<E, ID, T>(
         }
     }
 
-    suspend fun remove(element: E) {
+    public suspend fun remove(element: E) {
         val id = identity(element)
         removeById(id)
     }
 
-    suspend fun removeById(id: ID) {
+    public suspend fun removeById(id: ID) {
         elements.set(elements.awaitOnce().filter { it.id != id })
     }
 
@@ -219,21 +220,21 @@ class LensByElement<E, ID, T>(
 
 
 @Deprecated("Be specific about what kind you need.")
-fun <E, ID, W> MutableReactive<List<E>>.lensByElement(identity: (E) -> ID, map: CoroutineScope.(MutableWithReactiveValue<E>) -> W) =
+public fun <E, ID, W> MutableReactive<List<E>>.lensByElement(identity: (E) -> ID, map: CoroutineScope.(MutableWithReactiveValue<E>) -> W): LensByElement<E, ID, W> =
     LensByElement<E, ID, W>(this, identity = identity, elementLens = { it.map(it) })
 
 @Deprecated("Be specific about what kind you need.")
-fun <E, ID> MutableReactive<List<E>>.lensByElement(identity: (E) -> ID) =
+public fun <E, ID> MutableReactive<List<E>>.lensByElement(identity: (E) -> ID): LensElements<E, ID> =
     LensElements<E, ID>(this, identity = identity, elementLens = { it })
 
 @Deprecated("Be specific about what kind you need.")
 @JvmName("setLensByElement")
 @Suppress("Deprecation")
-fun <E, ID, W> MutableReactive<Set<E>>.lensByElement(identity: (E) -> ID, map: CoroutineScope.(MutableWithReactiveValue<E>) -> W) =
+public fun <E, ID, W> MutableReactive<Set<E>>.lensByElement(identity: (E) -> ID, map: CoroutineScope.(MutableWithReactiveValue<E>) -> W): LensByElement<E, ID, W> =
     lens(get = { it.toList() }, set = { it.toSet() }).lensByElement(identity, map)
 
 @Deprecated("Be specific about what kind you need.")
 @JvmName("setLensByElement")
 @Suppress("Deprecation")
-fun <E, ID> MutableReactive<Set<E>>.lensByElement(identity: (E) -> ID) =
+public fun <E, ID> MutableReactive<Set<E>>.lensByElement(identity: (E) -> ID): LensElements<E, ID> =
     lens(get = { it.toList() }, set = { it.toSet() }).lensByElement(identity)

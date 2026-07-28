@@ -8,13 +8,13 @@ import com.lightningkite.reactive.core.addAndRunListener
 import kotlinx.coroutines.*
 import kotlin.coroutines.*
 
-abstract class DependencyChangeListener : DependencyTracker(), CoroutineContext.Element {
+public abstract class DependencyChangeListener : DependencyTracker(), CoroutineContext.Element {
     override val key: CoroutineContext.Key<DependencyChangeListener> get() = Key
 
-    object Key : CoroutineContext.Key<DependencyChangeListener>
+    public object Key : CoroutineContext.Key<DependencyChangeListener>
 
-    abstract fun onDependencyChange()
-    open fun onDependencyNotReady() = onDependencyChange()
+    public abstract fun onDependencyChange()
+    public open fun onDependencyNotReady(): Unit = onDependencyChange()
 }
 
 private fun <T> Continuation<T>.resumeState(state: ReactiveState<T>) {
@@ -25,7 +25,7 @@ private fun <T> Continuation<T>.resumeState(state: ReactiveState<T>) {
     )
 }
 
-suspend fun rerunOn(listenable: Listenable) {
+public suspend fun rerunOn(listenable: Listenable) {
     currentCoroutineContext()[DependencyChangeListener.Key]?.let {
         if (it.existingDependency(listenable) == null) {
             it.registerDependency(listenable, listenable.addListener { it.onDependencyChange() })
@@ -33,11 +33,11 @@ suspend fun rerunOn(listenable: Listenable) {
     }
 }
 
-suspend inline operator fun <T> Reactive<T>.invoke(): T = await()
-suspend inline operator fun <T> ReactiveValue<T>.invoke(): T = await()
-suspend inline fun <T> Reactive<T>.exception(): Exception? = state { it.exception }
+public suspend inline operator fun <T> Reactive<T>.invoke(): T = await()
+public suspend inline operator fun <T> ReactiveValue<T>.invoke(): T = await()
+public suspend inline fun <T> Reactive<T>.exception(): Exception? = state { it.exception }
 
-suspend fun <T, V> Reactive<T>.state(get: (ReactiveState<T>) -> V): V {
+public suspend fun <T, V> Reactive<T>.state(get: (ReactiveState<T>) -> V): V {
     return currentCoroutineContext()[DependencyChangeListener.Key]?.let {
         // and the value is ready to go, just add the listener and proceed with the value.
         var last = state.let(get)
@@ -56,7 +56,7 @@ suspend fun <T, V> Reactive<T>.state(get: (ReactiveState<T>) -> V): V {
     } ?: state.let(get)
 }
 
-suspend fun <T> Reactive<T>.state(): ReactiveState<T> {
+public suspend fun <T> Reactive<T>.state(): ReactiveState<T> {
     return currentCoroutineContext()[DependencyChangeListener.Key]?.let {
         // and the value is ready to go, just add the listener and proceed with the value.
         var last = state
@@ -75,7 +75,7 @@ suspend fun <T> Reactive<T>.state(): ReactiveState<T> {
     } ?: state
 }
 
-suspend fun <T> ReactiveValue<T>.await(): T {
+public suspend fun <T> ReactiveValue<T>.await(): T {
     return currentCoroutineContext()[DependencyChangeListener.Key]?.let {
         // and the value is ready to go, just add the listener and proceed with the value.
         var last = value
@@ -94,7 +94,7 @@ suspend fun <T> ReactiveValue<T>.await(): T {
     } ?: value
 }
 
-suspend fun <T> Reactive<T>.await(): T {
+public suspend fun <T> Reactive<T>.await(): T {
     return currentCoroutineContext()[DependencyChangeListener.Key]?.let {
         var cont: Continuation<T>? = null
         if (it.existingDependency(this) == null) {
@@ -138,7 +138,7 @@ suspend fun <T> Reactive<T>.await(): T {
  * source's own nature, as with a `Signal` - is keeping that value current. Only [ReactiveState.notActive]
  * and notReady require listening, and the subscription is released as soon as a value arrives.
  */
-suspend fun <T> Reactive<T>.awaitOnce(): T {
+public suspend fun <T> Reactive<T>.awaitOnce(): T {
     val state = state
     @Suppress("DEPRECATION")
     return if (state.ready) state.get()

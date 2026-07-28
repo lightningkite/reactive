@@ -8,7 +8,7 @@ import kotlin.jvm.JvmInline
  * A reactive value that exposes its state and allows direct mutation.
  * Used for low-level reactive state management.
  */
-class RawReactive<T>(start: ReactiveState<T> = ReactiveState.notReady) : BaseReactive<T>(start) {
+public class RawReactive<T>(start: ReactiveState<T> = ReactiveState.notReady) : BaseReactive<T>(start) {
     override var state: ReactiveState<T>
         get() = super.state
         public set(value) { super.state = value }
@@ -18,13 +18,13 @@ class RawReactive<T>(start: ReactiveState<T> = ReactiveState.notReady) : BaseRea
  * A basic implementation of a listenable object.
  * Can invoke all listeners and provides a unique identifier for debugging.
  */
-class BasicListenable : BaseListenable() {
+public class BasicListenable : BaseListenable() {
     private var id = Random.nextInt(0, 100000)
     override fun toString(): String {
         return "BasicListenable($id)"
     }
 
-    fun invokeAll() {
+    public fun invokeAll() {
         super.invokeAllListeners()
     }
 }
@@ -47,18 +47,18 @@ class BasicListenable : BaseListenable() {
  * number.value = 2 // prints "Number: 2"
  * ```
  */
-class Signal<T>(startValue: T) : MutableReactiveValue<T>, BaseReactiveValue<T>(startValue)
+public class Signal<T>(startValue: T) : MutableReactiveValue<T>, BaseReactiveValue<T>(startValue)
 
 /**
  * A reactive value that can be set after initialization and unset to a not-ready state.
  * Useful for cases where the value is not available at construction time.
  */
-class LateInitSignal<T>() : ReactiveWithMutableValue<T>, BaseReactive<T>() {
+public class LateInitSignal<T>() : ReactiveWithMutableValue<T>, BaseReactive<T>() {
     override fun valueSet(value: T) {
         state = ReactiveState(value)
     }
 
-    fun unset() {
+    public fun unset() {
         state = ReactiveState.notReady
     }
 }
@@ -71,6 +71,6 @@ class LateInitSignal<T>() : ReactiveWithMutableValue<T>, BaseReactive<T>() {
  * no overhead.
  */
 @JvmInline
-value class Constant<T>(override val value: T) : ReactiveValue<T> {
+public value class Constant<T>(override val value: T) : ReactiveValue<T> {
     override fun addListener(listener: () -> Unit): Release = Listenable.Never.NOOP_RELEASE
 }

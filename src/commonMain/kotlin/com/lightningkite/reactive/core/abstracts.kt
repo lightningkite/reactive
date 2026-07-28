@@ -22,7 +22,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * }
  * ```
  */
-abstract class BaseListenable : Listenable {
+public abstract class BaseListenable : Listenable {
     /**
      * Called when the first listener is added.
      * Override to start calculations, resource usage, or subscriptions.
@@ -41,7 +41,7 @@ abstract class BaseListenable : Listenable {
      * Number of currently-registered listeners. Exposed for tests that need to assert
      * that a listenable is not leaking subscriptions.
      */
-    val listenerCount: Int get() = listeners.size
+    public val listenerCount: Int get() = listeners.size
 
     override fun addListener(listener: () -> Unit): Release {
         if (listeners.isEmpty()) activate()
@@ -76,7 +76,7 @@ abstract class BaseListenable : Listenable {
  *
  * @see BaseListenable
  */
-abstract class BaseReactive<T>(start: ReactiveState<T> = ReactiveState.notReady) : Reactive<T>, BaseListenable() {
+public abstract class BaseReactive<T>(start: ReactiveState<T> = ReactiveState.notReady) : Reactive<T>, BaseListenable() {
     override var state: ReactiveState<T> = start
         protected set(value) {
             if (field.raw !== value.raw && field != value) {
@@ -95,7 +95,7 @@ abstract class BaseReactive<T>(start: ReactiveState<T> = ReactiveState.notReady)
  *
  * @see BaseListenable
  */
-abstract class BaseReactiveValue<T>(start: T) : ReactiveValue<T>, BaseListenable() {
+public abstract class BaseReactiveValue<T>(start: T) : ReactiveValue<T>, BaseListenable() {
     override var value: T = start
         set(value) {
             @Suppress("SuspiciousEqualsCombination")

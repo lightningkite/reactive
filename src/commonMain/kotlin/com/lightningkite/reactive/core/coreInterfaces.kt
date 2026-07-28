@@ -28,7 +28,7 @@ import kotlin.reflect.KProperty
  * release() // Safe to call again, no effect
  * ```
  */
-typealias Release = () -> Unit
+public typealias Release = () -> Unit
 
 /**
  * Represents a resource that can be used and released.
@@ -36,11 +36,11 @@ typealias Release = () -> Unit
  *
  * @see Listenable
  */
-interface ResourceUse {
+public interface ResourceUse {
     /**
      * Begins using the resource. Returns a function to stop using the resource.
      */
-    fun beginUse(): Release
+    public fun beginUse(): Release
 }
 
 
@@ -52,16 +52,16 @@ interface ResourceUse {
  *
  * @see ResourceUse
  */
-interface Listenable : ResourceUse {
+public interface Listenable : ResourceUse {
     /**
      * Adds the [listener] to be called every time this event fires.
      * @return a [Release] handle to remove the [listener] that was added. Removing multiple times should not cause issues.
      */
-    fun addListener(listener: () -> Unit): Release
+    public fun addListener(listener: () -> Unit): Release
 
     override fun beginUse(): Release = addListener { }
 
-    object Never: Listenable {
+    public object Never: Listenable {
         public val NOOP_RELEASE: Release = {}
 
         override fun addListener(listener: () -> Unit): Release = NOOP_RELEASE
@@ -72,7 +72,7 @@ interface Listenable : ResourceUse {
  * Adds a listener and immediately runs it once.
  * @return a [Release] handle to remove the listener.
  */
-fun Listenable.addAndRunListener(listener: () -> Unit): Release {
+public fun Listenable.addAndRunListener(listener: () -> Unit): Release {
     val release = addListener(listener)
     listener()
     return release
@@ -91,7 +91,7 @@ fun Listenable.addAndRunListener(listener: () -> Unit): Release {
  * @see ReactiveState
  * @see com.lightningkite.reactive.context.ReactiveContext
  */
-interface Reactive<out T> : Listenable {
+public interface Reactive<out T> : Listenable {
     /**
      * The current state.
      *
@@ -100,26 +100,26 @@ interface Reactive<out T> : Listenable {
      * a value they are no longer keeping up to date. Anything else is a promise that the state is
      * current, which is what lets callers read it without subscribing.
      */
-    val state: ReactiveState<T>
+    public val state: ReactiveState<T>
 
-    object Never: Reactive<Nothing> {
+    public object Never: Reactive<Nothing> {
         override val state: ReactiveState<Nothing> get() = ReactiveState.notReady
         override fun addListener(listener: () -> Unit): Release = Listenable.Never.NOOP_RELEASE
     }
 
-    companion object Companion {
+    public companion object Companion {
         /**
          * Used to report exceptions thrown in listeners or reactive calculations.
          */
-        var reportException: (Throwable) -> Unit = { it.printStackTrace() }
+        public var reportException: (Throwable) -> Unit = { it.printStackTrace() }
     }
 }
 
 /**
  * Represents a mutable value that can be set asynchronously.
  */
-interface Mutable<T> {
-    suspend infix fun set(value: T)
+public interface Mutable<T> {
+    public suspend infix fun set(value: T)
 }
 
 /**
@@ -132,7 +132,7 @@ interface Mutable<T> {
  * @see Reactive
  * @see Mutable
  */
-interface MutableReactive<T> : Reactive<T>, Mutable<T> {
+public interface MutableReactive<T> : Reactive<T>, Mutable<T> {
 
     /**
      * 'Lenses' a new type from this [MutableReactive]. This is useful when translating one
@@ -156,7 +156,7 @@ interface MutableReactive<T> : Reactive<T>, Mutable<T> {
      * )
      * ```
      */
-    fun <L> lens(
+    public fun <L> lens(
         get: (T) -> L,
         set: (L) -> T
     ): MutableReactive<L> = SetLens(this, get, set)
@@ -185,7 +185,7 @@ interface MutableReactive<T> : Reactive<T>, Mutable<T> {
      * )
      * ```
      */
-    fun <L> lens(
+    public fun <L> lens(
         get: (T) -> L,
         modify: (T, L) -> T
     ): MutableReactive<L> = ModifyLens(this, get, modify)
@@ -202,8 +202,8 @@ interface MutableReactive<T> : Reactive<T>, Mutable<T> {
  *
  * @see Reactive
  */
-interface ReactiveValue<out T> : Reactive<T>, ReadOnlyProperty<Any?, T> {
-    val value: T
+public interface ReactiveValue<out T> : Reactive<T>, ReadOnlyProperty<Any?, T> {
+    public val value: T
 
     // A ReactiveValue always has a value, so its state can never be notReady or notActive. That
     // makes it the wrong interface for anything that only maintains a value while listened to.
@@ -219,8 +219,8 @@ interface ReactiveValue<out T> : Reactive<T>, ReadOnlyProperty<Any?, T> {
  *
  * @see Mutable
  */
-interface MutableValue<T>: Mutable<T> {
-    infix fun valueSet(value: T)
+public interface MutableValue<T>: Mutable<T> {
+    public infix fun valueSet(value: T)
     override suspend fun set(value: T) { valueSet(value) }
 }
 
@@ -229,14 +229,14 @@ interface MutableValue<T>: Mutable<T> {
  *
  * Combines [MutableReactive] and [ReactiveValue].
  */
-interface MutableWithReactiveValue<T> : MutableReactive<T>, ReactiveValue<T>
+public interface MutableWithReactiveValue<T> : MutableReactive<T>, ReactiveValue<T>
 
 /**
  * A [Reactive] that can be synchronously modified.
  *
  * Combines [MutableReactive] and [MutableValue].
  */
-interface ReactiveWithMutableValue<T> : MutableReactive<T>, MutableValue<T>
+public interface ReactiveWithMutableValue<T> : MutableReactive<T>, MutableValue<T>
 
 /**
  * Represents a mutable reactive value that can be modified and observed for changes.
@@ -251,7 +251,7 @@ interface ReactiveWithMutableValue<T> : MutableReactive<T>, MutableValue<T>
  * @see MutableWithReactiveValue
  * @see ReactiveWithMutableValue
  */
-interface MutableReactiveValue<T> : MutableValue<T>, ReactiveValue<T>,
+public interface MutableReactiveValue<T> : MutableValue<T>, ReactiveValue<T>,
     // Interfaces below are just for typing convenience, they are already implemented by intersection of MutableSignal and ValueSignal
     MutableReactive<T>,
     MutableWithReactiveValue<T>,
