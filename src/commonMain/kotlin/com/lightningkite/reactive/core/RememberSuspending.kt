@@ -14,7 +14,7 @@ import kotlin.time.Duration
  * The calculation runs in a coroutine, and will re-run whenever any reactive value it depends on changes.
  *
  * Note:
- * - `remember` is lazy: if it has no listeners, it will not calculate a value.
+ * - `remember` is lazy: if it has no listeners, it will not calculate a value. Reading its state while it has none reports [ReactiveState.Companion.notActive].
  * - Listeners are only notified if the calculated value changes (i.e., if the new value is different from the previous value).
  *
  * @param coroutineContext The coroutine context for running the calculation (default: Dispatchers.Unconfined).
@@ -56,7 +56,7 @@ fun <T> rememberSuspending(
  * any of its dependencies change, and listeners are notified accordingly.
  *
  * Note:
- * - `Remember` is lazy: if it has no listeners, it will not calculate a value.
+ * - `Remember` is lazy: if it has no listeners, it will not calculate a value. Reading its state while it has none reports [ReactiveState.Companion.notActive].
  * - Listeners are only notified if the calculated value changes (i.e., if the new value is different from the previous value).
  *
  * @param T The type of value produced by the calculation.
@@ -74,7 +74,7 @@ fun <T> rememberSuspending(
  */
 class RememberSuspending<T>(
     val incomingCoroutineContext: CoroutineContext = Dispatchers.Unconfined,
-    useLastWhileLoading: Boolean = false,
+    private val useLastWhileLoading: Boolean = false,
     private val deactivationDelay: Duration? = null,
     private val action: suspend ReactiveCoroutineScope.() -> T,
 ) : Reactive<T>, CoroutineScope, BaseListenable() {
@@ -89,13 +89,12 @@ class RememberSuspending<T>(
 
     override val coroutineContext: CoroutineContext get() = restOfContext + job
 
-    private val scope = ReactiveContextSuspending(this, useLastWhileLoading, action = action)
+    // See [Remember.reported]: nothing is listening yet, so there is no value to be had.
+    private val reported = RawReactive<T>(ReactiveState.notActive)
+    private val scope = ReactiveContextSuspending(this, useLastWhileLoading, reported, action)
 
-    override val state: ReactiveState<T>
-        get() {
-            if (!scope.active) scope.runOnceWhileDead()
-            return scope.state
-        }
+    // See [Remember.state]: no listeners means no calculation, and so notActive.
+    override val state: ReactiveState<T> get() = reported.state
 
     private var deactivating: Job? = null
     private var remover: (() -> Unit)? = null
@@ -107,6 +106,9 @@ class RememberSuspending<T>(
             deactivating = null
             return
         }
+
+        // See [Remember.activate]: listening again means active-but-valueless, not notActive.
+        if (reported.state.notActive) reported.state = ReactiveState.notReady
 
         shuttingDown?.let {
             CoroutineScope(incomingCoroutineContext).launch {
@@ -127,6 +129,8 @@ class RememberSuspending<T>(
         job.cancel()
         job = SupervisorJob()
         shuttingDown = null
+        // See [Remember.shutdown]: a stopped calculation maintains no value.
+        reported.state = ReactiveState.notActive
     }
 
     override fun deactivate() {

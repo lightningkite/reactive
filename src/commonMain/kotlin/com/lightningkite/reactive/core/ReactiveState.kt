@@ -7,16 +7,34 @@ import kotlin.jvm.JvmInline
 /**
  * Represents the state of a reactive value, including loading, success, and error conditions.
  *
- * - A [ReactiveState] can hold a ready value, a loading state, or an error state.
+ * - A [ReactiveState] can hold a ready value, a loading state, an error state, or [notActive].
  * - Use [ready] to check if the value is available, [success] to check if it is available and not an error, and [exception] to retrieve any error.
  * - Listeners of [Reactive] are only notified when the [ReactiveState] changes.
  * - [ReactiveState] provides methods for safely handling, mapping, and retrieving the underlying value.
+ *
+ * ### notReady versus notActive
+ *
+ * Both mean "no value", for different reasons, and both make [ready] false:
+ *
+ * - [Companion.notReady]: something is maintaining this value, and it does not have one right now -
+ *   it is loading, or one of its dependencies is not ready.
+ * - [Companion.notActive]: *nothing* is maintaining this value. Lazy reactives like `remember` only
+ *   calculate while they have listeners, so with none they cannot vouch for any value. Sources whose
+ *   value is accurate whether or not anyone is listening - `Signal`, `Constant` - never report it.
+ *
+ * The distinction is what makes it safe to read a value without subscribing: anything other than
+ * [notActive] is current, no matter who is (or isn't) listening. On [notActive] you must subscribe -
+ * see `awaitOnce` - or accept that there is no value to be had.
  */
 @JvmInline
 @OptIn(InternalReactiveApi::class)
 value class ReactiveState<out T>(val raw: T) {
-    inline val ready: Boolean get() = raw !is InternalReactiveNotReady
+    inline val ready: Boolean get() = raw !is InternalReactiveNotReady && raw !is InternalReactiveNotActive
     inline val success: Boolean get() = ready && raw !is InternalReactiveThrownException
+
+    /** True when nothing is maintaining this value; see the [ReactiveState] docs. */
+    inline val notActive: Boolean get() = raw is InternalReactiveNotActive
+
     inline fun <R> onSuccess(action: (T)->R): R? = handle(
         success = { action(it) },
         exception = { null },
@@ -28,7 +46,8 @@ value class ReactiveState<out T>(val raw: T) {
     fun get(): T = handle(
         success = { it },
         exception = { throw it },
-        notReady = { throw NotReadyException() }
+        notReady = { throw NotReadyException() },
+        notActive = { throw NotActiveException() }
     )
 
     fun getOrNull(): T? = handle(
@@ -40,6 +59,11 @@ value class ReactiveState<out T>(val raw: T) {
     companion object Companion {
         @Suppress("UNCHECKED_CAST")
         val notReady: ReactiveState<Nothing> = ReactiveState<Any?>(InternalReactiveNotReady) as ReactiveState<Nothing>
+
+        /** No value, because nothing is maintaining one; see the [ReactiveState] docs. */
+        @Suppress("UNCHECKED_CAST")
+        val notActive: ReactiveState<Nothing> = ReactiveState<Any?>(InternalReactiveNotActive) as ReactiveState<Nothing>
+
         @Suppress("UNCHECKED_CAST")
         fun <T> exception(exception: Exception) = (if(exception is CancellationException) notReady else ReactiveState<Any?>(InternalReactiveThrownException(exception))) as ReactiveState<T>
         @Suppress("UNCHECKED_CAST")
@@ -47,7 +71,9 @@ value class ReactiveState<out T>(val raw: T) {
     }
     @Suppress("UNCHECKED_CAST")
     inline fun <B> map(mapper: (T)->B): ReactiveState<B> {
-        if(raw is InternalReactiveNotReady || raw is InternalReactiveThrownException) return this as ReactiveState<B>
+        // notActive propagates like the other valueless states: a value derived from a source
+        // nobody is maintaining is equally unmaintained.
+        if(raw is InternalReactiveNotReady || raw is InternalReactiveNotActive || raw is InternalReactiveThrownException) return this as ReactiveState<B>
         if(raw is InternalReactiveWrapper<*>) try {
             return ReactiveState(mapper(raw.other as T))
         } catch(e: Exception) {
@@ -59,24 +85,43 @@ value class ReactiveState<out T>(val raw: T) {
             exception(e)
         }
     }
-    @Suppress("UNCHECKED_CAST")
+    /**
+     * Handles [Companion.notActive] the same way as [notReady], because "nobody is maintaining a
+     * value" and "there is no value yet" are the same thing to code that only wants to display or
+     * wait for one. Use the four-argument overload to do something better, such as subscribing.
+     */
     inline fun <R> handle(
         success: (T)->R,
         exception: (Exception)->R,
         notReady: ()->R
+    ): R = handle(success, exception, notReady, notReady)
+
+    @Suppress("UNCHECKED_CAST")
+    inline fun <R> handle(
+        success: (T)->R,
+        exception: (Exception)->R,
+        notReady: ()->R,
+        notActive: ()->R
     ): R {
         return when(raw) {
             InternalReactiveNotReady -> notReady()
+            InternalReactiveNotActive -> notActive()
             is InternalReactiveThrownException -> exception(raw.exception)
             is InternalReactiveWrapper<*> -> success(raw.other as T)
             else -> success(raw)
         }
     }
 
-    fun asResult(): Result<T> = handle(success = { Result.success(it) }, exception = { Result.failure(it) }, notReady = { Result.failure(NotReadyException()) })
+    fun asResult(): Result<T> = handle(
+        success = { Result.success(it) },
+        exception = { Result.failure(it) },
+        notReady = { Result.failure(NotReadyException()) },
+        notActive = { Result.failure(NotActiveException()) }
+    )
 
     override fun toString(): String = when(raw) {
         is InternalReactiveNotReady -> "NotReady"
+        is InternalReactiveNotActive -> "NotActive"
         is InternalReactiveThrownException -> "ThrownException(${raw.exception})"
         is InternalReactiveWrapper<*> -> "ReadyW($raw)"
         else -> "Ready($raw)"
@@ -88,8 +133,17 @@ data class InternalReactiveWrapper<T>(val other: T)
 data class InternalReactiveThrownException(val exception: Exception)
 @InternalReactiveApi
 object InternalReactiveNotReady
+@InternalReactiveApi
+object InternalReactiveNotActive
 
-class NotReadyException(message: String? = null) : IllegalStateException(message)
+open class NotReadyException(message: String? = null) : IllegalStateException(message)
+
+/**
+ * Thrown when reading a value from a reactive that nothing is listening to, and which therefore
+ * has no value to give. Subscribe to it first, or use `awaitOnce`, which subscribes for as long
+ * as it takes to obtain a value.
+ */
+class NotActiveException(message: String = "Nothing is listening to this reactive value, so it has no value to report. Subscribe to it, or use awaitOnce.") : NotReadyException(message)
 
 inline fun <T> reactiveState(action: () -> T): ReactiveState<T> {
     @OptIn(InternalReactiveApi::class)

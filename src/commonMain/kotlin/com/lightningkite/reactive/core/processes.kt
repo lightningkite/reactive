@@ -23,8 +23,10 @@ fun <T> CoroutineScope.reactiveProcess(emitter: suspend Emitter<T>.() -> Unit): 
     }
     return prop
 }
+// The two below only run their emitter while something is listening, so with no listeners they
+// report notActive: whatever the emitter last produced is no longer being kept up to date.
 fun <T> reactiveProcess(scope: CoroutineScope = AppScope, emitter: suspend Emitter<T>.() -> Unit): Reactive<T> {
-    return object: BaseReactive<T>() {
+    return object: BaseReactive<T>(ReactiveState.notActive) {
         var job: Job? = null
         override fun activate() {
             state = ReactiveState.notReady
@@ -39,13 +41,15 @@ fun <T> reactiveProcess(scope: CoroutineScope = AppScope, emitter: suspend Emitt
         override fun deactivate() {
             job?.cancel()
             job = null
+            state = ReactiveState.notActive
         }
     }
 }
 fun <T> rawReactiveProcess(scope: CoroutineScope = AppScope, emitter: suspend Emitter<ReactiveState<T>>.() -> Unit): Reactive<T> {
-    return object: BaseReactive<T>() {
+    return object: BaseReactive<T>(ReactiveState.notActive) {
         var job: Job? = null
         override fun activate() {
+            state = ReactiveState.notReady
             job = scope.launch {
                 emitter(object : Emitter<ReactiveState<T>>, CoroutineScope by this@launch {
                     override fun emit(value: ReactiveState<T>) {
@@ -57,6 +61,7 @@ fun <T> rawReactiveProcess(scope: CoroutineScope = AppScope, emitter: suspend Em
         override fun deactivate() {
             job?.cancel()
             job = null
+            state = ReactiveState.notActive
         }
     }
 }

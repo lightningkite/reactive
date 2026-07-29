@@ -131,12 +131,20 @@ suspend fun <T> Reactive<T>.await(): T {
     } ?: awaitOnce()
 }
 
+/**
+ * Reads the current value, waiting for one if there isn't one yet.
+ *
+ * A ready state is taken as-is, with no subscription: readiness means some other listener - or the
+ * source's own nature, as with a `Signal` - is keeping that value current. Only [ReactiveState.notActive]
+ * and notReady require listening, and the subscription is released as soon as a value arrives.
+ */
 suspend fun <T> Reactive<T>.awaitOnce(): T {
     val state = state
     @Suppress("DEPRECATION")
     return if (state.ready) state.get()
     else suspendCancellableCoroutine {
-        // If it's not ready, we need to wait until it is then never bother with this again.
+        // Not ready, or nothing is maintaining a value: either way we have to listen, which is
+        // also what activates a lazy source so it calculates one.
         var remover: (() -> Unit)? = null
         var alreadyRun = false
         var done = false

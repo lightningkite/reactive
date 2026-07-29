@@ -22,12 +22,15 @@ open class Lens<S : Reactive<T>, T, L>(val source: S, val get: (T) -> L) : BaseR
 
     private var myListen: (() -> Unit)? = null
 
+    // Subscribe before reading: activating a lazy source (a Remember, for example) calculates its
+    // state as part of addListener, and that calculation happens before our listener is in place.
+    // Reading afterwards is what picks that first value up.
     override fun activate() {
         super.activate()
-        super.state = source.state.map(get)
         myListen = source.addListener {
             super.state = source.state.map(get)
         }
+        super.state = source.state.map(get)
     }
 
     override fun deactivate() {
@@ -74,12 +77,14 @@ open class ValueLens<S : ReactiveValue<T>, T, L>(
         }
 
     private var myListen: (() -> Unit)? = null
+
+    // Subscribe before reading, for the same reason as [Lens.activate].
     override fun activate() {
         super.activate()
-        super.value = source.value.let(get)
         myListen = source.addListener {
             super.value = source.value.let(get)
         }
+        super.value = source.value.let(get)
     }
 
     override fun deactivate() {

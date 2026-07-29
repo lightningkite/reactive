@@ -92,6 +92,14 @@ fun Listenable.addAndRunListener(listener: () -> Unit): Release {
  * @see com.lightningkite.reactive.context.ReactiveContext
  */
 interface Reactive<out T> : Listenable {
+    /**
+     * The current state.
+     *
+     * Implementations that only maintain a value while they have listeners - `remember` and
+     * friends - must report [ReactiveState.Companion.notActive] when they have none, rather than
+     * a value they are no longer keeping up to date. Anything else is a promise that the state is
+     * current, which is what lets callers read it without subscribing.
+     */
     val state: ReactiveState<T>
 
     object Never: Reactive<Nothing> {
@@ -196,6 +204,9 @@ interface MutableReactive<T> : Reactive<T>, Mutable<T> {
  */
 interface ReactiveValue<out T> : Reactive<T>, ReadOnlyProperty<Any?, T> {
     val value: T
+
+    // A ReactiveValue always has a value, so its state can never be notReady or notActive. That
+    // makes it the wrong interface for anything that only maintains a value while listened to.
     override val state: ReactiveState<T> get() = ReactiveState(value)
     override fun getValue(thisRef: Any?, property: KProperty<*>): T = value
 }

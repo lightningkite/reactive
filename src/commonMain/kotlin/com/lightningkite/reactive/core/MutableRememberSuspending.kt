@@ -14,7 +14,7 @@ import kotlin.time.Duration
  * is manually set it will stop the calculation and instead behave like a [Signal].
  *
  * Note:
- * - `mutableRememberSuspending` is lazy: if it has no listeners, it will not calculate a value.
+ * - `mutableRememberSuspending` is lazy: if it has no listeners, it will not calculate a value. Reading its state while it has none, and has not been set, reports [ReactiveState.Companion.notActive].
  * - Listeners are only notified if the calculated or set value changes.
  *
  * Example:
@@ -47,7 +47,7 @@ fun <T> mutableRememberSuspending(
  * When overridden by direct assignment, automatic calculation is paused until `reset()` is called.
  *
  * Note:
- * - lazy: if this has no listeners, it will not calculate a value.
+ * - lazy: if this has no listeners, it will not calculate a value. Reading its state while it has none, and has not been set, reports [ReactiveState.Companion.notActive].
  * - Listeners are only notified if the calculated or set value changes. I.e., if '1' is calculated, and then '1' is set, it will not notify listeners.
  * - The `reset()` method restores automatic calculation and updates the value from dependencies.
  *
@@ -90,7 +90,7 @@ class MutableRememberSuspending<T>(
 
     override var state: ReactiveState<T>
         get() {
-            if (!overridden && forget == null) updateOnce()
+            if (!overridden && forget == null) return ReactiveState.notActive
             return super.state
         }
         set(value) {

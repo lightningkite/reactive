@@ -14,7 +14,7 @@ import kotlin.time.Duration
  * is manually set it will stop the calculation and instead behave like a [Signal].
  *
  * Note:
- * - `mutableRemember` is lazy: if it has no listeners, it will not calculate a value.
+ * - `mutableRemember` is lazy: if it has no listeners, it will not calculate a value. Reading its state while it has none, and has not been set, reports [ReactiveState.Companion.notActive].
  * - Listeners are only notified if the calculated or set value changes.
  *
  * Example:
@@ -46,7 +46,7 @@ fun <T> mutableRemember(
  * When overridden by direct assignment, automatic calculation is paused until `reset()` is called.
  *
  * Note:
- * - `MutableRemember` is lazy: if it has no listeners, it will not calculate a value.
+ * - `MutableRemember` is lazy: if it has no listeners, it will not calculate a value. Reading its state while it has none, and has not been set, reports [ReactiveState.Companion.notActive].
  * - Listeners are only notified if the calculated or set value changes.
  * - The `reset()` method restores automatic calculation and updates the value from dependencies.
  *
@@ -70,16 +70,12 @@ class MutableRemember<T>(
     private val remember = Remember(coroutineContext, useLastWhileLoading, deactivationDelay, initialValue)
     private var forget: (()->Unit)? = null
 
-    private fun updateOnce() {
-        val currentRememberedState = remember.state
-        if(!overridden && (!useLastWhileLoading || currentRememberedState.ready)) state = currentRememberedState
-    }
-
     private fun startListening() {
         forget = remember.addListener {
             if (!overridden) state = remember.state
         }
-        updateOnce()
+        val currentRememberedState = remember.state
+        if (!overridden && (!useLastWhileLoading || currentRememberedState.ready)) state = currentRememberedState
     }
     private fun stopListening() {
         forget?.invoke()
@@ -88,7 +84,7 @@ class MutableRemember<T>(
 
     override var state: ReactiveState<T>
         get() {
-            if (!overridden && forget == null) updateOnce()
+            if (!overridden && forget == null) return ReactiveState.notActive
             return super.state
         }
         set(value) {

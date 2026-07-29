@@ -154,13 +154,6 @@ class TypedReactiveContext<T>(
         private set
 
     /**
-     * When true, dependency-registering operators skip [addListener] and [registerDependency].
-     * Set during [runOnceWhileDead] so that a one-off dead read does not subscribe the context
-     * to any sources, preventing listener leaks and spurious reactivation.
-     */
-    private var skipDependencyRegistration = false
-
-    /**
      * Reference to [startCalculation] used as a listener callback.
      * Dependencies invoke this when they change to trigger recalculation.
      */
@@ -245,27 +238,6 @@ class TypedReactiveContext<T>(
         }
     }
 
-    /**
-     * Runs the calculation once without activating the context or tracking dependencies.
-     *
-     * The result is reported to [reportTo], but no listeners are registered on any source
-     * and the calculation will not rerun when dependencies change.
-     *
-     * [skipDependencyRegistration] is set to true for the duration so that all
-     * dependency-registering operators (invoke, async, etc.) skip addListener/registerDependency.
-     * This prevents the context from leaking listeners onto sources and avoids accidentally
-     * activating lazy upstream Remembers.
-     */
-    fun runOnceWhileDead() {
-        skipDependencyRegistration = true
-        try {
-            val state = reactiveState { action(this) }
-            if (!useLastWhileLoading || state.ready) reportTo.state = state
-        } finally {
-            skipDependencyRegistration = false
-        }
-    }
-
     init {
         // Automatically cancel when parent scope is cancelled
         scope.onRemove { cancel() }
@@ -316,7 +288,6 @@ class TypedReactiveContext<T>(
      * Starts using this [ResourceUse] and tracks it as a dependency in future loops.
      * */
     fun use(resourceUse: ResourceUse) {
-        if (skipDependencyRegistration) return
         if (existingDependency(resourceUse) != null) return
         registerDependency(resourceUse, resourceUse.beginUse())
     }
@@ -336,7 +307,6 @@ class TypedReactiveContext<T>(
      * ```
      */
     fun rerunOn(listenable: Listenable) {
-        if (skipDependencyRegistration) return
         if (existingDependency(listenable) != null) return
         registerDependency(listenable, listenable.addListener(rerun))
     }
@@ -346,6 +316,11 @@ class TypedReactiveContext<T>(
      * if the state is not ready.
      *
      * This allows the reactive calculation to be paused until dependencies become ready.
+     *
+     * A notActive dependency counts as loading rather than as an error: every operator here
+     * registers its listener before reading, so the dependency is being maintained by the time we
+     * see it, and any notActive we do observe is a source part-way through activating. The
+     * listener is in place, so the calculation reruns when its value arrives.
      */
     private fun <R> ReactiveState<R>.getOrLoading() =
         handle(
@@ -372,7 +347,7 @@ class TypedReactiveContext<T>(
      * @throws ReactiveLoading if the value is not ready
      */
     operator fun <R> Reactive<R>.invoke(): R {
-        if (!skipDependencyRegistration && existingDependency(this) == null) {
+        if (existingDependency(this) == null) {
             registerDependency(this, addListener(rerun))
         }
         return state.getOrLoading()
@@ -396,7 +371,7 @@ class TypedReactiveContext<T>(
      * @throws ReactiveLoading if the value is null or not ready
      */
     fun <R> Reactive<R?>.awaitNotNull(): R {
-        if (!skipDependencyRegistration && existingDependency(this) == null) {
+        if (existingDependency(this) == null) {
             registerDependency(this, addListener(rerun))
         }
         return state.getOrLoading() ?: throw ReactiveLoading
@@ -422,7 +397,7 @@ class TypedReactiveContext<T>(
      * @return The current [ReactiveState]
      */
     fun <R> Reactive<R>.state(): ReactiveState<R> {
-        if (!skipDependencyRegistration && existingDependency(this) == null) {
+        if (existingDependency(this) == null) {
             registerDependency(this, addListener(rerun))
         }
         return state
@@ -447,7 +422,7 @@ class TypedReactiveContext<T>(
      */
     fun <R, V> Reactive<R>.state(get: (ReactiveState<R>) -> V): V {
         var current: V = state.let(get)
-        if (!skipDependencyRegistration && existingDependency(this) == null) {
+        if (existingDependency(this) == null) {
             registerDependency(this, addListener {
                 state.let(get)
                     .takeUnless { it == current }
@@ -456,6 +431,9 @@ class TypedReactiveContext<T>(
                         rerun()
                     }
             })
+            // Repull in case of activation: a lazy source calculates inside addListener, before
+            // our listener is in place, so the value read above can predate that calculation.
+            current = state.let(get)
         }
         return current
     }
@@ -464,11 +442,13 @@ class TypedReactiveContext<T>(
      * Wrapper class for tracking "once" dependencies.
      * This creates a unique key for each reactive value accessed via [once].
      */
-    private data class Once<T>(val wraps: Reactive<T>)
+    private data class Once<T>(val wraps: Reactive<T>) {
+        /** Whether a value has been obtained; changes stop causing reruns once one has. */
+        var have = false
+    }
 
     /**
-     * Accesses the value of this [Reactive] once, automatically removing the dependency
-     * after the value becomes ready.
+     * Accesses the value of this [Reactive] once, without rerunning when it later changes.
      *
      * This is useful when you want to wait for an initial value but don't want subsequent
      * changes to trigger reruns.
@@ -485,25 +465,12 @@ class TypedReactiveContext<T>(
      * @throws ReactiveLoading if the value is not ready yet
      */
     fun <T> Reactive<T>.once(): T {
-        return state.handle(
-            success = { it },
-            exception = { throw it },
-            notReady = {
-                if (!skipDependencyRegistration) {
-                    val key = Once(this)
-                    if (existingDependency(key) == null) {
-                        // Register a one-shot listener that removes itself after firing
-                        var remover: () -> Unit = {}
-                        remover = addListener {
-                            remover() // Remove the listener
-                            rerun()
-                        }
-                        registerDependency(key, remover)
-                    }
-                }
-                throw ReactiveLoading
-            }
-        )
+        val key = existingDependency(Once(this)) ?: Once(this).also { key ->
+            registerDependency(key, addListener { if (!key.have) rerun() })
+        }
+        val state = state
+        key.have = state.ready
+        return state.getOrLoading()
     }
 
     // Hack: fixes compiler weirdness around lambdas with 'this'
@@ -572,24 +539,22 @@ class TypedReactiveContext<T>(
         val calc = SuspendCalculation<T>(key)
 
         // Reuse existing calculation if already running
-        if (!skipDependencyRegistration) {
-            existingDependency(calc)?.let {
-                return it.state.getOrLoading()
-            }
+        existingDependency(calc)?.let {
+            return it.state.getOrLoading()
+        }
 
-            // Launch new calculation and register as dependency. The launch happens before the
-            // listener is attached so a synchronously-completing action (e.g. under an Unconfined
-            // dispatcher) can't re-enter rerun() while this calculation is still in progress.
-            val job = scope.launch {
-                calc.state = reactiveState { action() }
-            }
-            val removeListener = calc.addListener(rerun)
-            registerDependency(calc) {
-                // A rerun means this calculation is no longer used - cancel it so stale work
-                // doesn't keep running and overwrite `calc` after it's been orphaned.
-                removeListener()
-                job.cancel()
-            }
+        // Launch new calculation and register as dependency. The launch happens before the
+        // listener is attached so a synchronously-completing action (e.g. under an Unconfined
+        // dispatcher) can't re-enter rerun() while this calculation is still in progress.
+        val job = scope.launch {
+            calc.state = reactiveState { action() }
+        }
+        val removeListener = calc.addListener(rerun)
+        registerDependency(calc) {
+            // A rerun means this calculation is no longer used - cancel it so stale work
+            // doesn't keep running and overwrite `calc` after it's been orphaned.
+            removeListener()
+            job.cancel()
         }
 
         return calc.state.getOrLoading()
@@ -615,23 +580,21 @@ class TypedReactiveContext<T>(
     operator fun <T> Deferred<T>.invoke(): T {
         val calc = SuspendCalculation<T>(this)
 
-        if (!skipDependencyRegistration) {
-            // Reuse existing calculation if already running
-            existingDependency(calc)?.let {
-                return it.invoke()
-            }
+        // Reuse existing calculation if already running
+        existingDependency(calc)?.let {
+            return it.invoke()
+        }
 
-            // Launch await operation and register as dependency. Same ordering and cancellation
-            // rationale as `async` above: launch before attaching the listener, and cancel the
-            // launch when this dependency is no longer used.
-            val job = scope.launch {
-                calc.state = reactiveState { this@invoke.await() }
-            }
-            val removeListener = calc.addListener(rerun)
-            registerDependency(calc) {
-                removeListener()
-                job.cancel()
-            }
+        // Launch await operation and register as dependency. Same ordering and cancellation
+        // rationale as `async` above: launch before attaching the listener, and cancel the
+        // launch when this dependency is no longer used.
+        val job = scope.launch {
+            calc.state = reactiveState { this@invoke.await() }
+        }
+        val removeListener = calc.addListener(rerun)
+        registerDependency(calc) {
+            removeListener()
+            job.cancel()
         }
 
         return calc.state.getOrLoading()
@@ -672,12 +635,6 @@ class TypedReactiveContext<T>(
      * @throws ReactiveLoading if no value has been emitted yet (except for StateFlow)
      */
     operator fun <T> Flow<T>.invoke(): T {
-        if (skipDependencyRegistration) {
-            // Dead read: return current value for StateFlow or notReady for cold flows
-            if (this is StateFlow<T>) return this.value
-            else throw ReactiveLoading
-        }
-
         val new = FlowLoader(this)
 
         val existing = existingDependency(new)

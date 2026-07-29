@@ -61,17 +61,30 @@ fun <T> Reactive<T>.withWrite(action: suspend Reactive<T>.(T) -> Unit): MutableR
     }
 
 fun <T> Reactive<T>.onNextSuccess(action: (T) -> Unit): Release? {
+    // A successful state is one somebody is maintaining, so it needs no subscription at all.
     if (state.success) {
         state.onSuccess(action)
         return null
     }
 
     var release: Release? = null
+    var acted = false
     release = addListener {
         state.onSuccess {
+            acted = true
             action(it)
             release?.invoke()
         }
+    }
+    // Read after subscribing: activating a notActive source calculates inside addListener, before
+    // our listener is in place.
+    state.onSuccess {
+        acted = true
+        action(it)
+    }
+    if (acted) {
+        release?.invoke()
+        return null
     }
     return release
 }
@@ -130,7 +143,9 @@ fun <T> Reactive<Reactive<T>>.flatten(): Reactive<T> = remember { this@flatten()
 
 fun <T> Reactive<MutableReactive<T>>.flatten(): MutableReactive<T> =
     remember { this@flatten()() }.withWrite {
-        this@flatten.state.onSuccess { s -> s set it }
+        // awaitOnce rather than reading state: if the outer reactive is lazy it has no value to
+        // read unless something is listening, and the write would be silently dropped.
+        this@flatten.awaitOnce().set(it)
     }
 
 fun <T> CoroutineScope.asyncReactive(action: suspend () -> T): Reactive<T> {

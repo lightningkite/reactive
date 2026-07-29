@@ -8,6 +8,8 @@ import com.lightningkite.reactive.core.Release
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 internal class WaitForNotNull<T : Any>(val wraps: Reactive<T?>) : Reactive<T> {
+    // A null value is notReady - a value is there, it just isn't one we can use yet. Every other
+    // state, notActive included, passes through as the wrapped reactive reported it.
     @Suppress("UNCHECKED_CAST")
     override val state: ReactiveState<T>
         get() = if(wraps.state.raw == null) ReactiveState.notReady else wraps.state as ReactiveState<T>

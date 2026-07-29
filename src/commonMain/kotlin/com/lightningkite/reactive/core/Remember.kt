@@ -14,7 +14,7 @@ import kotlin.time.Duration
  * The calculation runs in a coroutine, and will re-run whenever any reactive value it depends on changes.
  *
  * Note:
- * - `remember` is lazy: if it has no listeners, it will not calculate a value.
+ * - `remember` is lazy: if it has no listeners, it will not calculate a value. Reading its state while it has none reports [ReactiveState.Companion.notActive].
  * - Listeners are only notified if the calculated value changes (i.e., if the new value is different from the previous value).
  *
  * @param coroutineContext The coroutine context for running the calculation (default: Dispatchers.Unconfined).
@@ -54,7 +54,7 @@ fun <T> remember(
  * any of its dependencies change, and listeners are notified accordingly.
  *
  * Note:
- * - `Remember` is lazy: if it has no listeners, it will not calculate a value.
+ * - `Remember` is lazy: if it has no listeners, it will not calculate a value. Reading its state while it has none reports [ReactiveState.Companion.notActive].
  * - Listeners are only notified if the calculated value changes (i.e., if the new value is different from the previous value).
  *
  * @param T The type of value produced by the calculation.
@@ -71,7 +71,7 @@ fun <T> remember(
  */
 class Remember<T>(
     val incomingCoroutineContext: CoroutineContext = Dispatchers.Unconfined,
-    useLastWhileLoading: Boolean = false,
+    private val useLastWhileLoading: Boolean = false,
     private val deactivationDelay: Duration? = null,
     private val action: ReactiveContext.() -> T,
 ) : Reactive<T>, CoroutineScope, BaseListenable() {
@@ -92,13 +92,17 @@ class Remember<T>(
     // Remember/shared reactive graph forever. Matches RememberSuspending's ordering.
     override val coroutineContext get() = restOfContext + job
 
-    private val scope = TypedReactiveContext(this, useLastWhileLoading, action = action)
+    // Starts notActive rather than notReady: nothing is listening yet, so there is no value to
+    // be had, as opposed to one that is on its way.
+    private val reported = RawReactive<T>(ReactiveState.notActive)
+    private val scope = TypedReactiveContext(this, useLastWhileLoading, reported, action)
 
-    override val state: ReactiveState<T>
-        get() {
-            if (!scope.active) scope.runOnceWhileDead()
-            return scope.state
-        }
+    // A Remember only calculates while it has listeners, and reports notActive when it has none.
+    // It deliberately does not calculate on demand: doing so would either subscribe to sources
+    // nobody is listening to, or run a dependency-less calculation whose result is silently never
+    // updated. To read one imperatively, use awaitOnce - it subscribes for as long as it takes to
+    // get a value.
+    override val state: ReactiveState<T> get() = reported.state
 
     private var deactivating: Job? = null
     private var remover: (() -> Unit)? = null
@@ -110,6 +114,11 @@ class Remember<T>(
             deactivating = null
             return
         }
+
+        // Something is maintaining this value again - it just doesn't have one yet. Without this,
+        // useLastWhileLoading would suppress the notReady the first calculation reports and leave
+        // notActive in place, claiming nobody is listening when somebody now is.
+        if (reported.state.notActive) reported.state = ReactiveState.notReady
 
         shuttingDown?.let {
             CoroutineScope(incomingCoroutineContext).launch {
@@ -130,6 +139,9 @@ class Remember<T>(
         job.cancel()
         job = SupervisorJob()
         shuttingDown = null
+        // The calculation is stopped, so the value it produced is no longer maintained. Reporting
+        // notActive says exactly that, rather than passing off a value that may have gone stale.
+        reported.state = ReactiveState.notActive
     }
 
     override fun deactivate() {

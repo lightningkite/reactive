@@ -192,33 +192,6 @@ class ReactiveContextSuspending<T>(
     }
 
     /**
-     * Runs the calculation once without activating the context or tracking dependencies.
-     *
-     * This is useful for getting an initial value or running the calculation in a test
-     * environment without setting up the full reactive machinery.
-     *
-     * The result is still reported to [reportTo], but no dependency tracking occurs and
-     * the calculation will not rerun when dependencies change.
-     */
-    fun runOnceWhileDead() {
-        lastLoopJob = run {
-            var done = false
-            val job = scope.launchWithStart {
-                val result = reactiveState { this@ReactiveContextSuspending.action() }
-                if (!useLastWhileLoading || result.ready) reportTo.state = result
-                done = true
-            }
-
-            // Check if calculation completed synchronously
-            if (done) null
-            else {
-                if (!useLastWhileLoading) reportTo.state = ReactiveState.notReady
-                job
-            }
-        }
-    }
-
-    /**
      * Called by the dependency tracker when a dependency changes.
      * Triggers a recalculation with [startCalculation].
      */

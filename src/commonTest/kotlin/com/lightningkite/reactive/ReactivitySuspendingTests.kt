@@ -28,6 +28,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -493,5 +494,32 @@ class ReactivitySuspendingTests {
             assertEquals(1, outerCancelled)
             assertEquals(5, innerCancelled)
         }
+    }
+
+    @Test
+    fun readingStateWithoutListenersDoesNotCalculate() {
+        val source = LateInitSignal<Int>()
+        var computeCount = 0
+        val r = rememberSuspending {
+            computeCount++
+            source()
+        }
+
+        assertEquals(0, source.listenerCount, "precondition: no listeners before reading state")
+
+        // Reading state repeatedly must neither calculate nor subscribe: a calculation that waits
+        // on a not-ready source would hold a subscription open for as long as it waits.
+        assertEquals(ReactiveState.notActive, r.state)
+        assertEquals(ReactiveState.notActive, r.state)
+        assertEquals(0, computeCount, "reading state must not calculate")
+        assertEquals(0, source.listenerCount, "reading state must not subscribe to sources")
+
+        val release = r.addListener { }
+        assertEquals(1, source.listenerCount, "activating subscribes")
+        source.value = 3
+        assertEquals(3, r.state.get())
+        release()
+        assertEquals(0, source.listenerCount, "deactivating releases the subscription")
+        assertEquals(ReactiveState.notActive, r.state, "a dormant Remember must not report its last value")
     }
 }

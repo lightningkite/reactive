@@ -10,11 +10,17 @@ import com.lightningkite.reactive.context.ReactiveReentrancyException
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.addAndRunListener
+import com.lightningkite.reactive.context.awaitOnce
+import com.lightningkite.reactive.extensions.flatten
 import com.lightningkite.reactive.extensions.interceptWrite
+import com.lightningkite.reactive.extensions.onNextSuccess
+import com.lightningkite.reactive.lensing.lens
 import com.lightningkite.reactive.extensions.value
 import com.lightningkite.reactive.extensions.waitForNotNull
 import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.RawReactive
+import com.lightningkite.reactive.core.MutableReactive
+import com.lightningkite.reactive.core.NotActiveException
 import com.lightningkite.reactive.core.Remember
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
@@ -593,7 +599,7 @@ class ReactivityTests {
     }
 
     @Test
-    fun readingDeadStateDoesNotLeakOrResurrect() {
+    fun readingStateWithoutListenersDoesNotCalculate() {
         val source = Signal(1)
         var computeCount = 0
         val r = remember {
@@ -601,21 +607,187 @@ class ReactivityTests {
             source()
         }
 
-        // No listener added, so the Remember is lazy/dead.
-        assertEquals(0, source.listenerCount, "precondition: no listeners before touching dead state")
+        // No listener added, so the Remember is lazy and has never calculated.
+        assertEquals(0, source.listenerCount, "precondition: no listeners before reading state")
 
-        // Reading .state on a dead Remember computes a one-off value.
-        assertEquals(1, r.state.get(), "dead read should still compute the current value")
-        val computesAfterRead = computeCount
-        assertTrue(computesAfterRead > 0, "dead read should have computed at least once")
+        assertEquals(ReactiveState.notActive, r.state, "a Remember with no listeners maintains no value")
+        assertEquals(0, computeCount, "reading state must not calculate")
+        assertEquals(0, source.listenerCount, "reading state must not subscribe to sources")
 
-        // The throwaway computation must not leave a listener on the source.
-        assertEquals(0, source.listenerCount, "reading dead .state must not leave a dangling listener on the source")
-
-        // Mutating the source must NOT resurrect the Remember.
+        // Mutating the source must not resurrect it either.
         source.value = 2
-        assertEquals(computesAfterRead, computeCount, "mutating the source must not recompute a dead Remember")
+        assertEquals(0, computeCount, "mutating a source must not calculate a Remember nobody listens to")
         assertEquals(0, source.listenerCount, "source must still have zero listeners after mutation")
+
+        // Gaining a listener is what makes it calculate, and losing it stops it again.
+        val release = r.addListener { }
+        assertEquals(2, r.state.get(), "activating calculates the current value")
+        assertEquals(1, computeCount)
+        assertEquals(1, source.listenerCount)
+        release()
+        assertEquals(0, source.listenerCount, "deactivating releases the subscription")
+
+        // Going dormant drops the value rather than reporting one that is no longer maintained.
+        assertEquals(ReactiveState.notActive, r.state, "a dormant Remember must not report its last value")
+        source.value = 3
+        assertEquals(1, computeCount, "a dormant Remember must not recalculate")
+
+        // Listening again recalculates against the source as it is now.
+        r.addListener { }
+        assertEquals(3, r.state.get(), "reactivating recalculates rather than reporting the old value")
+    }
+
+    // The tests below cover reading a lazy source: because a Remember only calculates while
+    // something is listening, and BaseListenable activates before the new listener is in the list,
+    // every one of these has to subscribe before reading or it sees the pre-activation state.
+
+    @Test
+    fun lensOfLazySourceGetsValueOnActivation() {
+        val source = Signal(1)
+        val lensed = remember { source() }.lens { it * 10 }
+        val release = lensed.addListener { }
+        assertEquals(10, lensed.state.get(), "activating a lens must pick up the value its source calculates")
+        source.value = 2
+        assertEquals(20, lensed.state.get())
+        release()
+    }
+
+    @Test
+    fun onceObtainsValueFromLazySource() {
+        val source = Signal(1)
+        val r = remember { source() }
+        val seen = ArrayList<Int>()
+        testContext {
+            reactive { seen.add(r.once()) }
+            assertEquals(listOf(1), seen, "once must obtain a value from a lazy source")
+            source.value = 2
+            source.value = 3
+            assertEquals(listOf(1), seen, "once must not rerun the calculation, nor change what it reports")
+        }
+    }
+
+    @Test
+    fun stateTransformSeesValueFromActivation() {
+        val source = Signal(1)
+        val r = remember { source() }
+        val seen = ArrayList<Boolean>()
+        testContext {
+            reactive { seen.add(r.state { it.ready }) }
+            assertEquals(listOf(true), seen, "state(get) must see the value its subscription caused")
+            source.value = 2
+            assertEquals(listOf(true), seen, "readiness did not change, so there is nothing to rerun")
+        }
+    }
+
+    @Test
+    fun onNextSuccessFiresForLazySource() {
+        val source = Signal(1)
+        val seen = ArrayList<Int>()
+        remember { source() }.onNextSuccess { seen.add(it) }
+        assertEquals(listOf(1), seen, "onNextSuccess must obtain a value from a lazy source")
+        source.value = 2
+        assertEquals(listOf(1), seen, "onNextSuccess fires exactly once")
+    }
+
+    @Test
+    fun writingThroughFlattenedLazySourceReachesTheTarget() = runTest {
+        val inner = Signal(1)
+        val selection = Signal<MutableReactive<Int>>(inner)
+        // The outer reactive is lazy, so the write has to activate it to find the target.
+        val outer: Reactive<MutableReactive<Int>> = remember { selection() }
+        outer.flatten().set(42)
+        assertEquals(42, inner.value, "a write through flatten must not be silently dropped")
+    }
+
+    @Test
+    fun notActiveIsDistinctFromLoading() {
+        val source = LateInitSignal<Int>()
+        val r = remember { source() }
+
+        assertEquals(ReactiveState.notActive, r.state, "nobody is maintaining this")
+
+        val release = r.addListener { }
+        assertEquals(
+            ReactiveState.notReady, r.state,
+            "now somebody is maintaining it - it just doesn't have a value yet"
+        )
+
+        source.value = 1
+        assertEquals(ReactiveState(1), r.state)
+
+        release()
+        assertEquals(ReactiveState.notActive, r.state, "and back to nobody maintaining it")
+    }
+
+    @Test
+    fun notActivePropagatesThroughLenses() {
+        val source = Signal(1)
+        val r = remember { source() }
+        val lensed = r.lens { it * 10 }
+
+        assertTrue(lensed.state.notActive, "a lens over an unmaintained value is equally unmaintained")
+
+        val release = lensed.addListener { }
+        assertEquals(ReactiveState(10), lensed.state)
+        release()
+        assertTrue(lensed.state.notActive)
+    }
+
+    @Test
+    fun lensOfAlwaysDefiniteSourceNeedsNoListeners() {
+        // A Signal's value is accurate whether or not anyone is listening, so a lens over one can
+        // be read directly - this is what notActive being a separate state buys.
+        val source = Signal(1)
+        val lensed = source.lens { it * 10 }
+        assertEquals(ReactiveState(10), lensed.state)
+        source.value = 2
+        assertEquals(ReactiveState(20), lensed.state)
+    }
+
+    @Test
+    fun readingAValueSomebodyElseMaintainsIsFree() = runTest {
+        val source = Signal(1)
+        var computeCount = 0
+        val r = remember {
+            computeCount++
+            source()
+        }
+        val release = r.addListener { }
+        assertEquals(1, computeCount)
+
+        // Someone else is keeping this current, so reading it must not re-run anything or churn
+        // the subscription.
+        assertEquals(1, r.awaitOnce())
+        assertEquals(1, computeCount, "awaitOnce must not recalculate a value already being maintained")
+        assertEquals(1, source.listenerCount, "awaitOnce must not disturb the existing subscription")
+
+        release()
+    }
+
+    @Test
+    fun readingNotActiveStateThrowsSomethingExplanatory() {
+        val r = remember { Signal(1)() }
+        @Suppress("DEPRECATION")
+        val thrown = assertFailsWith<NotActiveException> { r.state.get() }
+        assertTrue(thrown.message!!.contains("listening"), "the message should say what to do about it")
+    }
+
+    @Test
+    fun awaitOnceCalculatesAndReleases() = runTest {
+        val source = Signal(1)
+        var computeCount = 0
+        val r = remember {
+            computeCount++
+            source()
+        }
+
+        assertEquals(1, r.awaitOnce(), "awaitOnce must calculate a dormant Remember")
+        assertEquals(1, computeCount)
+        assertEquals(0, source.listenerCount, "awaitOnce must not hold onto its subscription")
+
+        source.value = 2
+        assertEquals(2, r.awaitOnce(), "awaitOnce must recalculate rather than report a stale value")
+        assertEquals(0, source.listenerCount)
     }
 }
 

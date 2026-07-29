@@ -231,8 +231,12 @@ class MutableRememberSuspendingTests {
             late.unset()
             assertEquals(ReactiveState(10), test.state)
 
+            // Resetting restarts the calculation, which has nothing to calculate from now that
+            // `late` is unset. useLastWhileLoading means the last value stands until it does.
+            // (It used to report 1 here - a value the dormant calculation had held onto from
+            // before `late` was unset.)
             test.reset()
-            assertEquals(ReactiveState(1), test.state)
+            assertEquals(ReactiveState(10), test.state)
 
             late.value = 2
             assertEquals(ReactiveState(2), test.state)

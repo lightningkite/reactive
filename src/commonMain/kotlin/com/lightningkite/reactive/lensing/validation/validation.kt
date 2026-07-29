@@ -44,10 +44,11 @@ private open class ValidatedLens<S : Validated<T>, T>(
     override fun activate() {
         super.activate()
         baseNode.connect()
-        state = source.state.also(::check)
+        // Subscribe before reading, so state produced by activating a lazy source isn't missed.
         myListen = source.addListener {
             if (listen) state = source.state.also(::check)
         }
+        state = source.state.also(::check)
     }
     override fun deactivate() {
         super.deactivate()
@@ -88,10 +89,11 @@ private open class ValidatedValueLens<S : ValidatedValue<T>, T>(
     override fun activate() {
         super.activate()
         baseNode.connect()
-        value = source.value.also(::check)
+        // Subscribe before reading, for the same reason as [ValidatedLens.activate].
         myListen = source.addListener {
             if (listen) value = source.value.also(::check)
         }
+        value = source.value.also(::check)
     }
     override fun deactivate() {
         super.deactivate()
