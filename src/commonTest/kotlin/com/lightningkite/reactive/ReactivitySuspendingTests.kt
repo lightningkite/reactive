@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION") // tests deliberately use the "Absolutely Sure" ReactiveState.get() shorthand
+
 package com.lightningkite.reactive
 
 import com.lightningkite.reactive.context.ReactiveContext
@@ -21,6 +23,7 @@ import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.extensions.invoke
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -423,6 +426,7 @@ class ReactivitySuspendingTests {
     }
 
     @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun cancelledSuspendDoesNotWriteStaleStateAfterRerun() = runTest {
         val trigger = Signal(0)
         var completions = 0

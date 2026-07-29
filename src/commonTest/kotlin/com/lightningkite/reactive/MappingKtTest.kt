@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION") // tests deliberately use the "Absolutely Sure" ReactiveState.get() shorthand
+
 package com.lightningkite.reactive
 
 import com.lightningkite.reactive.context.awaitOnce

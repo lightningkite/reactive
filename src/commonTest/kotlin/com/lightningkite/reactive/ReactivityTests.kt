@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION") // tests deliberately use the "Absolutely Sure" ReactiveState.get() shorthand
+
 package com.lightningkite.reactive
 
 import com.lightningkite.reactive.context.CoroutineScopeHelpers
@@ -767,6 +769,7 @@ class ReactivityTests {
     }
 
     @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun asyncDistinguishesCallSitesWithIdenticalDependencies() = runTest {
         // Two different `async {}` call sites passed the exact same dependency (1). Under the old
         // deps-only cache key, both would hash/equal to the same SuspendCalculation and the second
@@ -787,6 +790,7 @@ class ReactivityTests {
     }
 
     @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun asyncCancelsStaleLaunchOnRerun() = runTest {
         // The async's own dependency is `trigger()`'s value, so changing `trigger` gives the async
         // block a new cache key each run - the old entry becomes unused and should be torn down
@@ -819,6 +823,7 @@ class ReactivityTests {
     }
 
     @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun changingADependencyEndsThePreviousRunImmediately() = runTest {
         // Under a dispatching scheduler the rerun does not begin until the scheduler gets to it,
         // but the run it supersedes is finished the moment its input changed - whatever that run
@@ -1012,7 +1017,6 @@ class ReactivityTests {
     @Test
     fun readingNotActiveStateThrowsSomethingExplanatory() {
         val r = remember { Signal(1)() }
-        @Suppress("DEPRECATION")
         val thrown = assertFailsWith<NotActiveException> { r.state.get() }
         assertTrue(thrown.message!!.contains("listening"), "the message should say what to do about it")
     }
@@ -1040,6 +1044,7 @@ class VirtualDelay<T>(val action: () -> T) {
     val continuations = ArrayList<Continuation<T>>()
     var value: T? = null
     var ready: Boolean = false
+    @Suppress("UNCHECKED_CAST")
     suspend fun await(): T {
         if (ready) return value as T
         return suspendCancellableCoroutine {

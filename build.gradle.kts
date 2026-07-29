@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnLockMismatchReport
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import kotlin.jvm.java
 
 plugins {
@@ -34,9 +35,15 @@ kotlin {
     jvm {
         compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
     }
-    iosX64()
-    iosArm64()
-    iosSimulatorArm64()
+    val nativeCinteropOptIns: KotlinNativeTarget.() -> Unit = {
+        compilerOptions {
+            freeCompilerArgs.add("-opt-in=kotlinx.cinterop.BetaInteropApi")
+            freeCompilerArgs.add("-opt-in=kotlinx.cinterop.ExperimentalForeignApi")
+        }
+    }
+    iosX64(nativeCinteropOptIns)
+    iosArm64(nativeCinteropOptIns)
+    iosSimulatorArm64(nativeCinteropOptIns)
     js(IR) {
         browser {
             testTask {
@@ -51,8 +58,6 @@ kotlin {
     explicitApi()
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
-        freeCompilerArgs.add("-opt-in=kotlinx.cinterop.BetaInteropApi")
-        freeCompilerArgs.add("-opt-in=kotlinx.cinterop.ExperimentalForeignApi")
     }
     sourceSets {
         applyDefaultHierarchyTemplate()
