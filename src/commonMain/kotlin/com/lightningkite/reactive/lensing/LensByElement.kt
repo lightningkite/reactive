@@ -6,6 +6,7 @@ import com.lightningkite.reactive.core.MutableWithReactiveValue
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.Release
+import com.lightningkite.reactive.core.SensitiveReactiveApi
 import com.lightningkite.reactive.extensions.invokeAllSafe
 import com.lightningkite.reactive.lensing.validation.IssueNode
 import com.lightningkite.reactive.lensing.validation.MutableValidated
@@ -49,6 +50,7 @@ class LensByElement<E, ID, T>(
 ) : Reactive<List<T>> {
     private val node = IssueNode(parent = (source as? MutableValidated)?.node).apply { connect() }
 
+    @OptIn(SensitiveReactiveApi::class)
     inner class Element internal constructor(valueInit: E) : MutableWithReactiveValue<E>, MutableValidated<E>, CoroutineScope {
         override val node: IssueNode = this@LensByElement.node.child()
 
@@ -81,11 +83,11 @@ class LensByElement<E, ID, T>(
             }
         internal var queuedSet: ReactiveState<E> = ReactiveState.notReady
         internal val queuedOrValue: E
-            get() {
-                val qs = queuedSet
-                @Suppress("DEPRECATION")
-                return if (qs.success) qs.get() else value
-            }
+            get() = queuedSet.handle(
+                success = { it },
+                exception = { value },
+                notReady = { value }
+            )
         internal var usedFlag = false
 
         override suspend fun set(value: E) {
@@ -125,8 +127,7 @@ class LensByElement<E, ID, T>(
         private var lastElements: List<Element> = listOf()
         private var _state: ReactiveState<List<Element>> = ReactiveState.notReady
             set(value) {
-                @Suppress("DEPRECATION")
-                if (value.success) lastElements = value.get()
+                value.onSuccess { lastElements = it }
                 field = value
             }
         override var state: ReactiveState<List<Element>>

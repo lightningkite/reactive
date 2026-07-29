@@ -15,6 +15,7 @@ import com.lightningkite.reactive.core.BasicListenable
 import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.Release
+import com.lightningkite.reactive.core.SensitiveReactiveApi
 import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.extensions.invoke
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
+@OptIn(SensitiveReactiveApi::class)
 class ReactivitySuspendingTests {
 
     @Test fun invokeAdapter() {

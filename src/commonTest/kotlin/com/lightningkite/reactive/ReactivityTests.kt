@@ -15,6 +15,7 @@ import com.lightningkite.reactive.extensions.waitForNotNull
 import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.RawReactive
 import com.lightningkite.reactive.core.Remember
+import com.lightningkite.reactive.core.SensitiveReactiveApi
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
 import kotlinx.coroutines.*
@@ -24,6 +25,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.resume
 import kotlin.test.*
 
+@OptIn(SensitiveReactiveApi::class)
 class ReactivityTests {
 
     @Test

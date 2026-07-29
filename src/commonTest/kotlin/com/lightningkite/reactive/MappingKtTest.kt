@@ -10,6 +10,7 @@ import com.lightningkite.reactive.core.ReactiveValue
 import com.lightningkite.reactive.core.Release
 import com.lightningkite.reactive.extensions.value
 import com.lightningkite.reactive.core.LateInitSignal
+import com.lightningkite.reactive.core.SensitiveReactiveApi
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.lensing.LensByElement
 import com.lightningkite.reactive.lensing.lens
@@ -18,6 +19,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 
+@OptIn(SensitiveReactiveApi::class)
 class MappingKtTest {
 
     data class Sample(

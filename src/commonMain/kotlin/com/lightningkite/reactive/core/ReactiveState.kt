@@ -17,14 +17,32 @@ import kotlin.jvm.JvmInline
 value class ReactiveState<out T>(val raw: T) {
     inline val ready: Boolean get() = raw !is InternalReactiveNotReady
     inline val success: Boolean get() = ready && raw !is InternalReactiveThrownException
-    inline fun <R> onSuccess(action: (T)->R): R? = handle(
-        success = { action(it) },
-        exception = { null },
-        notReady = { null }
-    )
     inline val exception: Exception? get() = (raw as? InternalReactiveThrownException)?.exception
 
-    @Deprecated("Only use this if you are *Absolutely Sure* that there is a value ready to retrieve. Otherwise, use `handle`.")
+    inline fun <R> handle(
+        success: (T) -> R,
+        exception: (Exception) -> R,
+        notReady: () -> R
+    ): R {
+        @Suppress("UNCHECKED_CAST")
+        return when (raw) {
+            InternalReactiveNotReady -> notReady()
+            is InternalReactiveThrownException -> exception(raw.exception)
+            is InternalReactiveWrapper<*> -> success(raw.other as T)
+            else -> success(raw)
+        }
+    }
+
+    /**
+     * Retrieves the value of this state, if available. Otherwise, throws an exception.
+     *
+     * **Important**: Don't use this unless you are *absolutely sure* the value is successful.
+     * It's almost always better to use [handle] to handle every case specifically.
+     *
+     * @throws NotReadyException if not ready
+     * @throws Exception if this is in an exceptional state (the same exception will be re-thrown)
+     * */
+    @SensitiveReactiveApi
     fun get(): T = handle(
         success = { it },
         exception = { throw it },
@@ -37,59 +55,58 @@ value class ReactiveState<out T>(val raw: T) {
         notReady = { null }
     )
 
-    companion object Companion {
+    inline fun <R> onSuccess(action: (T) -> R): R? = handle(
+        success = { action(it) },
+        exception = { null },
+        notReady = { null }
+    )
+
+    companion object {
         @Suppress("UNCHECKED_CAST")
         val notReady: ReactiveState<Nothing> = ReactiveState<Any?>(InternalReactiveNotReady) as ReactiveState<Nothing>
+
         @Suppress("UNCHECKED_CAST")
-        fun <T> exception(exception: Exception) = (if(exception is CancellationException) notReady else ReactiveState<Any?>(InternalReactiveThrownException(exception))) as ReactiveState<T>
+        fun <T> exception(exception: Exception) = (if (exception is CancellationException) notReady else ReactiveState<Any?>(InternalReactiveThrownException(exception))) as ReactiveState<T>
+
         @Suppress("UNCHECKED_CAST")
         fun <T> wrap(value: T) = ReactiveState<Any?>(InternalReactiveWrapper(value)) as ReactiveState<T>
     }
+
     @Suppress("UNCHECKED_CAST")
-    inline fun <B> map(mapper: (T)->B): ReactiveState<B> {
-        if(raw is InternalReactiveNotReady || raw is InternalReactiveThrownException) return this as ReactiveState<B>
-        if(raw is InternalReactiveWrapper<*>) try {
+    inline fun <B> map(mapper: (T) -> B): ReactiveState<B> {
+        if (raw is InternalReactiveNotReady || raw is InternalReactiveThrownException) return this as ReactiveState<B>
+        if (raw is InternalReactiveWrapper<*>) try {
             return ReactiveState(mapper(raw.other as T))
-        } catch(e: Exception) {
+        } catch (e: Exception) {
             return exception(e)
         }
         return try {
             ReactiveState(mapper(raw))
-        } catch(e: Exception) {
+        } catch (e: Exception) {
             exception(e)
-        }
-    }
-    @Suppress("UNCHECKED_CAST")
-    inline fun <R> handle(
-        success: (T)->R,
-        exception: (Exception)->R,
-        notReady: ()->R
-    ): R {
-        return when(raw) {
-            InternalReactiveNotReady -> notReady()
-            is InternalReactiveThrownException -> exception(raw.exception)
-            is InternalReactiveWrapper<*> -> success(raw.other as T)
-            else -> success(raw)
         }
     }
 
     fun asResult(): Result<T> = handle(success = { Result.success(it) }, exception = { Result.failure(it) }, notReady = { Result.failure(NotReadyException()) })
 
-    override fun toString(): String = when(raw) {
+    override fun toString(): String = when (raw) {
         is InternalReactiveNotReady -> "NotReady"
         is InternalReactiveThrownException -> "ThrownException(${raw.exception})"
         is InternalReactiveWrapper<*> -> "ReadyW($raw)"
         else -> "Ready($raw)"
     }
 }
+
 @InternalReactiveApi
 data class InternalReactiveWrapper<T>(val other: T)
+
 @InternalReactiveApi
 data class InternalReactiveThrownException(val exception: Exception)
+
 @InternalReactiveApi
 object InternalReactiveNotReady
 
-class NotReadyException(message: String? = null) : IllegalStateException(message)
+class NotReadyException @InternalReactiveApi constructor(message: String? = null) : IllegalStateException(message)
 
 inline fun <T> reactiveState(action: () -> T): ReactiveState<T> {
     @OptIn(InternalReactiveApi::class)
@@ -106,6 +123,6 @@ inline fun <T> reactiveState(action: () -> T): ReactiveState<T> {
 
 fun <T> Result<T>.toReactiveState(): ReactiveState<T> {
     @Suppress("UNCHECKED_CAST")
-    return if(this.isFailure) ReactiveState.exception(this.exceptionOrNull() as Exception)
+    return if (this.isFailure) ReactiveState.exception(this.exceptionOrNull() as Exception)
     else ReactiveState.wrap(this.getOrNull() as T)
 }
