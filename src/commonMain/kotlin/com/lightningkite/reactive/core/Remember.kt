@@ -130,7 +130,7 @@ class Remember<T>(
         // Something is maintaining this value again - it just doesn't have one yet. Without this,
         // useLastWhileLoading would suppress the notReady the first calculation reports and leave
         // notActive in place, claiming nobody is listening when somebody now is.
-        if (reported.state.notActive) reported.state = ReactiveState.notReady
+        if (reported.state.notActive && !useLastWhileLoading) reported.state = ReactiveState.notReady
 
         shuttingDown?.let {
             CoroutineScope(incomingCoroutineContext).launch {

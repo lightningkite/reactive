@@ -69,23 +69,16 @@ fun <T> Reactive<T>.onNextSuccess(action: (T) -> Unit): Release? {
 
     var release: Release? = null
     var acted = false
-    release = addListener {
-        state.onSuccess {
-            acted = true
-            action(it)
-            release?.invoke()
-        }
-    }
-    // Read after subscribing: activating a notActive source calculates inside addListener, before
-    // our listener is in place.
-    state.onSuccess {
-        acted = true
-        action(it)
-    }
-    if (acted) {
+    fun perform(value: T) {
+        if (acted) return
         release?.invoke()
-        return null
+        acted = true
+        action(value)
     }
+    release = addListener {
+        state.onSuccess(::perform)
+    }
+    state.onSuccess(::perform)
     return release
 }
 
