@@ -39,7 +39,7 @@ import kotlin.time.Duration
  * b.value = 2 // prints "sum: 3"
  * ```
  */
-fun <T> remember(
+public fun <T> remember(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     useLastWhileLoading: Boolean = false,
     deactivationDelay: Duration? = null,
@@ -74,11 +74,11 @@ fun <T> remember(
  * Listeners can be added to be notified when the value changes. The calculation is protected against
  * cancellation exceptions, and any other exceptions are reported via [Reactive.reportException].
  */
-class Remember<T>(
-    val incomingCoroutineContext: CoroutineContext = Dispatchers.Unconfined,
+public class Remember<T>(
+    public val incomingCoroutineContext: CoroutineContext = Dispatchers.Unconfined,
     private val useLastWhileLoading: Boolean = false,
     private val deactivationDelay: Duration? = null,
-    private val reentrancyLimit: Int = 0,
+    reentrancyLimit: Int = 0,
     private val action: ReactiveContext.() -> T,
 ) : Reactive<T>, CoroutineScope, BaseListenable() {
 
@@ -96,7 +96,7 @@ class Remember<T>(
     // and TypedReactiveContext.init's `scope.onRemove { cancel() }` then attaches an
     // invokeOnCompletion handler to the app-lifetime Job that never fires — leaking every
     // Remember/shared reactive graph forever. Matches RememberSuspending's ordering.
-    override val coroutineContext get() = restOfContext + job
+    override val coroutineContext: CoroutineContext get() = restOfContext + job
 
     // Starts notActive rather than notReady: nothing is listening yet, so there is no value to
     // be had, as opposed to one that is on its way.

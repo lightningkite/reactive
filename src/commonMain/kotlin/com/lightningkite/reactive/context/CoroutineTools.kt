@@ -18,7 +18,7 @@ import kotlin.coroutines.resumeWithException
 
 
 @OptIn(ExperimentalStdlibApi::class)
-fun CoroutineScope.load(context: CoroutineContext = EmptyCoroutineContext, action: suspend () -> Unit): Job {
+public fun CoroutineScope.load(context: CoroutineContext = EmptyCoroutineContext, action: suspend () -> Unit): Job {
     val state = RawReactive<Unit>()
     val result = launch(
         context,
@@ -35,8 +35,8 @@ fun CoroutineScope.load(context: CoroutineContext = EmptyCoroutineContext, actio
     return result
 }
 
-class WaitGate(permit: Boolean = false) {
-    var permit: Boolean = permit
+public class WaitGate(permit: Boolean = false) {
+    public var permit: Boolean = permit
         set(value) {
             field = value
             if (value) {
@@ -46,18 +46,18 @@ class WaitGate(permit: Boolean = false) {
                 continuations.clear()
             }
         }
-    fun permitOnce() {
+    public fun permitOnce() {
         permit = true
         permit = false
     }
-    val continuations = ArrayList<Continuation<Unit>>()
-    suspend fun await(): Unit {
+    private val continuations = ArrayList<Continuation<Unit>>()
+    public suspend fun await(): Unit {
         if (permit) return
         else return suspendCancellableCoroutine {
             continuations.add(it)
         }
     }
-    fun abandon() {
+    public fun abandon() {
         for (continuation in continuations) {
             continuation.resumeWithException(CancellationException("abandoned as requested"))
         }

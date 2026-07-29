@@ -22,14 +22,14 @@ internal class WaitForNotNull<T : Any>(val wraps: Reactive<T?>) : Reactive<T> {
 
     override fun equals(other: Any?): Boolean = other is WaitForNotNull<*> && this.wraps == other.wraps
 }
-val <T : Any> Reactive<T?>.waitForNotNull: Reactive<T> get() = WaitForNotNull(this)
+public val <T : Any> Reactive<T?>.waitForNotNull: Reactive<T> get() = WaitForNotNull(this)
 
-val <T : Any> MutableReactive<T?>.waitForNotNull: MutableReactive<T> get() =
+public val <T : Any> MutableReactive<T?>.waitForNotNull: MutableReactive<T> get() =
     object : MutableReactive<T>, Reactive<T> by (this as Reactive<T?>).waitForNotNull { // DO NOT REMOVE THE TYPECAST
         override suspend fun set(value: T) = this@waitForNotNull.set(value)
     }
 
-suspend fun <T : Any> Reactive<T?>.awaitNotNull(): T {
+public suspend fun <T : Any> Reactive<T?>.awaitNotNull(): T {
     val basis = await()
     return basis ?: suspendCancellableCoroutine<T> {  }
 }

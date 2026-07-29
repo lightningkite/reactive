@@ -10,7 +10,7 @@ import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.ReactiveValue
 
-open class Lens<S : Reactive<T>, T, L>(val source: S, val get: (T) -> L) : BaseReactive<L>() {
+public open class Lens<S : Reactive<T>, T, L>(public val source: S, public val get: (T) -> L) : BaseReactive<L>() {
     override var state: ReactiveState<L>
         get() {
             if (myListen == null) super.state = source.state.map(get)
@@ -40,9 +40,9 @@ open class Lens<S : Reactive<T>, T, L>(val source: S, val get: (T) -> L) : BaseR
     }
 }
 
-open class SetLens<O, T>(
+public open class SetLens<O, T>(
     source: MutableReactive<O>, get: (O) -> T,
-    val set: (T) -> O
+    public val set: (T) -> O
 ) : Lens<MutableReactive<O>, O, T>(source, get), MutableReactive<T> {
     override suspend fun set(value: T) {
         val transformed = set.invoke(value)
@@ -51,10 +51,10 @@ open class SetLens<O, T>(
     }
 }
 
-open class ModifyLens<O, T>(
+public open class ModifyLens<O, T>(
     source: MutableReactive<O>,
     get: (O) -> T,
-    val modify: (O, T) -> O
+    public val modify: (O, T) -> O
 ) : Lens<MutableReactive<O>, O, T>(source, get), MutableReactive<T> {
     override suspend fun set(value: T) {
         val transformed = modify(source.awaitOnce(), value)
@@ -63,9 +63,9 @@ open class ModifyLens<O, T>(
     }
 }
 
-open class ValueLens<S : ReactiveValue<T>, T, L>(
-    val source: S,
-    val get: (T) -> L
+public open class ValueLens<S : ReactiveValue<T>, T, L>(
+    public val source: S,
+    public val get: (T) -> L
 ) : BaseReactiveValue<L>(source.value.let(get))  {
     override var value: L
         get() {
@@ -94,7 +94,7 @@ open class ValueLens<S : ReactiveValue<T>, T, L>(
     }
 }
 
-open class SetValueLens<O, T>(source: MutableReactiveValue<O>, get: (O) -> T, val set: (T) -> O) :
+public open class SetValueLens<O, T>(source: MutableReactiveValue<O>, get: (O) -> T, public val set: (T) -> O) :
     ValueLens<MutableReactiveValue<O>, O, T>(source, get), MutableReactiveValue<T> {
     override var value: T
         get() = super.value
@@ -105,7 +105,7 @@ open class SetValueLens<O, T>(source: MutableReactiveValue<O>, get: (O) -> T, va
         }
 }
 
-open class ModifyValueLens<O, T>(source: MutableReactiveValue<O>, get: (O) -> T, val modify: (O, T) -> O) :
+public open class ModifyValueLens<O, T>(source: MutableReactiveValue<O>, get: (O) -> T, public val modify: (O, T) -> O) :
     ValueLens<MutableReactiveValue<O>, O, T>(source, get), MutableReactiveValue<T> {
     override var value: T
         get() = super.value
@@ -116,10 +116,10 @@ open class ModifyValueLens<O, T>(source: MutableReactiveValue<O>, get: (O) -> T,
         }
 }
 
-fun <T, L> Reactive<T>.lens(get: (T) -> L): Reactive<L> = Lens(this, get)
-fun <T, L> ReactiveValue<T>.lens(get: (T) -> L): ReactiveValue<L> = ValueLens(this, get)
+public fun <T, L> Reactive<T>.lens(get: (T) -> L): Reactive<L> = Lens(this, get)
+public fun <T, L> ReactiveValue<T>.lens(get: (T) -> L): ReactiveValue<L> = ValueLens(this, get)
 
-fun <T> Listenable.lensListenable(
+public fun <T> Listenable.lensListenable(
     get: () -> T
 ): Reactive<T> = ValueLens(
     object: ReactiveValue<Unit>, Listenable by this {

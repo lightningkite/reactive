@@ -1,6 +1,6 @@
 package com.lightningkite.reactive.context
 
-abstract class DependencyTracker {
+public abstract class DependencyTracker {
     private val dependencies = ArrayList<Pair<Any, () -> Unit>>()
     private val usedDependencies = ArrayList<Any>()
 
@@ -19,7 +19,7 @@ abstract class DependencyTracker {
      * so the fast-path alignment above holds even when a call site re-reads an earlier dependency.
      */
     @Suppress("UNCHECKED_CAST")
-    fun <T : Any> existingDependency(listenable: T): T? {
+    public fun <T : Any> existingDependency(listenable: T): T? {
         val index = usedDependencies.size
         if (index < dependencies.size) {
             val maybe = dependencies[index].first
@@ -33,11 +33,11 @@ abstract class DependencyTracker {
         return found
     }
 
-    fun registerDependency(any: Any, remove: () -> Unit) {
+    public fun registerDependency(any: Any, remove: () -> Unit) {
         this.dependencies += any to remove
     }
 
-    open fun cancel() {
+    public open fun cancel() {
         dependencies.forEach { it.second() }
         dependencies.clear()
     }

@@ -44,7 +44,7 @@ public interface StatusListener : CoroutineContext.Element {
      * @param status The reactive status of the process
      * @return A [Release] lambda to stop listening to the process
      */
-    fun watchBackgroundProcess(status: Reactive<*>): Release
+    public fun watchBackgroundProcess(status: Reactive<*>): Release
 
     /**
      * Called when a reactive calculation is happening in the foreground, so this listener can respond accordingly.
@@ -55,7 +55,7 @@ public interface StatusListener : CoroutineContext.Element {
      * @param status The reactive status of the process
      * @return A [Release] lambda to stop listening to the process
      */
-    fun watchForegroundProcess(status: Reactive<*>): Release = watchBackgroundProcess(status)
+    public fun watchForegroundProcess(status: Reactive<*>): Release = watchBackgroundProcess(status)
 }
 
 /**
@@ -76,7 +76,7 @@ public interface StatusListener : CoroutineContext.Element {
  *
  * @param action The cleanup action to execute when the scope completes
  */
-fun CoroutineScope.onRemove(action: () -> Unit) {
+public fun CoroutineScope.onRemove(action: () -> Unit) {
     coroutineContext[CoroutineName.Key]
     this.coroutineContext[Job]?.invokeOnCompletion { action() }
 }
@@ -221,7 +221,7 @@ fun CoroutineScope.onRemove(action: () -> Unit) {
 public sealed interface ReactiveCoroutineScope : CoroutineScope
 
 @Deprecated("No longer needed", ReplaceWith("CoroutineScope"))
-typealias CalculationContext = CoroutineScope
+public typealias CalculationContext = CoroutineScope
 
 /**
  * Checks whether this [CoroutineScope]'s dispatcher is a main thread dispatcher.
@@ -238,7 +238,7 @@ typealias CalculationContext = CoroutineScope
  * ```
  */
 @OptIn(ExperimentalStdlibApi::class)
-val CoroutineScope.requireMainThread: Boolean get() = coroutineContext[CoroutineDispatcher.Key] is MainCoroutineDispatcher
+public val CoroutineScope.requireMainThread: Boolean get() = coroutineContext[CoroutineDispatcher.Key] is MainCoroutineDispatcher
 
 /**
  * Executes the given [action] on the thread associated with this [CoroutineScope]'s dispatcher.
@@ -277,7 +277,7 @@ val CoroutineScope.requireMainThread: Boolean get() = coroutineContext[Coroutine
  * @param action The action to execute on this scope's thread
  */
 @OptIn(ExperimentalStdlibApi::class)
-fun CoroutineScope.onThread(action: () -> Unit) {
+public fun CoroutineScope.onThread(action: () -> Unit) {
     val d = coroutineContext[CoroutineDispatcher.Key] ?: return action()
     if (d.isDispatchNeeded(coroutineContext)) {
         d.dispatch(coroutineContext, Runnable(action))
@@ -293,4 +293,4 @@ fun CoroutineScope.onThread(action: () -> Unit) {
  * helping prevent accidental nesting of reactive contexts and providing better IDE support.
  */
 @DslMarker
-annotation class ReactiveDsl
+public annotation class ReactiveDsl

@@ -24,9 +24,9 @@ import kotlin.time.Duration.Companion.milliseconds
  * Interface for helper functions which require an additional [CoroutineScope] context. This will eventually
  * be removed in favor of context receivers.
  * */
-interface CoroutineScopeHelpers : CoroutineScope {
+public interface CoroutineScopeHelpers : CoroutineScope {
     @ReactiveDsl
-    operator fun <T, IGNORED> ((T) -> IGNORED).invoke(actionToCalculate: ReactiveContext.() -> T) =
+    public operator fun <T, IGNORED> ((T) -> IGNORED).invoke(actionToCalculate: ReactiveContext.() -> T): TypedReactiveContext<IGNORED> =
         this@CoroutineScopeHelpers.reactive(action = { this@invoke(actionToCalculate(this)) })
 
     /**
@@ -46,7 +46,7 @@ interface CoroutineScopeHelpers : CoroutineScope {
      * ```
      * */
     @ReactiveDsl
-    operator fun <T> KMutableProperty0<T>.invoke(actionToCalculate: ReactiveContext.() -> T) = this@CoroutineScopeHelpers.reactive(action = { set(actionToCalculate(this)) })
+    public operator fun <T> KMutableProperty0<T>.invoke(actionToCalculate: ReactiveContext.() -> T): TypedReactiveContext<Unit> = this@CoroutineScopeHelpers.reactive(action = { set(actionToCalculate(this)) })
 
 
     /**
@@ -69,7 +69,7 @@ interface CoroutineScopeHelpers : CoroutineScope {
      * actually optimize and cut out the overhead of a full `reactive` context.
      * */
     @ReactiveDsl
-    infix fun <T> KMutableProperty0<T>.bind(reactive: Reactive<T>) {
+    public infix fun <T> KMutableProperty0<T>.bind(reactive: Reactive<T>) {
         if (reactive is ReactiveValue<T>) { // I did benchmarks, this is just as fast as overloading and easier to use.
             val release = reactive.addAndRunListener { this@bind.set(reactive.value) }
             // no need for status listener since result is infallible
@@ -89,7 +89,7 @@ interface CoroutineScopeHelpers : CoroutineScope {
      * Changes to either reactive value will propagate to the other.
      */
     @ReactiveDsl
-    infix fun <T> MutableReactive<T>.bind(master: MutableReactive<T>) {
+    public infix fun <T> MutableReactive<T>.bind(master: MutableReactive<T>) {
         val reportTo = RawReactive(ReactiveState(Unit))
         coroutineContext[StatusListener]?.watchBackgroundProcess(reportTo)
         launch {
@@ -127,25 +127,25 @@ interface CoroutineScopeHelpers : CoroutineScope {
      * Debounces listener notifications by [timeMs] milliseconds using this scope. State is always current.
      * @see DebounceReactive
      */
-    fun <T> Reactive<T>.debounce(timeMs: Long): Reactive<T> = DebounceReactive(this, this@CoroutineScopeHelpers, timeMs.milliseconds)
+    public fun <T> Reactive<T>.debounce(timeMs: Long): Reactive<T> = DebounceReactive(this, this@CoroutineScopeHelpers, timeMs.milliseconds)
 
     /**
      * Debounces listener notifications by [duration] using this scope. State is always current.
      * @see DebounceReactive
      */
-    fun <T> Reactive<T>.debounce(duration: Duration): Reactive<T> = DebounceReactive(this, this@CoroutineScopeHelpers, duration)
+    public fun <T> Reactive<T>.debounce(duration: Duration): Reactive<T> = DebounceReactive(this, this@CoroutineScopeHelpers, duration)
 
     /**
      * Debounces listener notifications by [timeMs] milliseconds using this scope.
      * @see DebounceListenable
      */
-    fun Listenable.debounce(timeMs: Long): Listenable = DebounceListenable(this, this@CoroutineScopeHelpers, timeMs.milliseconds)
+    public fun Listenable.debounce(timeMs: Long): Listenable = DebounceListenable(this, this@CoroutineScopeHelpers, timeMs.milliseconds)
 
     /**
      * Debounces listener notifications by [duration] using this scope.
      * @see DebounceListenable
      */
-    fun Listenable.debounce(duration: Duration): Listenable = DebounceListenable(this, this@CoroutineScopeHelpers, duration)
+    public fun Listenable.debounce(duration: Duration): Listenable = DebounceListenable(this, this@CoroutineScopeHelpers, duration)
 }
 
 @OptIn(ExperimentalStdlibApi::class)

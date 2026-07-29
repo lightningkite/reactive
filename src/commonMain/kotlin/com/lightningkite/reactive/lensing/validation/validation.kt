@@ -129,9 +129,9 @@ private class ValidationValueLens<T>(
         }
 }
 
-fun <T> Validated<T>.checkForIssue(validate: (T) -> Issue?): Validated<T> = ValidatedLens(this, validate)
+public fun <T> Validated<T>.checkForIssue(validate: (T) -> Issue?): Validated<T> = ValidatedLens(this, validate)
 
-fun <T> ValidatedValue<T>.checkForIssue(validate: (T) -> Issue?): ValidatedValue<T> = ValidatedValueLens(this, validate)
+public fun <T> ValidatedValue<T>.checkForIssue(validate: (T) -> Issue?): ValidatedValue<T> = ValidatedValueLens(this, validate)
 
 /**
  * Adds a validation check to a [MutableValidated] instance.
@@ -142,7 +142,7 @@ fun <T> ValidatedValue<T>.checkForIssue(validate: (T) -> Issue?): ValidatedValue
  * @param validate Function that returns an [Issue] or null for valid values.
  * @return A [MutableValidated] that tracks issues according to [validate].
  */
-fun <T> MutableValidated<T>.checkForIssue(validate: (T) -> Issue?): MutableValidated<T> = MutableValidationLens(this, validate)
+public fun <T> MutableValidated<T>.checkForIssue(validate: (T) -> Issue?): MutableValidated<T> = MutableValidationLens(this, validate)
 
 /**
  * Adds a validation check to a [MutableReactive] instance, returning a [MutableValidated] that tracks issues.
@@ -152,7 +152,7 @@ fun <T> MutableValidated<T>.checkForIssue(validate: (T) -> Issue?): MutableValid
  * @param validate Function that returns an [Issue] or null for valid values.
  * @return A [MutableValidated] that tracks issues according to [validate].
  */
-fun <T> MutableReactive<T>.checkForIssue(validate: (T) -> Issue?): MutableValidated<T> = MutableValidationLens(this.validated(), validate)
+public fun <T> MutableReactive<T>.checkForIssue(validate: (T) -> Issue?): MutableValidated<T> = MutableValidationLens(this.validated(), validate)
 
 
 /**
@@ -164,7 +164,7 @@ fun <T> MutableReactive<T>.checkForIssue(validate: (T) -> Issue?): MutableValida
  * @param validate Function that returns an [Issue] or null for valid values.
  * @return A [MutableValidatedValue] that tracks issues according to [validate].
  */
-fun <T> MutableValidatedValue<T>.checkForIssue(validate: (T) -> Issue?): MutableValidatedValue<T> = ValidationValueLens(this, validate)
+public fun <T> MutableValidatedValue<T>.checkForIssue(validate: (T) -> Issue?): MutableValidatedValue<T> = ValidationValueLens(this, validate)
 
 /**
  * Adds a validation check to a [MutableReactiveValue] instance, returning a [MutableValidatedValue] that tracks issues.
@@ -174,4 +174,4 @@ fun <T> MutableValidatedValue<T>.checkForIssue(validate: (T) -> Issue?): Mutable
  * @param validate Function that returns an [Issue] or null for valid values.
  * @return A [MutableValidatedValue] that tracks issues according to [validate].
  */
-fun <T> MutableReactiveValue<T>.checkForIssue(validate: (T) -> Issue?): MutableValidatedValue<T> = ValidationValueLens(this.validated(), validate)
+public fun <T> MutableReactiveValue<T>.checkForIssue(validate: (T) -> Issue?): MutableValidatedValue<T> = ValidationValueLens(this.validated(), validate)

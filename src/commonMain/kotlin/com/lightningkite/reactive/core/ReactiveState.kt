@@ -28,49 +28,49 @@ import kotlin.jvm.JvmInline
  */
 @JvmInline
 @OptIn(InternalReactiveApi::class)
-value class ReactiveState<out T>(val raw: T) {
-    inline val ready: Boolean get() = raw != InternalReactiveNotReady && raw != InternalReactiveNotActive
-    inline val success: Boolean get() = ready && raw !is InternalReactiveThrownException
+public value class ReactiveState<out T>(public val raw: T) {
+    public inline val ready: Boolean get() = raw != InternalReactiveNotReady && raw != InternalReactiveNotActive
+    public inline val success: Boolean get() = ready && raw !is InternalReactiveThrownException
 
     /** True when nothing is maintaining this value; see the [ReactiveState] docs. */
-    inline val notActive: Boolean get() = raw is InternalReactiveNotActive
+    public inline val notActive: Boolean get() = raw is InternalReactiveNotActive
 
-    inline fun <R> onSuccess(action: (T)->R): R? = handle(
+    public inline fun <R> onSuccess(action: (T)->R): R? = handle(
         success = { action(it) },
         exception = { null },
         notReady = { null }
     )
-    inline val exception: Exception? get() = (raw as? InternalReactiveThrownException)?.exception
+    public inline val exception: Exception? get() = (raw as? InternalReactiveThrownException)?.exception
 
     @Deprecated("Only use this if you are *Absolutely Sure* that there is a value ready to retrieve. Otherwise, use `handle`.")
-    fun get(): T = handle(
+    public fun get(): T = handle(
         success = { it },
         exception = { throw it },
         notReady = { throw NotReadyException() },
         notActive = { throw NotActiveException() }
     )
 
-    fun getOrNull(): T? = handle(
+    public fun getOrNull(): T? = handle(
         success = { it },
         exception = { null },
         notReady = { null }
     )
 
-    companion object Companion {
+    public companion object Companion {
         @Suppress("UNCHECKED_CAST")
-        val notReady: ReactiveState<Nothing> = ReactiveState<Any?>(InternalReactiveNotReady) as ReactiveState<Nothing>
+        public val notReady: ReactiveState<Nothing> = ReactiveState<Any?>(InternalReactiveNotReady) as ReactiveState<Nothing>
 
         /** No value, because nothing is maintaining one; see the [ReactiveState] docs. */
         @Suppress("UNCHECKED_CAST")
-        val notActive: ReactiveState<Nothing> = ReactiveState<Any?>(InternalReactiveNotActive) as ReactiveState<Nothing>
+        public val notActive: ReactiveState<Nothing> = ReactiveState<Any?>(InternalReactiveNotActive) as ReactiveState<Nothing>
 
         @Suppress("UNCHECKED_CAST")
-        fun <T> exception(exception: Exception) = (if(exception is CancellationException) notReady else ReactiveState<Any?>(InternalReactiveThrownException(exception))) as ReactiveState<T>
+        public fun <T> exception(exception: Exception): ReactiveState<T> = (if(exception is CancellationException) notReady else ReactiveState<Any?>(InternalReactiveThrownException(exception))) as ReactiveState<T>
         @Suppress("UNCHECKED_CAST")
-        fun <T> wrap(value: T) = ReactiveState<Any?>(InternalReactiveWrapper(value)) as ReactiveState<T>
+        public fun <T> wrap(value: T): ReactiveState<T> = ReactiveState<Any?>(InternalReactiveWrapper(value)) as ReactiveState<T>
     }
     @Suppress("UNCHECKED_CAST")
-    inline fun <B> map(mapper: (T)->B): ReactiveState<B> {
+    public inline fun <B> map(mapper: (T)->B): ReactiveState<B> {
         // notActive propagates like the other valueless states: a value derived from a source
         // nobody is maintaining is equally unmaintained.
         if(raw is InternalReactiveNotReady || raw is InternalReactiveNotActive || raw is InternalReactiveThrownException) return this as ReactiveState<B>
@@ -90,14 +90,14 @@ value class ReactiveState<out T>(val raw: T) {
      * value" and "there is no value yet" are the same thing to code that only wants to display or
      * wait for one. Use the four-argument overload to do something better, such as subscribing.
      */
-    inline fun <R> handle(
+    public inline fun <R> handle(
         success: (T)->R,
         exception: (Exception)->R,
         notReady: ()->R
     ): R = handle(success, exception, notReady, notReady)
 
     @Suppress("UNCHECKED_CAST")
-    inline fun <R> handle(
+    public inline fun <R> handle(
         success: (T)->R,
         exception: (Exception)->R,
         notReady: ()->R,
@@ -112,7 +112,7 @@ value class ReactiveState<out T>(val raw: T) {
         }
     }
 
-    fun asResult(): Result<T> = handle(
+    public fun asResult(): Result<T> = handle(
         success = { Result.success(it) },
         exception = { Result.failure(it) },
         notReady = { Result.failure(NotReadyException()) },
@@ -128,24 +128,24 @@ value class ReactiveState<out T>(val raw: T) {
     }
 }
 @InternalReactiveApi
-data class InternalReactiveWrapper<T>(val other: T)
+public data class InternalReactiveWrapper<T>(val other: T)
 @InternalReactiveApi
-data class InternalReactiveThrownException(val exception: Exception)
+public data class InternalReactiveThrownException(val exception: Exception)
 @InternalReactiveApi
-object InternalReactiveNotReady
+public object InternalReactiveNotReady
 @InternalReactiveApi
-object InternalReactiveNotActive
+public object InternalReactiveNotActive
 
-open class NotReadyException(message: String? = null) : IllegalStateException(message)
+public open class NotReadyException(message: String? = null) : IllegalStateException(message)
 
 /**
  * Thrown when reading a value from a reactive that nothing is listening to, and which therefore
  * has no value to give. Subscribe to it first, or use `awaitOnce`, which subscribes for as long
  * as it takes to obtain a value.
  */
-class NotActiveException(message: String = "Nothing is listening to this reactive value, so it has no value to report. Subscribe to it, or use awaitOnce.") : NotReadyException(message)
+public class NotActiveException(message: String = "Nothing is listening to this reactive value, so it has no value to report. Subscribe to it, or use awaitOnce.") : NotReadyException(message)
 
-inline fun <T> reactiveState(action: () -> T): ReactiveState<T> {
+public inline fun <T> reactiveState(action: () -> T): ReactiveState<T> {
     @OptIn(InternalReactiveApi::class)
     return try {
         ReactiveState(action())
@@ -161,7 +161,7 @@ inline fun <T> reactiveState(action: () -> T): ReactiveState<T> {
     }
 }
 
-fun <T> Result<T>.toReactiveState(): ReactiveState<T> {
+public fun <T> Result<T>.toReactiveState(): ReactiveState<T> {
     @Suppress("UNCHECKED_CAST")
     return if(this.isFailure) ReactiveState.exception(this.exceptionOrNull() as Exception)
     else ReactiveState.wrap(this.getOrNull() as T)

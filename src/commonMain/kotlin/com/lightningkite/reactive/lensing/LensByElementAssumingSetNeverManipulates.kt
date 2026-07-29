@@ -13,20 +13,20 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 
 
-interface MutableReactiveElement<E> : MutableWithReactiveValue<E> {
-    val index: ReactiveValue<Int>
+public interface MutableReactiveElement<E> : MutableWithReactiveValue<E> {
+    public val index: ReactiveValue<Int>
 }
 
 /**
  * THIS ONLY WORKS IF THE `set` on the receiver *never* manipulates the input before notifying.
  */
-fun <E> MutableReactive<List<E>>.lensByElementAssumingSetNeverManipulates(): Reactive<List<MutableReactiveElement<E>>> =
+public fun <E> MutableReactive<List<E>>.lensByElementAssumingSetNeverManipulates(): Reactive<List<MutableReactiveElement<E>>> =
     lensByElementAssumingSetNeverManipulates { it }
 
 /**
  * THIS ONLY WORKS IF THE `set` on the receiver *never* manipulates the input before notifying.
  */
-fun <E, W> MutableReactive<List<E>>.lensByElementAssumingSetNeverManipulates(map: CoroutineScope.(MutableReactiveElement<E>) -> W): Reactive<List<W>> =
+public fun <E, W> MutableReactive<List<E>>.lensByElementAssumingSetNeverManipulates(map: CoroutineScope.(MutableReactiveElement<E>) -> W): Reactive<List<W>> =
     LensByElementAssumingSetNeverManipulates(this, map)
 
 

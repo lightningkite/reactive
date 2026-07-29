@@ -5,4 +5,4 @@ package com.lightningkite.reactive.core
     level = RequiresOptIn.Level.WARNING,
     message = "This may change, use it at your own risk"
 )
-annotation class InternalReactiveApi
+public annotation class InternalReactiveApi

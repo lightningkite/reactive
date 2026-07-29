@@ -38,7 +38,7 @@ import kotlin.time.Duration
  *
  * @see [remember]
  */
-fun <T> rememberSuspending(
+public fun <T> rememberSuspending(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     useLastWhileLoading: Boolean = false,
     deactivationDelay: Duration? = null,
@@ -72,9 +72,9 @@ fun <T> rememberSuspending(
  *
  * @see [Remember]
  */
-class RememberSuspending<T>(
-    val incomingCoroutineContext: CoroutineContext = Dispatchers.Unconfined,
-    private val useLastWhileLoading: Boolean = false,
+public class RememberSuspending<T>(
+    public val incomingCoroutineContext: CoroutineContext = Dispatchers.Unconfined,
+    useLastWhileLoading: Boolean = false,
     private val deactivationDelay: Duration? = null,
     private val action: suspend ReactiveCoroutineScope.() -> T,
 ) : Reactive<T>, CoroutineScope, BaseListenable() {

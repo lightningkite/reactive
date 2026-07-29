@@ -32,10 +32,10 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * @see DebounceListenable
  */
-class DebounceReactive<T>(
-    val source: Reactive<T>,
-    val scope: CoroutineScope,
-    val duration: Duration
+public class DebounceReactive<T>(
+    public val source: Reactive<T>,
+    public val scope: CoroutineScope,
+    public val duration: Duration
 ) : Reactive<T>, Listenable by DebounceListenable(source, scope, duration) {
     override val state: ReactiveState<T> get() = source.state
 }
@@ -60,7 +60,7 @@ class DebounceReactive<T>(
  *
  * @see DebounceReactive
  */
-class DebounceListenable(val source: Listenable, val scope: CoroutineScope, val duration: Duration) : BaseListenable() {
+public class DebounceListenable(public val source: Listenable, public val scope: CoroutineScope, public val duration: Duration) : BaseListenable() {
     @Volatile
     private var changeCount = 0
 
@@ -87,25 +87,25 @@ class DebounceListenable(val source: Listenable, val scope: CoroutineScope, val 
  * Debounces listener notifications by [timeMs] milliseconds. State is always current.
  * @see DebounceReactive
  */
-fun <T> Reactive<T>.debounce(timeMs: Long, scope: CoroutineScope): Reactive<T> = DebounceReactive(this, scope, timeMs.milliseconds)
+public fun <T> Reactive<T>.debounce(timeMs: Long, scope: CoroutineScope): Reactive<T> = DebounceReactive(this, scope, timeMs.milliseconds)
 
 /**
  * Debounces listener notifications by [duration]. State is always current.
  * @see DebounceReactive
  */
-fun <T> Reactive<T>.debounce(duration: Duration, scope: CoroutineScope): Reactive<T> = DebounceReactive(this, scope, duration)
+public fun <T> Reactive<T>.debounce(duration: Duration, scope: CoroutineScope): Reactive<T> = DebounceReactive(this, scope, duration)
 
 /**
  * Debounces listener notifications by [timeMs] milliseconds.
  * @see DebounceListenable
  */
-fun Listenable.debounce(timeMs: Long, scope: CoroutineScope): Listenable = DebounceListenable(this, scope, timeMs.milliseconds)
+public fun Listenable.debounce(timeMs: Long, scope: CoroutineScope): Listenable = DebounceListenable(this, scope, timeMs.milliseconds)
 
 /**
  * Debounces listener notifications by [duration].
  * @see DebounceListenable
  */
-fun Listenable.debounce(duration: Duration, scope: CoroutineScope): Listenable = DebounceListenable(this, scope, duration)
+public fun Listenable.debounce(duration: Duration, scope: CoroutineScope): Listenable = DebounceListenable(this, scope, duration)
 
 /**
  * Debounces write operations to this [MutableReactive].
@@ -119,7 +119,7 @@ fun Listenable.debounce(duration: Duration, scope: CoroutineScope): Listenable =
  * @param duration The debounce delay for write operations.
  * @return A [MutableReactive] wrapper with debounced writes.
  */
-fun <T> MutableReactive<T>.debounceWrite(duration: Duration): MutableReactive<T> = object: MutableReactive<T> by this {
+public fun <T> MutableReactive<T>.debounceWrite(duration: Duration): MutableReactive<T> = object: MutableReactive<T> by this {
     @Volatile
     var setIndex = 0
 

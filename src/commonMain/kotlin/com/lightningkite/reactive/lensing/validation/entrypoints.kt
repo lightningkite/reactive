@@ -48,7 +48,7 @@ private class RootMutableValidatedValue<T>(
  *
  * @see IssueTracking
  */
-fun <T> Reactive<T>.validated(reportTo: IssueNode? = null): Validated<T> = this as? Validated<T> ?: RootValidated(this, reportTo)
+public fun <T> Reactive<T>.validated(reportTo: IssueNode? = null): Validated<T> = this as? Validated<T> ?: RootValidated(this, reportTo)
 
 /**
  * Wraps a [MutableReactive] as a [MutableValidated].
@@ -61,7 +61,7 @@ fun <T> Reactive<T>.validated(reportTo: IssueNode? = null): Validated<T> = this 
  *
  * @see IssueTracking
  */
-fun <T> MutableReactive<T>.validated(reportTo: IssueNode? = null): MutableValidated<T> = this as? MutableValidated<T> ?: RootMutableValidated(this, reportTo)
+public fun <T> MutableReactive<T>.validated(reportTo: IssueNode? = null): MutableValidated<T> = this as? MutableValidated<T> ?: RootMutableValidated(this, reportTo)
 
 /**
  * Wraps a [ReactiveValue] as a [ValidatedValue].
@@ -74,7 +74,7 @@ fun <T> MutableReactive<T>.validated(reportTo: IssueNode? = null): MutableValida
  *
  * @see IssueTracking
  */
-fun <T> ReactiveValue<T>.validated(reportTo: IssueNode? = null): ValidatedValue<T> = this as? ValidatedValue<T> ?: RootValidatedValue(this, reportTo)
+public fun <T> ReactiveValue<T>.validated(reportTo: IssueNode? = null): ValidatedValue<T> = this as? ValidatedValue<T> ?: RootValidatedValue(this, reportTo)
 
 /**
  * Wraps a [MutableReactiveValue] as a [MutableValidatedValue].
@@ -87,4 +87,4 @@ fun <T> ReactiveValue<T>.validated(reportTo: IssueNode? = null): ValidatedValue<
  *
  * @see IssueTracking
  */
-fun <T> MutableReactiveValue<T>.validated(reportTo: IssueNode? = null): MutableValidatedValue<T> = this as? MutableValidatedValue<T> ?: RootMutableValidatedValue(this, reportTo)
+public fun <T> MutableReactiveValue<T>.validated(reportTo: IssueNode? = null): MutableValidatedValue<T> = this as? MutableValidatedValue<T> ?: RootMutableValidatedValue(this, reportTo)
