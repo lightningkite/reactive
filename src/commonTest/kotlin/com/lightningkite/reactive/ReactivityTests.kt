@@ -504,26 +504,92 @@ class ReactivityTests {
 
     @Test
     fun reentrancyThrowsClearError() {
-        val previous = Reactive.reportException
-        val captured = ArrayList<Throwable>()
-        Reactive.reportException = { captured.add(it) }
-        try {
-            testContext {
-                val s = Signal(0)
-                // Writing to a signal the calculation also reads re-triggers this same calculation.
-                // Without reentrancy detection this recurses until the stack overflows.
-                reactive {
-                    val v = s()
-                    s.value = v + 1
-                }
+        testContext {
+            val s = Signal(0)
+            // Writing to a signal the calculation also reads re-triggers this same calculation.
+            // Without reentrancy detection this recurses until the stack overflows.
+            reactive {
+                val v = s()
+                s.value = v + 1
             }
-        } finally {
-            Reactive.reportException = previous
+            val captured = expectException()
+            assertTrue(
+                captured is ReactiveReentrancyException,
+                "Expected a ReactiveReentrancyException, but captured: $captured"
+            )
+
         }
-        assertTrue(
-            captured.any { it is ReactiveReentrancyException },
-            "Expected a ReactiveReentrancyException, but captured: $captured"
-        )
+    }
+
+    @Test
+    fun partialSettlingReentrancy() {
+        testContext {
+            val s = Signal(0)
+            reactive(reentrancyLimit = 2) {
+                val v = s()
+                if(v > 5) return@reactive
+                s.value = v + 1
+            }
+            val captured = expectException()
+            assertTrue(
+                captured is ReactiveReentrancyException,
+                "Expected a ReactiveReentrancyException, but captured: $captured"
+            )
+        }
+    }
+
+    @Test
+    fun settlingReentrancy() {
+        testContext {
+            val s = Signal(0)
+            reactive(reentrancyLimit = 10) {
+                val v = s()
+                if(v > 5) return@reactive
+                s.value = v + 1
+            }
+            assertEquals(ReactiveState(6), s.state)
+        }
+    }
+
+    @Test
+    fun partialSettlingCoReentrancy() {
+        testContext {
+            val a = Signal(0)
+            val b = Signal(0)
+            reactive(reentrancyLimit = 3) {
+                val other = b().also { println("b is $it") }
+                if (other < 10)
+                    a.value = other + 1
+            }
+            reactive(reentrancyLimit = 3) {
+                val other = a().also { println("a is $it") }
+                if (other < 10)
+                    b.value = other + 1
+            }
+            val captured = expectException()
+            assertTrue(
+                captured is ReactiveReentrancyException,
+                "Expected a ReactiveReentrancyException, but captured: $captured"
+            )
+        }
+    }
+
+    @Test
+    fun settlingCoReentrancy() {
+        testContext {
+            val a = Signal(0)
+            val b = Signal(0)
+            reactive(reentrancyLimit = 10) {
+                val other = b().also { println("b is $it") }
+                if (other < 10)
+                    a.value = other + 1
+            }
+            reactive(reentrancyLimit = 10) {
+                val other = a().also { println("a is $it") }
+                if (other < 10)
+                    b.value = other + 1
+            }
+        }
     }
 
     @Test

@@ -141,38 +141,17 @@ typealias ReactiveContext = TypedReactiveContext<*>
 class TypedReactiveContext<T>(
     val scope: CoroutineScope,
     val useLastWhileLoading: Boolean = false,
+    val reentrancyLimit: Int = 0,
     private val reportTo: RawReactive<T> = RawReactive(),
     val action: TypedReactiveContext<T>.() -> T
 ) : DependencyChangeListener(), ReactiveCoroutineScope, Reactive<T> by reportTo {
     companion object
 
     /**
-     * Whether this context is currently active and tracking dependencies.
-     * Set to false when [cancel] is called.
-     */
-    var active = false
-        private set
-
-    /**
      * Reference to [startCalculation] used as a listener callback.
      * Dependencies invoke this when they change to trigger recalculation.
      */
     val rerun: () -> Unit = ::startCalculation
-
-    /**
-     * Prevents multiple simultaneous recalculation requests from queueing up.
-     * Only the first request triggers [startCalculation], subsequent requests are ignored until it completes.
-     */
-    private var queued = false
-
-    /**
-     * True while this context's [action] is executing. Used to detect reentrancy: if the
-     * calculation writes to a signal it also reads, the write synchronously re-invokes
-     * [startCalculation] on this same context, which would otherwise recurse until the stack
-     * overflows (or livelock under a dispatching scheduler). Detecting it lets us fail fast with
-     * a clear message instead.
-     */
-    private var calculating = false
 
     /**
      * The current job for this calculation run.
@@ -192,6 +171,10 @@ class TypedReactiveContext<T>(
      */
     override val coroutineContext: CoroutineContext get() = scope.coroutineContext + job + this
 
+    private var queued = false
+    private var desired = false
+    private var calculating = false
+
     /**
      * Starts or restarts the reactive calculation.
      *
@@ -206,34 +189,34 @@ class TypedReactiveContext<T>(
      * Thread safety: Uses [queued] flag to prevent multiple simultaneous executions.
      */
     fun startCalculation() {
-        // A rerun requested while we're mid-calculation means the calculation triggered its own
-        // dependency to change (e.g. wrote to a signal it reads). Fail fast rather than recurse
-        // until the stack overflows. The listener dispatch that called us is synchronous, so this
-        // check catches the offending write even under a dispatching scheduler.
-        if (calculating) throw ReactiveReentrancyException(this)
-        active = true
+        desired = true
         if (queued) return // Prevent duplicate queuing
         queued = true
-
-        // Cancel previous calculation and create fresh job
-        job.cancel()
-        job = Job()
+        if (calculating) return
 
         scope.onThread {
-            queued = false
-            if (!active) return@onThread // Check if cancelled while queued
+            if (!desired) return@onThread // Check if cancelled while queued
 
-            calculating = true
-            try {
-                dependencyBlockStart() // Begin tracking dependencies
-                val state = reactiveState { action(this@TypedReactiveContext) }
+            var iter = 0
+            while(queued) {
+                queued = false
+                job.cancel()
+                job = Job()
+                if (iter++ > reentrancyLimit) {
+                    reportTo.state = ReactiveState.exception(ReactiveReentrancyException(this))
+                    break
+                }
+                try {
+                    calculating = true
+                    dependencyBlockStart() // Begin tracking dependencies
+                    val state = reactiveState { action(this@TypedReactiveContext) }
 
-                // Update state unless useLastWhileLoading is true and result isn't ready
-                if (!useLastWhileLoading || state.ready) reportTo.state = state
-
-                dependencyBlockEnd() // Clean up dependencies not used in this run
-            } finally {
-                calculating = false
+                    // Update state unless useLastWhileLoading is true and result isn't ready
+                    if (!useLastWhileLoading || state.ready) reportTo.state = state
+                } finally {
+                    dependencyBlockEnd() // Clean up dependencies not used in this run
+                    calculating = false
+                }
             }
         }
     }
@@ -273,7 +256,7 @@ class TypedReactiveContext<T>(
     override fun cancel() {
         job.cancel()
         job = Job()
-        active = false
+        desired = false
         queued = false
         super.cancel() // Cancel dependency listeners
     }
@@ -643,21 +626,29 @@ class TypedReactiveContext<T>(
             // Register cleanup to cancel collection when dependency is removed
             registerDependency(new, { job?.cancel() })
 
-            // Start collecting the flow
+            // An emission that arrives while we are still registering (a hot flow under an
+            // undispatched scheduler collects synchronously) belongs to this run, so it is
+            // delivered by the return below rather than through rerun(). A dependency's initial
+            // value is not the calculation triggering itself, and pushing it through rerun()
+            // makes it indistinguishable from reentrancy. Same rationale as the
+            // launch-before-listen ordering in `async` above.
+            var registering = true
             job = scope.launch {
                 collect { v ->
                     try {
                         new.state = ReactiveState(v)
-                        rerun() // Trigger recalculation on each emission
+                        if (!registering) rerun() // Later emissions trigger recalculation
                     } catch (e: Exception) {
                         new.state = ReactiveState.exception<T>(e)
                     }
                 }
             }
+            registering = false
 
             // StateFlow always has a current value available immediately
             if (this is StateFlow<T>) return this.value
-            else throw ReactiveLoading
+            // A flow that emitted during registration already has a value for this run
+            else return new.state.getOrLoading()
         } else {
             return existing.state.handle(
                 success = { it },
@@ -726,8 +717,8 @@ class TypedReactiveContext<T>(
  * @see TypedReactiveContext for implementation details
  * @see reactiveSuspending for suspending calculations
  */
-fun <T> CoroutineScope.reactive(action: ReactiveContext.() -> T): TypedReactiveContext<T> {
-    val trc = TypedReactiveContext(this, action = action)
+fun <T> CoroutineScope.reactive(reentrancyLimit: Int = 0, action: ReactiveContext.() -> T): TypedReactiveContext<T> {
+    val trc = TypedReactiveContext(this, reentrancyLimit = reentrancyLimit, action = action)
     trc.startCalculation()
     coroutineContext[StatusListener]?.watchBackgroundProcess(trc)
     return trc

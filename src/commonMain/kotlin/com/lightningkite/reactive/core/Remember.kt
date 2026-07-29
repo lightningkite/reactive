@@ -95,7 +95,7 @@ class Remember<T>(
     // Starts notActive rather than notReady: nothing is listening yet, so there is no value to
     // be had, as opposed to one that is on its way.
     private val reported = RawReactive<T>(ReactiveState.notActive)
-    private val scope = TypedReactiveContext(this, useLastWhileLoading, reported, action)
+    private val scope = TypedReactiveContext(this, useLastWhileLoading, 0, reported, action)
 
     // A Remember only calculates while it has listeners, and reports notActive when it has none.
     // It deliberately does not calculate on demand: doing so would either subscribe to sources
