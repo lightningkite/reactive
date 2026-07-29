@@ -132,9 +132,25 @@ typealias ReactiveContext = TypedReactiveContext<*>
  * context.startCalculation()
  * ```
  *
+ * ### Self-Triggering Calculations
+ *
+ * A calculation that changes one of its own dependencies - most often by writing to a signal it
+ * also reads - asks to be rerun while it is still running. [reentrancyLimit] decides what happens:
+ *
+ * - `0` (the default) treats it as the mistake it usually is, reporting a
+ *   [ReactiveReentrancyException] as this context's state.
+ * - A positive limit lets the calculation *settle*: it reruns in place, publishing each
+ *   intermediate result, until it stops changing its own inputs or the limit is spent. Use this
+ *   only for calculations that visibly converge, such as one that clamps a value into range.
+ *
+ * Either way the calculation never recurses, so a runaway cycle surfaces as a named error rather
+ * than a stack overflow (or, under a dispatching scheduler, a silent livelock).
+ *
  * @param T The type of value produced by the calculation.
  * @property scope The coroutine scope for calculations.
  * @property useLastWhileLoading Whether to preserve the last value during recalculation (true) or show loading state (false).
+ * @property reentrancyLimit How many times the calculation may trigger its own re-execution before
+ *   it is reported as a [ReactiveReentrancyException]. Zero, the default, forbids self-triggering.
  * @property reportTo The underlying [RawReactive] to report state updates to.
  * @property action The calculation logic to execute in this context.
  */
@@ -148,8 +164,21 @@ class TypedReactiveContext<T>(
     companion object
 
     /**
+     * Whether this context is currently active and tracking dependencies.
+     * Set to false when [cancel] is called.
+     */
+    var active = false
+        private set
+
+    /**
      * Reference to [startCalculation] used as a listener callback.
      * Dependencies invoke this when they change to trigger recalculation.
+     *
+     * Invariant: a dependency registered *during* a run must not use this to deliver its initial
+     * value. It must hand that value to the run that registered it instead - see how the `async`,
+     * `Deferred.invoke` and `Flow.invoke` operators below arrange to do so. A value that first
+     * arrives through this path while the calculation is still running is indistinguishable from
+     * the calculation triggering itself, and so spends [reentrancyLimit].
      */
     val rerun: () -> Unit = ::startCalculation
 
@@ -171,39 +200,56 @@ class TypedReactiveContext<T>(
      */
     override val coroutineContext: CoroutineContext get() = scope.coroutineContext + job + this
 
+    /**
+     * A recalculation has been requested but not yet performed. Set when a dependency changes and
+     * cleared as each run begins, so that several changes arriving before the run happens collapse
+     * into one, and so that a change arriving *during* a run is picked up by the settling loop in
+     * [startCalculation] rather than recursing.
+     */
     private var queued = false
-    private var desired = false
+
+    /**
+     * True while this context's [action] is executing. A recalculation requested while this is set
+     * came from the calculation itself - directly, by writing a signal it also reads, or by way of
+     * something it triggered. That is what [reentrancyLimit] governs.
+     */
     private var calculating = false
 
     /**
      * Starts or restarts the reactive calculation.
      *
-     * This method:
-     * 1. Cancels the previous calculation's job (if any)
-     * 2. Creates a fresh job for this calculation run
-     * 3. Executes the calculation on the scope's thread
-     * 4. Tracks dependencies accessed during execution
-     * 5. Updates the reactive state with the result
-     * 6. Cleans up unused dependencies
+     * When no calculation is running, this cancels the previous run's coroutines, then runs the
+     * calculation on the scope's thread: dependencies accessed during [action] are tracked, the
+     * result is reported as this context's state, and dependencies that went unused are released.
      *
-     * Thread safety: Uses [queued] flag to prevent multiple simultaneous executions.
+     * When a calculation *is* running, the request is left for that run's settling loop instead of
+     * recursing into a new one. The calculation reruns in place until it stops re-triggering
+     * itself, publishing each intermediate result as it goes. [reentrancyLimit] bounds how many
+     * times it may do so; beyond that the context reports a [ReactiveReentrancyException] rather
+     * than recursing until the stack overflows, or livelocking under a dispatching scheduler. The
+     * default limit of zero forbids self-triggering outright.
      */
     fun startCalculation() {
-        desired = true
-        if (queued) return // Prevent duplicate queuing
+        active = true
+        if (queued) return // Prevent duplicate queuing; the pending run will see the new state
         queued = true
+        // Requested from inside the calculation. The settling loop below picks this up on its next
+        // pass; we must not cancel `job` here, as it holds the coroutines of the run in progress.
         if (calculating) return
 
-        scope.onThread {
-            if (!desired) return@onThread // Check if cancelled while queued
+        // The previous run's inputs have changed, so anything it launched is now producing stale
+        // results. Cancel at the moment of the change rather than when the rerun is dispatched.
+        endRun()
 
-            var iter = 0
-            while(queued) {
+        scope.onThread {
+            if (!active) return@onThread // Check if cancelled while queued
+
+            var runs = 0
+            while (queued) {
                 queued = false
-                job.cancel()
-                job = Job()
-                if (iter++ > reentrancyLimit) {
-                    reportTo.state = ReactiveState.exception(ReactiveReentrancyException(this))
+                if (runs++ > reentrancyLimit) {
+                    reportTo.state =
+                        ReactiveState.exception(ReactiveReentrancyException(this, reentrancyLimit))
                     break
                 }
                 try {
@@ -217,8 +263,17 @@ class TypedReactiveContext<T>(
                     dependencyBlockEnd() // Clean up dependencies not used in this run
                     calculating = false
                 }
+                // The calculation re-triggered itself, so this run's coroutines are stale for the
+                // same reason any other superseded run's are.
+                if (queued) endRun()
             }
         }
+    }
+
+    /** Cancels the current run's coroutines and opens a fresh job for the next run. */
+    private fun endRun() {
+        job.cancel()
+        job = Job()
     }
 
     init {
@@ -254,9 +309,8 @@ class TypedReactiveContext<T>(
      * After cancellation, the context will not respond to dependency changes.
      */
     override fun cancel() {
-        job.cancel()
-        job = Job()
-        desired = false
+        endRun()
+        active = false
         queued = false
         super.cancel() // Cancel dependency listeners
     }
@@ -710,6 +764,10 @@ class TypedReactiveContext<T>(
  * When the outer signal changes, both the outer and inner contexts are cancelled and recreated.
  * When only the inner signal changes, only the inner context reruns.
  *
+ * @param reentrancyLimit How many times [action] may trigger its own re-execution - by changing a
+ *   dependency it also reads - before the calculation is reported as failed with a
+ *   [ReactiveReentrancyException]. Leave at zero unless the calculation is meant to settle over
+ *   several runs; see [TypedReactiveContext] for the trade-off.
  * @param action The calculation logic to run reactively
  * @return A [TypedReactiveContext] managing the calculation and its dependencies
  *
@@ -791,8 +849,15 @@ object ReactiveLoading : Throwable()
  * signal it also reads inside the same [reactive] block. This would otherwise recurse until the
  * stack overflows (or livelock under a dispatching scheduler), so it is surfaced as a clear error.
  */
-class ReactiveReentrancyException(context: ReactiveContext) : IllegalStateException(
-    "A reactive calculation triggered its own re-execution ($context). This usually means the " +
-            "calculation wrote to a signal it also reads. Break the cycle so the calculation does " +
-            "not mutate its own dependencies."
+class ReactiveReentrancyException(context: ReactiveContext, reentrancyLimit: Int) : IllegalStateException(
+    if (reentrancyLimit <= 0)
+        "A reactive calculation triggered its own re-execution ($context). This usually means the " +
+                "calculation wrote to a signal it also reads. Break the cycle so the calculation " +
+                "does not mutate its own dependencies. If it is instead meant to settle over " +
+                "several runs, raise reentrancyLimit to the number of reruns it needs."
+    else
+        "A reactive calculation kept triggering its own re-execution and did not settle within " +
+                "its reentrancyLimit of $reentrancyLimit reruns ($context). Either it never " +
+                "converges - every run changes a signal it reads, so there is no stable value to " +
+                "reach - or it genuinely needs a higher limit."
 )

@@ -67,7 +67,7 @@ class MutableRemember<T>(
     var overridden: Boolean = false
         private set
 
-    private val remember = Remember(coroutineContext, useLastWhileLoading, deactivationDelay, initialValue)
+    private val remember = Remember(coroutineContext, useLastWhileLoading, deactivationDelay, action = initialValue)
     private var forget: (()->Unit)? = null
 
     private fun startListening() {

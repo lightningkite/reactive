@@ -26,6 +26,7 @@ import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -517,8 +518,24 @@ class ReactivityTests {
                 captured is ReactiveReentrancyException,
                 "Expected a ReactiveReentrancyException, but captured: $captured"
             )
-
         }
+    }
+
+    @Test
+    fun reentrancyErrorSaysWhichProblemItIs() {
+        // A calculation that opted into settling needs to hear that its budget ran out. Telling it
+        // to stop writing its own dependencies is advice it has already declined.
+        val unwanted = testContext {
+            val s = Signal(0)
+            reactive { val v = s(); s.value = v + 1 }
+            expectException().message
+        }
+        val unsettled = testContext {
+            val s = Signal(0)
+            reactive(reentrancyLimit = 3) { val v = s(); s.value = v + 1 }
+            expectException().message
+        }
+        assertNotEquals(unwanted, unsettled)
     }
 
     @Test
@@ -527,14 +544,10 @@ class ReactivityTests {
             val s = Signal(0)
             reactive(reentrancyLimit = 2) {
                 val v = s()
-                if(v > 5) return@reactive
+                if (v > 5) return@reactive
                 s.value = v + 1
             }
-            val captured = expectException()
-            assertTrue(
-                captured is ReactiveReentrancyException,
-                "Expected a ReactiveReentrancyException, but captured: $captured"
-            )
+            assertIs<ReactiveReentrancyException>(expectException())
         }
     }
 
@@ -542,12 +555,149 @@ class ReactivityTests {
     fun settlingReentrancy() {
         testContext {
             val s = Signal(0)
-            reactive(reentrancyLimit = 10) {
+            val ctx = reactive(reentrancyLimit = 10) {
                 val v = s()
-                if(v > 5) return@reactive
+                if (v > 5) return@reactive
                 s.value = v + 1
             }
             assertEquals(ReactiveState(6), s.state)
+            assertNull(ctx.state.exception, "the calculation settled, so it should not have failed")
+        }
+    }
+
+    @Test
+    fun settlingExactlyAtTheLimitSucceeds() {
+        // Climbing to six takes six writes, so six self-triggered reruns: precisely the budget.
+        testContext {
+            val s = Signal(0)
+            val ctx = reactive(reentrancyLimit = 6) {
+                val v = s()
+                if (v > 5) return@reactive
+                s.value = v + 1
+            }
+            assertEquals(ReactiveState(6), s.state)
+            assertNull(ctx.state.exception)
+        }
+    }
+
+    @Test
+    fun settlingOneShortOfTheLimitFails() {
+        testContext {
+            val s = Signal(0)
+            reactive(reentrancyLimit = 5) {
+                val v = s()
+                if (v > 5) return@reactive
+                s.value = v + 1
+            }
+            assertIs<ReactiveReentrancyException>(expectException())
+        }
+    }
+
+    @Test
+    fun settlingPublishesEachIntermediateValue() {
+        // Deliberate: a settling calculation publishes every step rather than only its fixed point.
+        // That is what lets two settling calculations drive each other along, as the co-reentrancy
+        // tests below rely on.
+        testContext {
+            val s = Signal(0)
+            val observed = ArrayList<Int>()
+            reactive { observed.add(s()) }
+            reactive(reentrancyLimit = 10) {
+                val v = s()
+                if (v > 5) return@reactive
+                s.value = v + 1
+            }
+            assertEquals(listOf(0, 1, 2, 3, 4, 5, 6), observed)
+        }
+    }
+
+    @Test
+    fun eachExternalChangeGetsAFreshReentrancyBudget() {
+        // The limit bounds one settling sequence, not the lifetime of the calculation. A
+        // calculation that self-triggers once per change has to keep working indefinitely.
+        testContext {
+            val trigger = Signal(0)
+            val clamped = Signal(0)
+            val ctx = reactive(reentrancyLimit = 1) {
+                val t = trigger()
+                if (clamped() != t) clamped.value = t
+            }
+            repeat(20) { trigger.value = it + 1 }
+            assertEquals(ReactiveState(20), clamped.state)
+            assertNull(ctx.state.exception)
+        }
+    }
+
+    @Test
+    fun aContextRecoversAfterAReentrancyError() {
+        // The failed run keeps the dependencies of its last complete pass, so a later change still
+        // reaches the calculation and it computes normally once the cycle is gone.
+        testContext {
+            val cycle = Signal(0)
+            val other = Signal("a")
+            var runaway = true
+            val ctx = reactive {
+                val o = other()
+                if (runaway) cycle.value = cycle() + 1
+                o
+            }
+            assertIs<ReactiveReentrancyException>(expectException())
+
+            runaway = false
+            other.value = "b"
+            assertEquals(ReactiveState("b"), ctx.state)
+        }
+    }
+
+    @Test
+    fun aFlowsFirstValueIsNotReentrancy() {
+        // A cold flow collects synchronously under an undispatched scheduler, so its first value
+        // lands while the calculation that registered it is still running. That is a dependency
+        // arriving, not the calculation triggering itself, so it must not spend the budget.
+        testContext {
+            val flow = flowOf(7)
+            val seen = ArrayList<Int>()
+            val ctx = reactive { seen.add(flow()) }
+            assertEquals(listOf(7), seen)
+            assertNull(ctx.state.exception)
+        }
+    }
+
+    @Test
+    fun aStateFlowsCurrentValueIsNotReentrancy() {
+        testContext {
+            val flow = MutableStateFlow(1)
+            val seen = ArrayList<Int>()
+            val ctx = reactive { seen.add(flow()) }
+            flow.value = 2
+            assertEquals(listOf(1, 2), seen)
+            assertNull(ctx.state.exception)
+        }
+    }
+
+    @Test
+    fun rememberDefaultsToRejectingReentrancy() {
+        testContext {
+            val s = Signal(0)
+            val r = remember { val v = s(); s.value = v + 1; v }
+            reactive { r() }
+            assertIs<ReactiveReentrancyException>(expectException())
+        }
+    }
+
+    @Test
+    fun rememberPassesItsReentrancyLimitThrough() {
+        testContext {
+            val s = Signal(0)
+            val settled = remember(reentrancyLimit = 10) {
+                val v = s()
+                if (v <= 5) s.value = v + 1
+                v
+            }
+            val seen = ArrayList<Int>()
+            reactive { seen.add(settled()) }
+            assertEquals(ReactiveState(6), s.state)
+            assertEquals(6, seen.last())
         }
     }
 
@@ -557,38 +707,42 @@ class ReactivityTests {
             val a = Signal(0)
             val b = Signal(0)
             reactive(reentrancyLimit = 3) {
-                val other = b().also { println("b is $it") }
-                if (other < 10)
-                    a.value = other + 1
+                val other = b()
+                if (other < 10) a.value = other + 1
             }
             reactive(reentrancyLimit = 3) {
-                val other = a().also { println("a is $it") }
-                if (other < 10)
-                    b.value = other + 1
+                val other = a()
+                if (other < 10) b.value = other + 1
             }
-            val captured = expectException()
-            assertTrue(
-                captured is ReactiveReentrancyException,
-                "Expected a ReactiveReentrancyException, but captured: $captured"
-            )
+            assertIs<ReactiveReentrancyException>(expectException())
         }
     }
 
     @Test
     fun settlingCoReentrancy() {
+        // Two calculations driving each other converge as long as each one's own budget covers the
+        // reruns it personally performs. They are not symmetric: the first context is re-entered
+        // from scratch by the second - so its budget is never spent - while the second settles in
+        // place and pays for every step.
         testContext {
             val a = Signal(0)
             val b = Signal(0)
+            val firstSaw = ArrayList<Int>()
+            val secondSaw = ArrayList<Int>()
             reactive(reentrancyLimit = 10) {
-                val other = b().also { println("b is $it") }
-                if (other < 10)
-                    a.value = other + 1
+                val other = b()
+                firstSaw.add(other)
+                if (other < 10) a.value = other + 1
             }
             reactive(reentrancyLimit = 10) {
-                val other = a().also { println("a is $it") }
-                if (other < 10)
-                    b.value = other + 1
+                val other = a()
+                secondSaw.add(other)
+                if (other < 10) b.value = other + 1
             }
+            assertEquals(ReactiveState(9), a.state)
+            assertEquals(ReactiveState(10), b.state)
+            assertEquals(listOf(0, 2, 4, 6, 8, 10), firstSaw)
+            assertEquals(listOf(1, 3, 5, 7, 9), secondSaw)
         }
     }
 
@@ -661,6 +815,31 @@ class ReactivityTests {
         // Only the fresh (t=1) async should ever complete - the cancelled (t=0) one must not.
         assertEquals(1, completions, "the cancelled first launch must not have completed")
 
+        ctx.cancel()
+    }
+
+    @Test
+    fun changingADependencyEndsThePreviousRunImmediately() = runTest {
+        // Under a dispatching scheduler the rerun does not begin until the scheduler gets to it,
+        // but the run it supersedes is finished the moment its input changed - whatever that run
+        // launched is now computing from a stale value. Cleanup must not wait for the rerun.
+        val trigger = Signal(0)
+        val cleanedUp = ArrayList<Int>()
+        val ctx = TypedReactiveContext(this) {
+            val t = trigger()
+            onRemove { cleanedUp.add(t) }
+        }
+        ctx.startCalculation()
+        runCurrent()
+        assertEquals(listOf(), cleanedUp, "the first run is still current")
+
+        trigger.value = 1
+        assertEquals(
+            listOf(0), cleanedUp,
+            "the superseded run should be torn down at the change, not when the rerun is dispatched"
+        )
+
+        runCurrent()
         ctx.cancel()
     }
 

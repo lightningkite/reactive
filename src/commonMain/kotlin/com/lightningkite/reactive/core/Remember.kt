@@ -20,6 +20,8 @@ import kotlin.time.Duration
  * @param coroutineContext The coroutine context for running the calculation (default: Dispatchers.Unconfined).
  * @param useLastWhileLoading If true, uses the last known value while recalculating.
  * @param deactivationDelay If provided, the reactive context will be kept alive for that duration after all listeners have unsubscribed.
+ * @param reentrancyLimit How many times [action] may trigger its own re-execution before the value
+ *   is reported as failed; see [TypedReactiveContext].
  * @param action The block to compute the value reactively.
  * @return A [Reactive] value that updates automatically.
  *
@@ -41,9 +43,10 @@ fun <T> remember(
     coroutineContext: CoroutineContext = Dispatchers.Unconfined,
     useLastWhileLoading: Boolean = false,
     deactivationDelay: Duration? = null,
+    reentrancyLimit: Int = 0,
     action: ReactiveContext.() -> T,
 ): Reactive<T> =
-    Remember(coroutineContext, useLastWhileLoading, deactivationDelay, action)
+    Remember(coroutineContext, useLastWhileLoading, deactivationDelay, reentrancyLimit, action)
 
 /**
  * A reactive value that remembers the result of a calculation and shares the result among its listeners.
@@ -61,6 +64,8 @@ fun <T> remember(
  * @param coroutineContext The coroutine context in which the calculation runs. Defaults to [Dispatchers.Unconfined].
  * @param useLastWhileLoading If true, the last known value will be used while the calculation is loading or re-running.
  * @param deactivationDelay If provided, the reactive context will be kept alive for that duration after all listeners have unsubscribed.
+ * @param reentrancyLimit How many times [action] may trigger its own re-execution before the value
+ *   is reported as failed; see [TypedReactiveContext].
  * @param action The block of code to execute within the [ReactiveContext] to produce the value.
  *
  * This class manages its own coroutine job and calculation scope. When activated, it starts the calculation
@@ -73,6 +78,7 @@ class Remember<T>(
     val incomingCoroutineContext: CoroutineContext = Dispatchers.Unconfined,
     private val useLastWhileLoading: Boolean = false,
     private val deactivationDelay: Duration? = null,
+    private val reentrancyLimit: Int = 0,
     private val action: ReactiveContext.() -> T,
 ) : Reactive<T>, CoroutineScope, BaseListenable() {
 
@@ -95,7 +101,13 @@ class Remember<T>(
     // Starts notActive rather than notReady: nothing is listening yet, so there is no value to
     // be had, as opposed to one that is on its way.
     private val reported = RawReactive<T>(ReactiveState.notActive)
-    private val scope = TypedReactiveContext(this, useLastWhileLoading, 0, reported, action)
+    private val scope = TypedReactiveContext(
+        scope = this,
+        useLastWhileLoading = useLastWhileLoading,
+        reentrancyLimit = reentrancyLimit,
+        reportTo = reported,
+        action = action,
+    )
 
     // A Remember only calculates while it has listeners, and reports notActive when it has none.
     // It deliberately does not calculate on demand: doing so would either subscribe to sources
