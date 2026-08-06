@@ -44,7 +44,7 @@ kotlin {
     iosX64(nativeCinteropOptIns)
     iosArm64(nativeCinteropOptIns)
     iosSimulatorArm64(nativeCinteropOptIns)
-    js(IR) {
+    js {
         browser {
             testTask {
                 useKarma {

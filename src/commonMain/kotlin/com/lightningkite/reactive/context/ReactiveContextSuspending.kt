@@ -138,6 +138,7 @@ public class ReactiveContextSuspending<T>(
      * This optimization allows synchronous execution when possible, which is important
      * for determining whether the calculation completed immediately or needs to run asynchronously.
      */
+    @OptIn(kotlin.ExperimentalStdlibApi::class)
     private fun CoroutineScope.launchWithStart(block: suspend () -> Unit) =
         launch(
             start =
