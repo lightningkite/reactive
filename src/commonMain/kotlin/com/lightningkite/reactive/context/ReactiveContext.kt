@@ -407,7 +407,7 @@ public class TypedReactiveContext<T>(
      * @return The non-null value
      * @throws ReactiveLoading if the value is null or not ready
      */
-    public fun <R> Reactive<R?>.awaitNotNull(): R {
+    public fun <R : Any> Reactive<R?>.awaitNotNull(): R {
         if (existingDependency(this) == null) {
             registerDependency(this, addListener(rerun))
         }
