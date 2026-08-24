@@ -4,18 +4,15 @@ import com.lightningkite.reactive.core.BaseReactive
 import com.lightningkite.reactive.core.BaseReactiveValue
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.MutableReactiveValue
-import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
-import com.lightningkite.reactive.core.Signal
-import com.lightningkite.reactive.core.remember
-import kotlin.random.Random
+import com.lightningkite.reactive.core.Release
 
 private open class ValidatedLens<S : Validated<T>, T>(
     val source: S,
     val validate: (T) -> Issue?
 ) : Validated<T>, BaseReactive<T>(source.state) {
     protected val baseNode = IssueNode(parent = source.node)
-    private var myListen: (() -> Unit)? = null
+    private var myListen: Release? = null
 
     private fun check(state: ReactiveState<T>) =
         state.onSuccess { value ->
@@ -36,9 +33,12 @@ private open class ValidatedLens<S : Validated<T>, T>(
 
     private var listen = true
     protected inline fun withoutListening(block: () -> Unit) {
-        listen = false
-        block()
-        listen = true
+        try {
+            listen = false
+            block()
+        } finally {
+            listen = true
+        }
     }
 
     override fun activate() {
@@ -63,7 +63,7 @@ private open class ValidatedValueLens<S : ValidatedValue<T>, T>(
     val validate: (T) -> Issue?
 ) : ValidatedValue<T>, BaseReactiveValue<T>(source.value) {
     protected val baseNode = IssueNode(parent = source.node)
-    private var myListen: (() -> Unit)? = null
+    private var myListen: Release? = null
 
     private fun check(value: T) = baseNode.report(validate(value))
 
@@ -111,7 +111,7 @@ private class MutableValidationLens<T>(
         val issue = validate(value)
         baseNode.report(issue)
         super.state = ReactiveState(value)
-        if (issue == null || issue is Issue.Warning) withoutListening { source.set(value) }
+        if (issue == null || issue.setValue) withoutListening { source.set(value) }
     }
 }
 
@@ -125,13 +125,13 @@ private class ValidationValueLens<T>(
             val issue = validate(value)
             baseNode.report(issue)
             super.value = value
-            if (issue == null || issue is Issue.Warning) withoutListening { source.value = value }
+            if (issue == null || issue.setValue) withoutListening { source.value = value }
         }
 }
 
-public fun <T> Validated<T>.checkForIssue(validate: (T) -> Issue?): Validated<T> = ValidatedLens(this, validate)
+public fun <T> Validated<T>.audit(validate: (T) -> Issue?): Validated<T> = ValidatedLens(this, validate)
 
-public fun <T> ValidatedValue<T>.checkForIssue(validate: (T) -> Issue?): ValidatedValue<T> = ValidatedValueLens(this, validate)
+public fun <T> ValidatedValue<T>.audit(validate: (T) -> Issue?): ValidatedValue<T> = ValidatedValueLens(this, validate)
 
 /**
  * Adds a validation check to a [MutableValidated] instance.
@@ -142,7 +142,7 @@ public fun <T> ValidatedValue<T>.checkForIssue(validate: (T) -> Issue?): Validat
  * @param validate Function that returns an [Issue] or null for valid values.
  * @return A [MutableValidated] that tracks issues according to [validate].
  */
-public fun <T> MutableValidated<T>.checkForIssue(validate: (T) -> Issue?): MutableValidated<T> = MutableValidationLens(this, validate)
+public fun <T> MutableValidated<T>.audit(validate: (T) -> Issue?): MutableValidated<T> = MutableValidationLens(this, validate)
 
 /**
  * Adds a validation check to a [MutableReactive] instance, returning a [MutableValidated] that tracks issues.
@@ -152,7 +152,7 @@ public fun <T> MutableValidated<T>.checkForIssue(validate: (T) -> Issue?): Mutab
  * @param validate Function that returns an [Issue] or null for valid values.
  * @return A [MutableValidated] that tracks issues according to [validate].
  */
-public fun <T> MutableReactive<T>.checkForIssue(validate: (T) -> Issue?): MutableValidated<T> = MutableValidationLens(this.validated(), validate)
+public fun <T> MutableReactive<T>.audit(validate: (T) -> Issue?): MutableValidated<T> = MutableValidationLens(this.validated(), validate)
 
 
 /**
@@ -164,7 +164,7 @@ public fun <T> MutableReactive<T>.checkForIssue(validate: (T) -> Issue?): Mutabl
  * @param validate Function that returns an [Issue] or null for valid values.
  * @return A [MutableValidatedValue] that tracks issues according to [validate].
  */
-public fun <T> MutableValidatedValue<T>.checkForIssue(validate: (T) -> Issue?): MutableValidatedValue<T> = ValidationValueLens(this, validate)
+public fun <T> MutableValidatedValue<T>.audit(validate: (T) -> Issue?): MutableValidatedValue<T> = ValidationValueLens(this, validate)
 
 /**
  * Adds a validation check to a [MutableReactiveValue] instance, returning a [MutableValidatedValue] that tracks issues.
@@ -174,4 +174,4 @@ public fun <T> MutableValidatedValue<T>.checkForIssue(validate: (T) -> Issue?): 
  * @param validate Function that returns an [Issue] or null for valid values.
  * @return A [MutableValidatedValue] that tracks issues according to [validate].
  */
-public fun <T> MutableReactiveValue<T>.checkForIssue(validate: (T) -> Issue?): MutableValidatedValue<T> = ValidationValueLens(this.validated(), validate)
+public fun <T> MutableReactiveValue<T>.audit(validate: (T) -> Issue?): MutableValidatedValue<T> = ValidationValueLens(this.validated(), validate)

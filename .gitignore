@@ -11,3 +11,5 @@ KBuildAnnotations.kt
 .kbuild
 .fork
 karma.config.d/chrome-no-sandbox.js
+
+local.version.txt

@@ -117,7 +117,7 @@ public class Remember<T>(
     override val state: ReactiveState<T> get() = reported.state
 
     private var deactivating: Job? = null
-    private var remover: (() -> Unit)? = null
+    private var remover: Release? = null
     private var shuttingDown: Job? = null
 
     override fun activate() {

@@ -1,10 +1,8 @@
 package com.lightningkite.reactive.lensing.validation
 
 import com.lightningkite.reactive.context.ReactiveContext
-import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveMutableList
-import com.lightningkite.reactive.core.ReactiveValue
 import com.lightningkite.reactive.core.Release
 import com.lightningkite.reactive.core.ResourceUse
 import com.lightningkite.reactive.core.Signal
@@ -38,12 +36,9 @@ import com.lightningkite.reactive.core.remember
  * @property parent The parent node in the validation tree, or null if this is the root.
  */
 public class IssueNode(public val parent: IssueNode? = null) : ResourceUse {
-    private val nodeIssue = Signal<Reactive<Issue?>>(Constant(null))
+    private val nodeIssue = Signal<Issue?>(null)
 
-    public fun report(issue: Issue?) { nodeIssue.value = Constant(issue) }
-    public fun reactiveReport(issue: ReactiveContext.() -> Issue?) {
-        nodeIssue.value = remember(action = issue)
-    }
+    public fun report(issue: Issue?) { nodeIssue.value = issue }
 
     private val children = ReactiveMutableList<IssueNode>()
 
@@ -58,7 +53,7 @@ public class IssueNode(public val parent: IssueNode? = null) : ResourceUse {
      * Instead, consider using [child] outside of the [ReactiveContext], and then report to that outside
      * node inside any reactive code.
      * */
-    public fun child(): IssueNode = IssueNode(this).apply { connect() }
+    public fun child(connect: Boolean = true): IssueNode = IssueNode(this).also { if (connect) it.connect() }
 
     private var connected = false
 
@@ -91,35 +86,35 @@ public class IssueNode(public val parent: IssueNode? = null) : ResourceUse {
     }
 
     public val issues : Reactive<List<Issue>> = remember {
-        listOfNotNull(nodeIssue()()) + children().flatMap { it.issues() }
+        listOfNotNull(nodeIssue()) + children().flatMap { it.issues() }
     }
 }
 
 /**
  * Represents a validation issue, which can be either a warning or an invalid state.
+ *
+ * @property setValue Controls whether a value that triggered this issue is still written through to the
+ * underlying source. When `true` (the old "Warning" behavior), the new value is forwarded to the source
+ * despite the issue, so the underlying data is updated and the issue is reported alongside it. When
+ * `false` (the old "Invalid" behavior), the write is suppressed: the source keeps its previous value, while
+ * the validated node itself still reflects the rejected value (e.g. so a UI can keep showing what the user
+ * typed) alongside the issue.
  */
-public sealed interface Issue {
-    public val summary: String
-    public val description: String
+public data class Issue(
+    val summary: String,
+    val description: String = summary,
+    val setValue: Boolean = true
+) {
+    @Deprecated("No longer needed, just use `Issue` by itself")
+    public typealias Warning = Issue
+    @Deprecated("No longer needed, just use `Issue` by itself")
+    public typealias Invalid = Issue
 
-    /**
-     * Represents a warning issue. Does not necessarily prevent usage, but should be addressed.
-     *
-     * Values that result in an [Issue.Warning] being reported will still be used.
-     */
-    public data class Warning(
-        override val summary: String,
-        override val description: String = summary
-    ) : Issue
+    public companion object {
+        @Deprecated("No longer needed, just use `Issue` by itself", ReplaceWith("Issue(summary, description, setValue = true)"))
+        public fun Warning(summary: String, description: String = summary): Issue = Issue(summary, description, setValue = true)
 
-    /**
-     * Represents an invalid issue. Indicates a state that must be corrected before proceeding.
-     *
-     * Values that result in an [Issue.Invalid] being reported will be **discarded**.
-     * I.e., if a lensed child of a [MutableValidated] reports [Issue.Invalid] on a value, it will not modify its parent.
-     */
-    public data class Invalid(
-        override val summary : String,
-        override val description: String = summary
-    ) : Issue
+        @Deprecated("No longer needed, just use `Issue` by itself", ReplaceWith("Issue(summary, description, setValue = false)"))
+        public fun Invalid(summary: String, description: String = summary): Issue = Issue(summary, description, setValue = false)
+    }
 }
