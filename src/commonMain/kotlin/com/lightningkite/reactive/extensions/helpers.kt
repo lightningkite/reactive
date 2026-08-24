@@ -34,7 +34,7 @@ public fun List<() -> Unit>.invokeAllSafe(): Unit = forEach {
     }
 }
 
-public var <T> MutableValue<T>.value: T
+public inline var <T> MutableValue<T>.value: T
     @Deprecated("This is syntax sugar for SETTING values. Retrieving will always throw an exception.", level = DeprecationLevel.ERROR)
     get() = throw IllegalStateException("Attempted to retrieve value for set-only property")
     @JvmName("setValue2")

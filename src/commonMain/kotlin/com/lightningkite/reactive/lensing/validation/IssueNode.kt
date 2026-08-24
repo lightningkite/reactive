@@ -1,8 +1,10 @@
 package com.lightningkite.reactive.lensing.validation
 
 import com.lightningkite.reactive.context.ReactiveContext
+import com.lightningkite.reactive.core.RawReactive
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveMutableList
+import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.Release
 import com.lightningkite.reactive.core.ResourceUse
 import com.lightningkite.reactive.core.Signal
@@ -36,26 +38,36 @@ import com.lightningkite.reactive.core.remember
  * @property parent The parent node in the validation tree, or null if this is the root.
  */
 public class IssueNode(public val parent: IssueNode? = null) : ResourceUse {
-    private val nodeIssue = Signal<Issue?>(null)
+    private val nodeIssue = RawReactive<Issue?>(
+        if (parent == null) ReactiveState(null) else ReactiveState.notActive
+    )
 
-    public fun report(issue: Issue?) { nodeIssue.value = issue }
+    public fun reportRaw(issue: ReactiveState<Issue?>) { nodeIssue.state = issue }
+
+    public fun report(issue: Issue?) { nodeIssue.state = ReactiveState(issue) }
 
     private val children = ReactiveMutableList<IssueNode>()
 
     /**
-     * Creates a child of this [IssueNode] and immediately connects it to the validation tree.
+     * Creates a child of this [IssueNode], connecting it to the validation tree by default.
      *
-     * Note: This function is **NOT** safe to use in a [ReactiveContext], unless you plan to manage
-     * the lifetime of the node manually. Using this function in a [ReactiveContext] will create a new
-     * child every time the context reruns, and will probably leave orphaned nodes that you are unable
-     * to clear the issues on.
+     * @param connect If true (the default), the new node is connected immediately, as if by [connect].
+     * Pass `false` to create the node detached, when you intend to manage its connection yourself — for
+     * example, tying it to a [com.lightningkite.reactive.core.ResourceUse]-style lifecycle instead.
      *
-     * Instead, consider using [child] outside of the [ReactiveContext], and then report to that outside
-     * node inside any reactive code.
+     * Note: Calling this with `connect = true` is **NOT** safe to do from inside a [ReactiveContext],
+     * unless you plan to manage the lifetime of the node manually. Doing so will create a new child every
+     * time the context reruns, and will probably leave orphaned nodes that you are unable to clear the
+     * issues on.
+     *
+     * Instead, create the child outside of the [ReactiveContext] (optionally with `connect = false` if you
+     * want to control its connection separately) and report to it from inside any reactive code. The
+     * [reportReactive] helper does exactly this, tying the child's connection to a [kotlinx.coroutines.CoroutineScope].
      * */
     public fun child(connect: Boolean = true): IssueNode = IssueNode(this).also { if (connect) it.connect() }
 
-    private var connected = false
+    private var connected = parent == null
+    private var saveState: ReactiveState<Issue?> = ReactiveState(null)
 
     /**
      * Grafts this node and its children to its parent's validation tree.
@@ -66,6 +78,7 @@ public class IssueNode(public val parent: IssueNode? = null) : ResourceUse {
     public fun connect() {
         if (connected || parent == null) return
         connected = true
+        nodeIssue.state = saveState
         parent.children.add(this)
     }
     /**
@@ -77,6 +90,8 @@ public class IssueNode(public val parent: IssueNode? = null) : ResourceUse {
     public fun disconnect() {
         if (!connected || parent == null) return
         connected = false
+        saveState = nodeIssue.state
+        nodeIssue.state = ReactiveState.notActive
         parent.children.remove(this)
     }
 
@@ -85,20 +100,21 @@ public class IssueNode(public val parent: IssueNode? = null) : ResourceUse {
         return ::disconnect
     }
 
-    public val issues : Reactive<List<Issue>> = remember {
+    public val issues: Reactive<List<Issue>> = remember {
         listOfNotNull(nodeIssue()) + children().flatMap { it.issues() }
     }
 }
 
 /**
- * Represents a validation issue, which can be either a warning or an invalid state.
+ * Represents a single validation issue reported on an [IssueNode].
  *
+ * @property summary Short description of the issue, suitable for compact UI.
+ * @property description Detailed description of the issue (defaults to [summary]).
  * @property setValue Controls whether a value that triggered this issue is still written through to the
  * underlying source. When `true` (the old "Warning" behavior), the new value is forwarded to the source
- * despite the issue, so the underlying data is updated and the issue is reported alongside it. When
- * `false` (the old "Invalid" behavior), the write is suppressed: the source keeps its previous value, while
- * the validated node itself still reflects the rejected value (e.g. so a UI can keep showing what the user
- * typed) alongside the issue.
+ * despite the issue, so the underlying data is updated and the issue is reported alongside it. When `false`
+ * (the old "Invalid" behavior), the write is rejected and the source keeps its previous value — see
+ * [MutableValidated.audit] and [MutableValidated.auditReactive] for the write-checking functions that use it.
  */
 public data class Issue(
     val summary: String,
@@ -112,9 +128,11 @@ public data class Issue(
 
     public companion object {
         @Deprecated("No longer needed, just use `Issue` by itself", ReplaceWith("Issue(summary, description, setValue = true)"))
+        @Suppress("FunctionName")
         public fun Warning(summary: String, description: String = summary): Issue = Issue(summary, description, setValue = true)
 
         @Deprecated("No longer needed, just use `Issue` by itself", ReplaceWith("Issue(summary, description, setValue = false)"))
+        @Suppress("FunctionName")
         public fun Invalid(summary: String, description: String = summary): Issue = Issue(summary, description, setValue = false)
     }
 }

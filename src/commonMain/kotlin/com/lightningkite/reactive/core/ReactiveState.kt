@@ -29,11 +29,12 @@ import kotlin.jvm.JvmInline
 @JvmInline
 @OptIn(InternalReactiveApi::class)
 public value class ReactiveState<out T>(public val raw: T) {
-    public inline val ready: Boolean get() = raw != InternalReactiveNotReady && raw != InternalReactiveNotActive
+    public inline val active: Boolean get() = raw != InternalReactiveNotActive
+    public inline val ready: Boolean get() = active && raw != InternalReactiveNotReady
     public inline val success: Boolean get() = ready && raw !is InternalReactiveThrownException
 
     /** True when nothing is maintaining this value; see the [ReactiveState] docs. */
-    public inline val notActive: Boolean get() = raw is InternalReactiveNotActive
+    public inline val notActive: Boolean get() = raw == InternalReactiveNotActive
 
     public inline fun <R> onSuccess(action: (T)->R): R? = handle(
         success = { action(it) },

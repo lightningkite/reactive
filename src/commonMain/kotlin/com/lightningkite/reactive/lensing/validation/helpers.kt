@@ -1,23 +1,13 @@
 package com.lightningkite.reactive.lensing.validation
 
-import com.lightningkite.reactive.context.ReactiveContext
-import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.MutableReactiveValue
-import com.lightningkite.reactive.core.Reactive
-import com.lightningkite.reactive.core.ReactiveState
-import com.lightningkite.reactive.core.Release
-import com.lightningkite.reactive.extensions.use
-import kotlinx.coroutines.CoroutineScope
 
 /**
- * Adds a validation check to this [MutableValidated] instance.
+ * Shortcut for [audit] that reports [validate]'s return value as an [Issue] summary.
  *
- * The [validate] function should return a string describing the issue if the value is invalid, or null if valid.
- * If an issue is found, it will be reported as either a [Issue.Warning] or [Issue.Invalid] depending on [setOnIssue].
- *
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
- * @param validate Function that returns a string issue message or null for valid values.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
+ * @param validate Function that returns a message describing the problem, or null if valid.
  */
 public fun <T> MutableValidated<T>.validate(
     setOnIssue: Boolean = true,
@@ -29,13 +19,10 @@ public fun <T> MutableValidated<T>.validate(
 }
 
 /**
- * Adds a validation check to this [MutableValidatedValue] instance.
+ * Shortcut for [audit] that reports [validate]'s return value as an [Issue] summary.
  *
- * The [validate] function should return a string describing the issue if the value is invalid, or null if valid.
- * If an issue is found, it will be reported as either a [Issue.Warning] or [Issue.Invalid] depending on [setOnIssue].
- *
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
- * @param validate Function that returns a string issue message or null for valid values.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
+ * @param validate Function that returns a message describing the problem, or null if valid.
  */
 public fun <T> MutableValidatedValue<T>.validate(
     setOnIssue: Boolean = true,
@@ -47,11 +34,11 @@ public fun <T> MutableValidatedValue<T>.validate(
 }
 
 /**
- * Asserts a condition on this [MutableValidated] instance and reports an issue if the condition fails.
+ * Shortcut for [audit] that reports [summary]/[description] as the [Issue] whenever [condition] fails.
  *
  * @param summary Short description of the issue.
  * @param description Detailed description of the issue (defaults to [summary]).
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
  * @param condition Function that returns true if valid, false if invalid.
  */
 public fun <T> MutableValidated<T>.assert(
@@ -61,17 +48,15 @@ public fun <T> MutableValidated<T>.assert(
     condition: (T) -> Boolean
 ): MutableValidated<T> = audit {
     if (condition(it)) return@audit null
-
-    if (setOnIssue) Issue.Warning(summary, description)
-    else Issue.Invalid(summary, description)
+    Issue(summary, description, setOnIssue)
 }
 
 /**
- * Asserts a condition on this [MutableValidatedValue] instance and reports an issue if the condition fails.
+ * Shortcut for [audit] that reports [summary]/[description] as the [Issue] whenever [condition] fails.
  *
  * @param summary Short description of the issue.
  * @param description Detailed description of the issue (defaults to [summary]).
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
  * @param condition Function that returns true if valid, false if invalid.
  */
 public fun <T> MutableValidatedValue<T>.assert(
@@ -81,17 +66,15 @@ public fun <T> MutableValidatedValue<T>.assert(
     condition: (T) -> Boolean
 ): MutableValidatedValue<T> = audit {
     if (condition(it)) return@audit null
-
-    if (setOnIssue) Issue.Warning(summary, description)
-    else Issue.Invalid(summary, description)
+    Issue(summary, description, setOnIssue)
 }
 
 /**
- * Validates that the value of this [MutableValidated] is not null.
+ * Shortcut for [assert] (and so [audit]) that reports an issue when the value is null.
  *
  * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
  */
 public fun <T : Any> MutableValidated<T?>.assertNotNull(
     summary: String = "Cannot be blank",
@@ -100,11 +83,11 @@ public fun <T : Any> MutableValidated<T?>.assertNotNull(
 ): MutableValidated<T?> = assert(summary, description, setOnIssue) { it != null }
 
 /**
- * Validates that the value of this [MutableValidatedValue] is not null.
+ * Shortcut for [assert] (and so [audit]) that reports an issue when the value is null.
  *
  * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
  */
 public fun <T : Any> MutableValidatedValue<T?>.assertNotNull(
     summary: String = "Cannot be blank",
@@ -113,11 +96,11 @@ public fun <T : Any> MutableValidatedValue<T?>.assertNotNull(
 ): MutableValidatedValue<T?> = assert(summary, description, setOnIssue) { it != null }
 
 /**
- * Validates that the value of this [MutableValidated] is not blank.
+ * Shortcut for [assert] (and so [audit]) that reports an issue when the value is blank.
  *
  * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
  */
 public fun MutableValidated<String>.assertNotBlank(
     summary: String = "Cannot be blank",
@@ -126,11 +109,11 @@ public fun MutableValidated<String>.assertNotBlank(
 ): MutableValidated<String> = assert(summary, description, setOnIssue) { it.isNotBlank() }
 
 /**
- * Validates that the value of this [MutableValidatedValue] is not blank.
+ * Shortcut for [assert] (and so [audit]) that reports an issue when the value is blank.
  *
  * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
  */
 public fun MutableValidatedValue<String>.assertNotBlank(
     summary: String = "Cannot be blank",
@@ -139,49 +122,50 @@ public fun MutableValidatedValue<String>.assertNotBlank(
 ): MutableValidatedValue<String> = assert(summary, description, setOnIssue) { it.isNotBlank() }
 
 /**
- * Adds a validation check to this [MutableReactive] instance.
+ * Shortcut for [audit] that reports [validate]'s return value as an [Issue] summary.
  *
- * The [validate] function should return a string describing the issue if the value is invalid, or null if valid.
- * If an issue is found, it will be reported as either a [Issue.Warning] or [Issue.Invalid] depending on [setOnIssue].
+ * As this receiver isn't already [Validated], [audit] first wraps it with [validated], establishing a new
+ * root of a validation tree. See [audit] for details.
  *
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
- * @param validate Function that returns a string issue message or null for valid values.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
+ * @param validate Function that returns a message describing the problem, or null if valid.
  */
 public fun <T> MutableReactive<T>.validate(
     setOnIssue: Boolean = true,
     validate: (T) -> String?
 ): MutableValidated<T> = audit { value ->
     validate(value)?.let {
-        if (setOnIssue) Issue.Warning(it)
-        else Issue.Invalid(it)
+        Issue(it, setValue = setOnIssue)
     }
 }
 
 /**
- * Adds a validation check to this [MutableReactiveValue] instance.
+ * Shortcut for [audit] that reports [validate]'s return value as an [Issue] summary.
  *
- * The [validate] function should return a string describing the issue if the value is invalid, or null if valid.
- * If an issue is found, it will be reported as either a [Issue.Warning] or [Issue.Invalid] depending on [setOnIssue].
+ * As this receiver isn't already [ValidatedValue], [audit] first wraps it with [validated], establishing a new
+ * root of a validation tree. See [audit] for details.
  *
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
- * @param validate Function that returns a string issue message or null for valid values.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
+ * @param validate Function that returns a message describing the problem, or null if valid.
  */
 public fun <T> MutableReactiveValue<T>.validate(
     setOnIssue: Boolean = true,
     validate: (T) -> String?
 ): MutableValidatedValue<T> = audit { value ->
     validate(value)?.let {
-        if (setOnIssue) Issue.Warning(it)
-        else Issue.Invalid(it)
+        Issue(it, setValue = setOnIssue)
     }
 }
 
 /**
- * Asserts a condition on this [MutableReactive] instance and reports an issue if the condition fails.
+ * Shortcut for [audit] that reports [summary]/[description] as the [Issue] whenever [condition] fails.
+ *
+ * As this receiver isn't already [Validated], [audit] first wraps it with [validated], establishing a new
+ * root of a validation tree. See [audit] for details.
  *
  * @param summary Short description of the issue.
  * @param description Detailed description of the issue (defaults to [summary]).
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
  * @param condition Function that returns true if valid, false if invalid.
  */
 public fun <T> MutableReactive<T>.assert(
@@ -191,17 +175,18 @@ public fun <T> MutableReactive<T>.assert(
     condition: (T) -> Boolean
 ): MutableValidated<T> = audit {
     if (condition(it)) return@audit null
-
-    if (setOnIssue) Issue.Warning(summary, description)
-    else Issue.Invalid(summary, description)
+    Issue(summary, description, setOnIssue)
 }
 
 /**
- * Asserts a condition on this [MutableReactiveValue] instance and reports an issue if the condition fails.
+ * Shortcut for [audit] that reports [summary]/[description] as the [Issue] whenever [condition] fails.
+ *
+ * As this receiver isn't already [ValidatedValue], [audit] first wraps it with [validated], establishing a new
+ * root of a validation tree. See [audit] for details.
  *
  * @param summary Short description of the issue.
  * @param description Detailed description of the issue (defaults to [summary]).
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
  * @param condition Function that returns true if valid, false if invalid.
  */
 public fun <T> MutableReactiveValue<T>.assert(
@@ -211,17 +196,15 @@ public fun <T> MutableReactiveValue<T>.assert(
     condition: (T) -> Boolean
 ): MutableValidatedValue<T> = audit {
     if (condition(it)) return@audit null
-
-    if (setOnIssue) Issue.Warning(summary, description)
-    else Issue.Invalid(summary, description)
+    Issue(summary, description, setOnIssue)
 }
 
 /**
- * Validates that the value of this [MutableReactive] is not null.
+ * Shortcut for [assert] (and so [audit]) that reports an issue when the value is null.
  *
  * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
  */
 public fun <T : Any> MutableReactive<T?>.assertNotNull(
     summary: String = "Cannot be blank",
@@ -230,11 +213,11 @@ public fun <T : Any> MutableReactive<T?>.assertNotNull(
 ): MutableValidated<T?> = assert(summary, description, setOnIssue) { it != null }
 
 /**
- * Validates that the value of this [MutableReactiveValue] is not null.
+ * Shortcut for [assert] (and so [audit]) that reports an issue when the value is null.
  *
  * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
  */
 public fun <T : Any> MutableReactiveValue<T?>.assertNotNull(
     summary: String = "Cannot be blank",
@@ -243,11 +226,11 @@ public fun <T : Any> MutableReactiveValue<T?>.assertNotNull(
 ): MutableValidatedValue<T?> = assert(summary, description, setOnIssue) { it != null }
 
 /**
- * Validates that the value of this [MutableReactive] is not blank.
+ * Shortcut for [assert] (and so [audit]) that reports an issue when the value is blank.
  *
  * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
  */
 public fun MutableReactive<String>.assertNotBlank(
     summary: String = "Cannot be blank",
@@ -256,11 +239,11 @@ public fun MutableReactive<String>.assertNotBlank(
 ): MutableValidated<String> = assert(summary, description, setOnIssue) { it.isNotBlank() }
 
 /**
- * Validates that the value of this [MutableReactiveValue] is not blank.
+ * Shortcut for [assert] (and so [audit]) that reports an issue when the value is blank.
  *
  * @param summary Short description of the issue (defaults to "Cannot be blank").
  * @param description Detailed description of the issue (defaults to [summary]).
- * @param setOnIssue The setting used for [Issue.setValue] when issues are reported.
+ * @param setOnIssue Used as [Issue.setValue] when an issue is reported.
  */
 public fun MutableReactiveValue<String>.assertNotBlank(
     summary: String = "Cannot be blank",
