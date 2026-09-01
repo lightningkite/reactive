@@ -8,7 +8,9 @@ import com.lightningkite.reactive.extensions.modify
 import com.lightningkite.reactive.lensing.lensByElementWithIdentity
 import com.lightningkite.reactive.lensing.validation.Issue
 import com.lightningkite.reactive.lensing.validation.IssueNode
+import com.lightningkite.reactive.lensing.validation.MutableValidated
 import com.lightningkite.reactive.lensing.validation.assert
+import com.lightningkite.reactive.lensing.validation.assertReactive
 import com.lightningkite.reactive.lensing.validation.audit
 import com.lightningkite.reactive.lensing.validation.auditReactive
 import com.lightningkite.reactive.lensing.validation.issues
@@ -21,6 +23,7 @@ import kotlin.random.Random
 import kotlin.random.nextInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class ValidationTests {
     data class Data(
@@ -403,6 +406,254 @@ class ValidationTests {
                     -1, reactiveChecked.state.getOrNull(),
                     "auditReactive: the rejected value should be echoed locally too, matching audit"
                 )
+            }
+        }
+    }
+
+    // --- Chained validation across graphs of various sizes ---
+    //
+    // Each level of a chain creates a child IssueNode of the previous level's node (see
+    // `ValidatedLens`/`Auditor`), so a chain of N validators forms a path of depth N in the
+    // validation tree. `root.issues()` recursively walks that whole tree, so these tests exercise
+    // that walk at a range of depths, using both inline (`audit`/`assert`) and reactive
+    // (`auditReactive`/`assertReactive`) validation.
+
+    private val chainDepths = listOf(1, 2, 5, 10, 20, 50, 100)
+
+    private fun buildInlineScalarChain(root: MutableValidated<Int>, depth: Int): MutableValidated<Int> {
+        var current = root
+        repeat(depth) { level ->
+            current = current.assert("Level $level must be positive") { it > 0 }
+        }
+        return current
+    }
+
+    private fun buildReactiveScalarChain(root: MutableValidated<Int>, depth: Int): MutableValidated<Int> {
+        var current = root
+        repeat(depth) { level ->
+            current = current.assertReactive("Level $level must be positive") { it > 0 }
+        }
+        return current
+    }
+
+    @Test fun chainedInlineValidationAcrossGraphSizes() {
+        for (depth in chainDepths) {
+            testContext {
+                val root = Signal(1).validated()
+                val leaf = buildInlineScalarChain(root, depth)
+
+                val context = reactive { rerunOn(leaf) }
+
+                launch {
+                    assertEquals(0, root.issues().size, "depth=$depth: a valid value should report no issues")
+                }
+
+                launch {
+                    leaf.set(0)
+                    assertEquals(
+                        depth, root.issues().size,
+                        "depth=$depth: every level's check should fail on the same invalid value"
+                    )
+                }
+
+                launch {
+                    leaf.set(1)
+                    assertEquals(0, root.issues().size, "depth=$depth: issues should clear once the value is valid again")
+                }
+
+                context.cancel()
+            }
+        }
+    }
+
+    @Test fun chainedReactiveValidationAcrossGraphSizes() {
+        for (depth in chainDepths) {
+            testContext {
+                val root = Signal(1).validated()
+                val leaf = buildReactiveScalarChain(root, depth)
+
+                val context = reactive { rerunOn(leaf) }
+
+                launch {
+                    assertEquals(0, root.issues().size, "depth=$depth: a valid value should report no issues")
+                }
+
+                launch {
+                    leaf.set(0)
+                    assertEquals(
+                        depth, root.issues().size,
+                        "depth=$depth: every level's check should fail on the same invalid value"
+                    )
+                }
+
+                launch {
+                    leaf.set(1)
+                    assertEquals(0, root.issues().size, "depth=$depth: issues should clear once the value is valid again")
+                }
+
+                context.cancel()
+            }
+        }
+    }
+
+    data class TestObject(
+        val name: String,
+        val inner: TestObject? = null,
+    )
+
+    private fun MutableValidated<TestObject>.inner(): MutableValidated<TestObject> = lens(
+        get = { it.inner ?: TestObject("") },
+        modify = { o, new -> o.copy(inner = new) }
+    )
+
+    /** Builds a chain of [depth] nested [TestObject]s (levels `0..depth`), with a blank `name` at each level in [blankLevels]. */
+    private fun nestedObject(depth: Int, blankLevels: Set<Int> = emptySet()): TestObject {
+        fun build(level: Int): TestObject = TestObject(
+            name = if (level in blankLevels) "" else "level-$level",
+            inner = if (level < depth) build(level + 1) else null
+        )
+        return build(0)
+    }
+
+    private fun buildInlineObjectChain(root: MutableValidated<TestObject>, depth: Int): MutableValidated<TestObject> {
+        var current = root.assert("Name required") { it.name.isNotBlank() }
+        repeat(depth) {
+            current = current.inner().assert("Name required") { it.name.isNotBlank() }
+        }
+        return current
+    }
+
+    private fun buildReactiveObjectChain(root: MutableValidated<TestObject>, depth: Int): MutableValidated<TestObject> {
+        var current = root.assertReactive("Name required") { it.name.isNotBlank() }
+        repeat(depth) {
+            current = current.inner().assertReactive("Name required") { it.name.isNotBlank() }
+        }
+        return current
+    }
+
+    @Test fun chainedInlineValidationOverNestedObjectGraph() {
+        for (depth in chainDepths) {
+            testContext {
+                val root = Signal(nestedObject(depth)).validated()
+                val leaf = buildInlineObjectChain(root, depth)
+
+                val context = reactive { rerunOn(leaf) }
+
+                launch {
+                    assertEquals(0, root.issues().size, "depth=$depth: a fully valid tree should report no issues")
+                }
+
+                launch {
+                    root.set(nestedObject(depth, blankLevels = setOf(depth)))
+                    assertEquals(
+                        1, root.issues().size,
+                        "depth=$depth: only the deepest level's issue should propagate"
+                    )
+                }
+
+                launch {
+                    root.set(nestedObject(depth, blankLevels = (0..depth).toSet()))
+                    assertEquals(
+                        depth + 1, root.issues().size,
+                        "depth=$depth: every level's issue should propagate"
+                    )
+                }
+
+                launch {
+                    root.set(nestedObject(depth))
+                    assertEquals(0, root.issues().size, "depth=$depth: issues should clear once every level is valid again")
+                }
+
+                context.cancel()
+            }
+        }
+    }
+
+    @Test fun chainedReactiveValidationOverNestedObjectGraph() {
+        for (depth in chainDepths) {
+            testContext {
+                val root = Signal(nestedObject(depth)).validated()
+                val leaf = buildReactiveObjectChain(root, depth)
+
+                val context = reactive { rerunOn(leaf) }
+
+                launch {
+                    assertEquals(0, root.issues().size, "depth=$depth: a fully valid tree should report no issues")
+                }
+
+                launch {
+                    root.set(nestedObject(depth, blankLevels = setOf(depth)))
+                    assertEquals(
+                        1, root.issues().size,
+                        "depth=$depth: only the deepest level's issue should propagate"
+                    )
+                }
+
+                launch {
+                    root.set(nestedObject(depth, blankLevels = (0..depth).toSet()))
+                    assertEquals(
+                        depth + 1, root.issues().size,
+                        "depth=$depth: every level's issue should propagate"
+                    )
+                }
+
+                launch {
+                    root.set(nestedObject(depth))
+                    assertEquals(0, root.issues().size, "depth=$depth: issues should clear once every level is valid again")
+                }
+
+                context.cancel()
+            }
+        }
+    }
+
+    // --- Known limitation: very large graphs currently crash on read ---
+    //
+    // `IssueNode.issues` (IssueNode.kt:104) is a `remember { ... children().flatMap { it.issues() } }`
+    // per node, and reading it activates every descendant's `remember` synchronously in the same call
+    // stack (`Dispatchers.Unconfined`). A deep enough graph - as built by `buildInlineObjectChain`/
+    // `buildReactiveObjectChain`, which add both a `lens()` node and an `assert()` node per level -
+    // overflows the stack well before it would report a `ReactiveReentrancyException`. On the JVM this
+    // was confirmed to pass at depth 100 and fail (StackOverflowError) at depth 250.
+    //
+    // These two tests pin down that *some* failure currently happens at a depth deep enough to trigger
+    // it, without depending on the exact exception type (which is JVM/JS/Native-specific, and may well
+    // be the ReactiveReentrancyException reported instead of a stack overflow, depending on platform
+    // and the exact shape of the graph). Once the recursive read in `IssueNode.issues` is fixed to not
+    // grow the stack with graph depth, these should start failing (no exception thrown) - at which
+    // point `deepGraphDepth` can be folded into `chainDepths` above instead.
+    private val deepGraphDepth = 300
+
+    @Test fun deeplyChainedInlineValidationGraphCurrentlyFailsToRead() {
+        assertFailsWith<Throwable>("Expected reading issues() on a depth-$deepGraphDepth graph to currently fail") {
+            testContext {
+                val root = Signal(nestedObject(deepGraphDepth)).validated()
+                val leaf = buildInlineObjectChain(root, deepGraphDepth)
+
+                val context = reactive { rerunOn(leaf) }
+
+                launch {
+                    root.issues()
+                }
+
+                context.cancel()
+            }
+        }
+    }
+
+    @Test fun deeplyChainedReactiveValidationGraphCurrentlyFailsToRead() {
+        assertFailsWith<Throwable>("Expected reading issues() on a depth-$deepGraphDepth graph to currently fail") {
+            testContext {
+                val root = Signal(nestedObject(deepGraphDepth)).validated()
+                val leaf = buildReactiveObjectChain(root, deepGraphDepth)
+
+                val context = reactive { rerunOn(leaf) }
+
+                launch {
+                    root.issues()
+                }
+
+                context.cancel()
             }
         }
     }

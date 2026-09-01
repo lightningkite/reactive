@@ -100,7 +100,22 @@ public class IssueNode(public val parent: IssueNode? = null) : ResourceUse {
         return ::disconnect
     }
 
-    public val issues: Reactive<List<Issue>> = remember {
+    /**
+     * This aggregation is allowed to settle rather than being held to the usual zero-reentrancy rule.
+     *
+     * The calculation itself only *reads* - it never reports an issue, connects a node, or touches
+     * [children] - so it cannot be the author of a cycle the way a calculation that writes to a signal
+     * it also reads can be. What re-triggers it is the tree changing shape underneath it: [connect] and
+     * [disconnect] write [nodeIssue] and mutate the parent's [children], and a form that mounts its
+     * fields one at a time inevitably lands some of those while an ancestor's aggregation is mid-run.
+     * Those mutations are finite and stop once the subtree is built, so the calculation converges; the
+     * only cost of settling is briefly publishing a partially-aggregated list. Holding this to a limit
+     * of zero would demand that no validation node ever connect while anything observes an ancestor's
+     * issues, which is not a promise a UI that builds forms incrementally can keep.
+     *
+     * The limit stays finite so a genuine runaway still surfaces as an error instead of hanging.
+     */
+    public val issues: Reactive<List<Issue>> = remember(reentrancyLimit = 100) {
         listOfNotNull(nodeIssue()) + children().flatMap { it.issues() }
     }
 }
