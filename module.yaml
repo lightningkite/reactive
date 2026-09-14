@@ -1,0 +1,67 @@
+apply: [ ./publishing.module-template.yaml ]
+
+product:
+  type: kmp/lib
+  platforms: [ jvm, js, iosX64, iosArm64, iosSimulatorArm64 ]
+
+dependencies:
+  - org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2: exported
+
+# The Toolchain does not add kotlin-dom-api-compat the way the Kotlin Gradle plugin does, so
+# without this every org.w3c.dom type is unresolvable on JS.
+dependencies@js:
+  - org.jetbrains.kotlin:kotlin-dom-api-compat:2.4.10
+
+test-dependencies:
+  - org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2
+
+settings:
+  kotlin:
+    version: 2.4.10
+    # Restores Gradle's explicitApi(). Toolchain 0.12.1 has no settings.kotlin.explicitApi,
+    # so the raw flag is used; it would otherwise apply to test sources too, which
+    # explicitApi() never did -- hence the counter-flag below.
+    freeCompilerArgs: [ -Xexplicit-api=strict ]
+  jvm:
+    release: 8
+
+# Gradle names the Kotlin module "<group>:<artifact>", which determines the
+# META-INF/*.kotlin_module entry on JVM and the module name baked into JS and Klib output.
+# The Toolchain defaults to the module directory name, so it is restated per platform here.
+# This value is per-module and cannot be shared through a template.
+settings@jvm:
+  kotlin:
+    freeCompilerArgs: [ -module-name, "com.lightningkite:reactive" ]
+
+settings@js:
+  kotlin:
+    freeCompilerArgs: [ -Xir-module-name=com.lightningkite:reactive ]
+
+# @apple rather than @ios: it covers macos/watchos/tvos targets too, so adding one later cannot
+# silently skip the module name. Reactive has only iOS targets today, where the two are identical.
+settings@apple:
+  kotlin:
+    freeCompilerArgs: [ -module-name, "com.lightningkite:reactive", -Xexport-kdoc ]
+
+# test-settings appends to settings rather than replacing it, so the mode is turned
+# back off for test sources by a later -Xexplicit-api flag.
+test-settings:
+  kotlin:
+    freeCompilerArgs: [ -Xexplicit-api=disable ]
+
+# settings@<platform> applies to test compilations too, so the module name above would other-
+# wise be given to the test output as well. On Apple targets that is fatal: main and test klibs
+# end up with the same `unique_name` and the KLIB resolver refuses to load both. These restore
+# the Toolchain's default test module name; test output is never published, so it needs no
+# parity with Gradle -- only distinctness from the main module.
+test-settings@jvm:
+  kotlin:
+    freeCompilerArgs: [ -module-name, reactive_test ]
+
+test-settings@js:
+  kotlin:
+    freeCompilerArgs: [ -Xir-module-name=reactive_test ]
+
+test-settings@apple:
+  kotlin:
+    freeCompilerArgs: [ -module-name, reactive_test ]

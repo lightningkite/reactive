@@ -616,45 +616,39 @@ class ValidationTests {
     // overflows the stack well before it would report a `ReactiveReentrancyException`. On the JVM this
     // was confirmed to pass at depth 100 and fail (StackOverflowError) at depth 250.
     //
-    // These two tests pin down that *some* failure currently happens at a depth deep enough to trigger
-    // it, without depending on the exact exception type (which is JVM/JS/Native-specific, and may well
-    // be the ReactiveReentrancyException reported instead of a stack overflow, depending on platform
-    // and the exact shape of the graph). Once the recursive read in `IssueNode.issues` is fixed to not
-    // grow the stack with graph depth, these should start failing (no exception thrown) - at which
-    // point `deepGraphDepth` can be folded into `chainDepths` above instead.
+    // These two tests originally pinned down that *some* failure happens at a depth deep enough
+    // to trigger it. Once the recursive read in `IssueNode.issues` stopped growing the stack with
+    // graph depth, they started failing (no exception thrown( and were converted to positive
+    // assertions, per the note above. Depth 300 now reads cleanly under the Kotlin Toolchain.
     private val deepGraphDepth = 300
 
-    @Test fun deeplyChainedInlineValidationGraphCurrentlyFailsToRead() {
-        assertFailsWith<Throwable>("Expected reading issues() on a depth-$deepGraphDepth graph to currently fail") {
-            testContext {
-                val root = Signal(nestedObject(deepGraphDepth)).validated()
-                val leaf = buildInlineObjectChain(root, deepGraphDepth)
+    @Test fun deeplyChainedInlineValidationGraphReads() {
+        testContext {
+            val root = Signal(nestedObject(deepGraphDepth)).validated()
+            val leaf = buildInlineObjectChain(root, deepGraphDepth)
 
-                val context = reactive { rerunOn(leaf) }
+            val context = reactive { rerunOn(leaf) }
 
-                launch {
-                    root.issues()
-                }
-
-                context.cancel()
+            launch {
+                assertEquals(0, root.issues().size, "depth=$deepGraphDepth: a valid value should report no issues")
             }
+
+            context.cancel()
         }
     }
 
-    @Test fun deeplyChainedReactiveValidationGraphCurrentlyFailsToRead() {
-        assertFailsWith<Throwable>("Expected reading issues() on a depth-$deepGraphDepth graph to currently fail") {
-            testContext {
-                val root = Signal(nestedObject(deepGraphDepth)).validated()
-                val leaf = buildReactiveObjectChain(root, deepGraphDepth)
+    @Test fun deeplyChainedReactiveValidationGraphReads() {
+        testContext {
+            val root = Signal(nestedObject(deepGraphDepth)).validated()
+            val leaf = buildReactiveObjectChain(root, deepGraphDepth)
 
-                val context = reactive { rerunOn(leaf) }
+            val context = reactive { rerunOn(leaf) }
 
-                launch {
-                    root.issues()
-                }
-
-                context.cancel()
+            launch {
+                assertEquals(0, root.issues().size, "depth=$deepGraphDepth: a valid value should report no issues")
             }
+
+            context.cancel()
         }
     }
 }
