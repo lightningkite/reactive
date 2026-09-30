@@ -10,12 +10,13 @@ import com.lightningkite.reactive.core.ReactiveValue
 import com.lightningkite.reactive.core.addAndRunListener
 import com.lightningkite.reactive.extensions.DebounceListenable
 import com.lightningkite.reactive.extensions.DebounceReactive
+import com.lightningkite.reactive.extensions.ThrottleListenable
+import com.lightningkite.reactive.extensions.ThrottleReactive
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.jvm.JvmName
 import kotlin.reflect.KMutableProperty0
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -127,6 +128,7 @@ public interface CoroutineScopeHelpers : CoroutineScope {
      * Debounces listener notifications by [timeMs] milliseconds using this scope. State is always current.
      * @see DebounceReactive
      */
+    @Deprecated("Use Duration instead of milliseconds.")
     public fun <T> Reactive<T>.debounce(timeMs: Long): Reactive<T> = DebounceReactive(this, this@CoroutineScopeHelpers, timeMs.milliseconds)
 
     /**
@@ -139,6 +141,7 @@ public interface CoroutineScopeHelpers : CoroutineScope {
      * Debounces listener notifications by [timeMs] milliseconds using this scope.
      * @see DebounceListenable
      */
+    @Deprecated("Use Duration instead of milliseconds.")
     public fun Listenable.debounce(timeMs: Long): Listenable = DebounceListenable(this, this@CoroutineScopeHelpers, timeMs.milliseconds)
 
     /**
@@ -146,6 +149,30 @@ public interface CoroutineScopeHelpers : CoroutineScope {
      * @see DebounceListenable
      */
     public fun Listenable.debounce(duration: Duration): Listenable = DebounceListenable(this, this@CoroutineScopeHelpers, duration)
+
+    /**
+     * Throttles listener notifications by [duration]. Includes only tail notifications. State is always current.
+     * @see ThrottleReactive
+     */
+    public fun <T> Reactive<T>.tailThrottle(duration: Duration): Reactive<T> = ThrottleReactive(this, duration, false, this@CoroutineScopeHelpers)
+
+    /**
+     * Throttles listener notifications by [duration]. Includes both head and tail notifications. State is always current.
+     * @see ThrottleReactive
+     */
+    public fun <T> Reactive<T>.fullThrottle(duration: Duration): Reactive<T> = ThrottleReactive(this, duration, true, this@CoroutineScopeHelpers)
+
+    /**
+     * Throttles listener notifications by [duration]. Includes only tail notifications.
+     * @see ThrottleListenable
+     */
+    public fun Listenable.tailThrottle(duration: Duration): Listenable = ThrottleListenable(this, duration, false, this@CoroutineScopeHelpers)
+
+    /**
+     * Throttles listener notifications by [duration]. Includes both head and tail notifications.
+     * @see ThrottleListenable
+     */
+    public fun Listenable.fullThrottle(duration: Duration): Listenable = ThrottleListenable(this, duration, true, this@CoroutineScopeHelpers)
 }
 
 @OptIn(ExperimentalStdlibApi::class)

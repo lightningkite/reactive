@@ -10,8 +10,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
-import kotlin.concurrent.atomics.AtomicInt
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -87,6 +85,7 @@ public class DebounceListenable(public val source: Listenable, public val scope:
  * Debounces listener notifications by [timeMs] milliseconds. State is always current.
  * @see DebounceReactive
  */
+@Deprecated("Use Duration instead of milliseconds.")
 public fun <T> Reactive<T>.debounce(timeMs: Long, scope: CoroutineScope): Reactive<T> = DebounceReactive(this, scope, timeMs.milliseconds)
 
 /**
@@ -99,6 +98,7 @@ public fun <T> Reactive<T>.debounce(duration: Duration, scope: CoroutineScope): 
  * Debounces listener notifications by [timeMs] milliseconds.
  * @see DebounceListenable
  */
+@Deprecated("Use Duration instead of milliseconds.")
 public fun Listenable.debounce(timeMs: Long, scope: CoroutineScope): Listenable = DebounceListenable(this, scope, timeMs.milliseconds)
 
 /**
