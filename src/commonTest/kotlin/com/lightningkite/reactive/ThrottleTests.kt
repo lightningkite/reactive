@@ -141,10 +141,12 @@ class ThrottleTests {
     }
 
     @Test
-    fun testUnlikelyExactOffsets() {
+    fun testTies() { // useful for finding underlying logic bugs
         val action = action {
             it()
             delay(1.seconds)
+            it()
+            delay(0.5.seconds)
             it()
             delay(1.seconds)
             it()
@@ -156,17 +158,17 @@ class ThrottleTests {
             action, listOf(
                 0 to 0.seconds,
                 1 to 1.seconds,
-                2 to 2.seconds,
-                3 to 3.seconds,
+                3 to 2.5.seconds,
+                4 to 3.5.seconds,
             )
         )
 
         testTailThrottle(
             action, listOf(
                 0 to 1.seconds,
-                1 to 2.seconds,
-                2 to 3.seconds,
-                3 to 4.seconds,
+                2 to 2.seconds,
+                3 to 3.seconds,
+                4 to 4.seconds,
             )
         )
 
@@ -176,7 +178,110 @@ class ThrottleTests {
                 1 to 1.seconds,
                 2 to 2.seconds,
                 3 to 3.seconds,
+                4 to 4.seconds,
             )
         )
+    }
+
+    @Test
+    fun testInitialTailWindow() {
+        val action = action {
+            it()
+            delay(0.5.seconds)
+            it()
+        }
+
+        testHeadThrottle(action, listOf(0 to 0.seconds))
+        testTailThrottle(action, listOf(1 to 1.seconds))
+        testFullThrottle(
+            action, listOf(
+                0 to 0.seconds,
+                1 to 1.seconds,
+            )
+        )
+    }
+
+    @Test
+    fun testQuietPeriod() {
+        val action = action {
+            it()
+            delay(0.5.seconds)
+            it()
+            delay(2.seconds)
+            it()
+        }
+
+        testHeadThrottle(
+            action, listOf(
+                0 to 0.seconds,
+                2 to 2.5.seconds,
+            )
+        )
+
+        testTailThrottle(
+            action, listOf(
+                1 to 1.seconds,
+                2 to 3.5.seconds,
+            )
+        )
+
+        testFullThrottle(
+            action, listOf(
+                0 to 0.seconds,
+                1 to 1.seconds,
+                2 to 2.5.seconds,
+            )
+        )
+    }
+
+    @Test
+    fun testInitialQuietPeriod() {
+        val action = action {
+            delay(2.5.seconds)
+            it()
+            delay(0.5.seconds)
+            it()
+        }
+
+        testHeadThrottle(action, listOf(0 to 2.5.seconds))
+        testTailThrottle(action, listOf(1 to 3.5.seconds))
+        testFullThrottle(
+            action, listOf(
+                0 to 2.5.seconds,
+                1 to 3.5.seconds,
+            )
+        )
+    }
+
+    @Test
+    fun testBoundary() {
+        val action = action {
+            it()
+            delay(0.999.seconds)
+            it()
+        }
+
+        testHeadThrottle(action, listOf(0 to 0.seconds))
+        testTailThrottle(action, listOf(1 to 1.seconds))
+        testFullThrottle(
+            action, listOf(
+                0 to 0.seconds,
+                1 to 1.seconds,
+            )
+        )
+    }
+
+    @Test
+    fun testLongStream() {
+        val action = action {
+            1.rangeTo(40).forEach {
+                it()
+                delay(0.25.seconds)
+            }
+        }
+
+        testHeadThrottle(action, 0.rangeTo(9).map { it * 4 to it.seconds })
+        testTailThrottle(action, 1.rangeTo(10).map { (it * 4 - 1) to it.seconds })
+        testFullThrottle(action, listOf(0 to 0.seconds) + 1.rangeTo(10).map { (it * 4 - 1) to it.seconds })
     }
 }

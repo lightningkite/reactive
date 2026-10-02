@@ -85,6 +85,7 @@ internal class ThrottleListenable(
                 return@addListener
             }
 
+            if (lastInvoked.let { it == null || now >= it + duration }) lastInvoked = now
             tailScope?.launch(start = CoroutineStart.UNDISPATCHED) {
                 val tailAt = (lastInvoked ?: now) + duration
                 delay(tailAt - now)
