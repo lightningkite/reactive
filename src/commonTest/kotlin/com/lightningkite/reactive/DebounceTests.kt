@@ -3,17 +3,19 @@ package com.lightningkite.reactive
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.core.LateInitSignal
-import com.lightningkite.reactive.core.Listenable
-import com.lightningkite.reactive.extensions.debounce
+import com.lightningkite.reactive.extensions.DebounceListenable
+import com.lightningkite.reactive.extensions.DebounceReactive
 import com.lightningkite.reactive.extensions.value
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 
 class DebounceTests {
     fun testDebounce(
@@ -23,8 +25,11 @@ class DebounceTests {
         val actual = mutableListOf<Pair<Int, Duration>>()
         val actualListenable = mutableListOf<Duration>()
         val source = LateInitSignal<Int>()
-        val debounced = source.debounce(1.seconds, this)
-        val debouncedListenable = (source as Listenable).debounce(1.seconds, this)
+        val clock = object : Clock {
+            override fun now() = Instant.fromEpochMilliseconds(currentTime)
+        }
+        val debounced = DebounceReactive(source, this, 1.seconds, clock)
+        val debouncedListenable = DebounceListenable(source, this, 1.seconds, clock)
 
         testContext {
             reactive { actual.add(debounced() to currentTime.milliseconds) }

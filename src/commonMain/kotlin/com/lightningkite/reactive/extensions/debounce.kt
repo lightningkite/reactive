@@ -7,11 +7,14 @@ import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Instant
 
 /**
  * A [Reactive] wrapper that debounces listener notifications from the [source].
@@ -30,11 +33,15 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * @see DebounceListenable
  */
-public class DebounceReactive<T>(
+public class DebounceReactive<T> internal constructor(
     public val source: Reactive<T>,
     public val scope: CoroutineScope,
-    public val duration: Duration
-) : Reactive<T>, Listenable by DebounceListenable(source, scope, duration) {
+    public val duration: Duration,
+    testingClock: Clock? = null,
+) : Reactive<T>, Listenable by DebounceListenable(source, scope, duration, testingClock) {
+    // for backwards compatibility
+    public constructor(source: Reactive<T>, scope: CoroutineScope, duration: Duration) : this(source, scope, duration, null)
+
     override val state: ReactiveState<T> get() = source.state
 }
 
@@ -48,8 +55,11 @@ public class DebounceReactive<T>(
  * This is useful for scenarios like search-as-you-type, where you want to wait for the user to
  * stop typing before triggering an expensive operation.
  *
- * **Threading note:** This implementation uses `@Volatile` for visibility but the increment operation
- * is not atomic. This is acceptable for debouncing where the consequence of a race is at most one
+ * A single coroutine is launched per burst of changes. It keeps sleeping until [duration] has passed
+ * since the most recent change, then notifies listeners and finishes.
+ *
+ * **Threading note:** This implementation uses `@Volatile` for visibility but is not otherwise
+ * synchronized. This is acceptable for debouncing where the consequence of a race is at most one
  * extra or missed notification. For typical single-threaded reactive patterns, this is not an issue.
  *
  * @property source The underlying listenable to debounce.
@@ -58,24 +68,43 @@ public class DebounceReactive<T>(
  *
  * @see DebounceReactive
  */
-public class DebounceListenable(public val source: Listenable, public val scope: CoroutineScope, public val duration: Duration) : BaseListenable() {
-    @Volatile
-    private var changeCount = 0
+public class DebounceListenable internal constructor(
+    public val source: Listenable,
+    public val scope: CoroutineScope,
+    public val duration: Duration,
+    testingClock: Clock?,
+) : BaseListenable() {
+    // for backwards compatibility
+    public constructor(source: Listenable, scope: CoroutineScope, duration: Duration) : this(source, scope, duration, null)
 
+    private val clock = testingClock ?: Clock.System
+
+    @Volatile
+    private var sourceLastFired: Instant = Instant.DISTANT_PAST
+
+    private var job: Job? = null
     private var releaseListener: Release? = null
 
     override fun activate() {
         releaseListener = source.addListener {
-            val n = ++changeCount
-            scope.launch {
-                delay(duration)
-                if (n == changeCount) invokeAllListeners()
+            sourceLastFired = clock.now()
+
+            if (job?.isActive == true) return@addListener
+            job = scope.launch {
+                while (true) {
+                    val remaining = sourceLastFired + duration - clock.now()
+                    if (remaining <= Duration.ZERO) break
+                    delay(remaining)
+                }
+                invokeAllListeners()
             }
         }
     }
 
     override fun deactivate() {
-        changeCount++ // invalidate any currently existing debounces
+        sourceLastFired = Instant.DISTANT_PAST
+        job?.cancel()
+        job = null
         releaseListener?.invoke()
         releaseListener = null
     }

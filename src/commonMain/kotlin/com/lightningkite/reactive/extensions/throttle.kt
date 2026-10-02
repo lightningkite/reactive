@@ -7,6 +7,7 @@ import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.Release
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
@@ -68,28 +69,29 @@ internal class ThrottleListenable(
     val clock = testingClock ?: Clock.System
 
     @Volatile
-    private var lastInvoked: Instant? = null
-    @Volatile
-    private var changeCount = 0
+    private var lastInvoked = Instant.DISTANT_PAST
 
+    private var tailJob: Job? = null
     private var releaseListener: Release? = null
 
     override fun activate() {
         releaseListener = source.addListener {
             val now = clock.now()
-            val n = ++changeCount
 
-            if (head && now >= (lastInvoked ?: Instant.DISTANT_PAST) + duration) {
+            val unthrottled = now >= lastInvoked + duration
+            if (unthrottled) {
                 lastInvoked = now
-                invokeAllListeners()
-                return@addListener
+                if (head) {
+                    tailJob?.cancel()
+                    invokeAllListeners()
+                    return@addListener
+                }
             }
 
-            if (lastInvoked.let { it == null || now >= it + duration }) lastInvoked = now
-            tailScope?.launch(start = CoroutineStart.UNDISPATCHED) {
-                val tailAt = (lastInvoked ?: now) + duration
+            if (tailScope == null || tailJob?.isActive == true) return@addListener
+            tailJob = tailScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                val tailAt = lastInvoked + duration
                 delay(tailAt - now)
-                if (n != changeCount) return@launch
                 lastInvoked = clock.now()
                 invokeAllListeners()
             }
@@ -97,8 +99,9 @@ internal class ThrottleListenable(
     }
 
     override fun deactivate() {
-        lastInvoked = null
-        changeCount++ // invalidate any currently existing trailing invocations
+        lastInvoked = Instant.DISTANT_PAST
+        tailJob?.cancel()
+        tailJob = null
         releaseListener?.invoke()
         releaseListener = null
     }
