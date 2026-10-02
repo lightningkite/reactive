@@ -28,7 +28,7 @@ import kotlin.time.TimeSource
  *
  * @param T The type of value held by the reactive.
  * @property source The underlying reactive to debounce.
- * @property scope The coroutine scope used for launching delay coroutines.
+ * @property scope The coroutine scope used for launching the debounce coroutine.
  * @property duration The debounce delay duration.
  *
  * @see DebounceListenable
@@ -39,6 +39,7 @@ public class DebounceReactive<T> internal constructor(
     public val duration: Duration,
     timeSource: TimeSource.WithComparableMarks,
 ) : Reactive<T>, Listenable by DebounceListenable(source, scope, duration, timeSource) {
+    @Deprecated("Use .debounce() instead")
     // for backwards compatibility
     public constructor(source: Reactive<T>, scope: CoroutineScope, duration: Duration) : this(source, scope, duration, TimeSource.Monotonic)
 
@@ -63,7 +64,7 @@ public class DebounceReactive<T> internal constructor(
  * extra or missed notification. For typical single-threaded reactive patterns, this is not an issue.
  *
  * @property source The underlying listenable to debounce.
- * @property scope The coroutine scope used for launching delay coroutines.
+ * @property scope The coroutine scope used for launching the debounce coroutine.
  * @property duration The debounce delay duration.
  *
  * @see DebounceReactive
@@ -74,6 +75,7 @@ public class DebounceListenable internal constructor(
     public val duration: Duration,
     private val timeSource: TimeSource.WithComparableMarks,
 ) : BaseListenable() {
+    @Deprecated("Use .debounce() instead")
     // for backwards compatibility
     public constructor(source: Listenable, scope: CoroutineScope, duration: Duration) : this(source, scope, duration, TimeSource.Monotonic)
 

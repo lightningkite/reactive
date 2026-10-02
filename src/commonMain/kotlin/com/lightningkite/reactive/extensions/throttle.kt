@@ -18,9 +18,8 @@ import kotlin.time.TimeSource
 /**
  * A [Reactive] wrapper that throttles listener notifications from the [source]
  *
- * The first time the source changes, listeners are notified immediately. Subsequent changes are only sent if
- * the previous change was not sent within the given [duration]. If [tailScope] is not null, the last change
- * will also be sent after the full duration has passed from the moment the previous change was sent.
+ * Listeners are notified at most once per [duration]. If [head] is true, unthrottled changes are sent
+ * immediately. If [tailScope] is not null, throttled changes are sent once the throttle expires.
  *
  * The [state] always reflects the current state of the source immediately (no delay), only listener
  * notifications are throttled.
@@ -28,7 +27,8 @@ import kotlin.time.TimeSource
  * @param T The type of the value held by the reactive.
  * @property source The underlying reactive to throttle.
  * @property duration The throttle delay duration.
- * @property tailScope The coroutine scope used for launching tail update coroutines, or `null` if tail
+ * @property head Whether to send unthrottled changes immediately.
+ * @property tailScope The coroutine scope used for launching the tail coroutine, or `null` if tail
  *  updates are not required.
  *
  * @see ThrottleListenable
@@ -46,15 +46,16 @@ internal class ThrottleReactive<T>(
 /**
  * A [Listenable] wrapper that throttles listener notifications from [source].
  *
- * The first time the source fires listeners are notified immediately. Subsequent notifications are only sent
- * if the previous notification was not sent within the given [duration]. Additionally, if [tailScope] is
- * not null, the last change will also be sent after the full duration has passed from the time the previous
- * notification was sent.
+ * Listeners are notified at most once per [duration]. If [head] is true, unthrottled notifications
+ * are sent immediately. If [tailScope] is not null, throttled notifications are sent once the throttle
+ * expires.
+ *
+ * At most one tail coroutine runs at a time, and it covers every throttled fire until it sends.
  *
  * @property source The underlying listenable to throttle.
  * @property duration The throttle delay duration.
- * @property head Whether to include the head call.
- * @property tailScope The coroutine scope used for launching tail update coroutines, or `null` if tail
+ * @property head Whether to send unthrottled notifications immediately.
+ * @property tailScope The coroutine scope used for launching the tail coroutine, or `null` if tail
  *  updates are not required.
  *
  * @see ThrottleReactive
