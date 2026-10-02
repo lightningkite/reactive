@@ -9,7 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
-import kotlin.time.Clock.System.now
+import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
 
@@ -36,7 +36,8 @@ internal class ThrottleReactive<T>(
     val duration: Duration,
     val head: Boolean,
     val tailScope: CoroutineScope?,
-) : Reactive<T>, Listenable by ThrottleListenable(source, duration, head, tailScope) {
+    testingClock: Clock? = null,
+) : Reactive<T>, Listenable by ThrottleListenable(source, duration, head, tailScope, testingClock) {
     override val state: ReactiveState<T> get() = source.state
 }
 
@@ -61,7 +62,10 @@ internal class ThrottleListenable(
     val duration: Duration,
     val head: Boolean,
     val tailScope: CoroutineScope?,
+    testingClock: Clock? = null,
 ) : BaseListenable() {
+    val clock = testingClock ?: Clock.System
+
     @Volatile
     private var lastInvoked: Instant? = null
     @Volatile
@@ -71,16 +75,20 @@ internal class ThrottleListenable(
 
     override fun activate() {
         releaseListener = source.addListener {
-            val now = now()
-            val unthrottledAt = lastInvoked?.let { it + duration }
+            val now = clock.now()
             val n = ++changeCount
-            if (unthrottledAt == null || unthrottledAt > now) {
+
+            if (head && now > (lastInvoked ?: Instant.DISTANT_PAST) + duration) {
                 lastInvoked = now
-                if (head) invokeAllListeners()
-            } else tailScope?.launch {
-                delay((unthrottledAt + duration) - now)
+                invokeAllListeners()
+                return@addListener
+            }
+
+            tailScope?.launch {
+                val tailAt = (lastInvoked ?: now) + duration
+                delay(tailAt - now)
                 if (n != changeCount) return@launch
-                lastInvoked = now()
+                lastInvoked = clock.now()
                 invokeAllListeners()
             }
         }
