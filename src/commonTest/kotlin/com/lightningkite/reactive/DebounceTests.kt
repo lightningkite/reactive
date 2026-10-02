@@ -7,6 +7,7 @@ import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.extensions.DebounceListenable
 import com.lightningkite.reactive.extensions.DebounceReactive
 import com.lightningkite.reactive.extensions.value
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
@@ -18,6 +19,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class DebounceTests {
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun testDebounce(
         action: suspend TestContext.(hit: suspend () -> Unit) -> Unit,
         expected: List<Pair<Int, Duration>>,
@@ -131,6 +133,7 @@ class DebounceTests {
         0.rangeTo(3).map { (it * 5 + 4) to (it * 3.5 + 3).seconds },
     )
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun testReentrancy() = runTest {
         // a listener that writes back to the source during notification should get notified again

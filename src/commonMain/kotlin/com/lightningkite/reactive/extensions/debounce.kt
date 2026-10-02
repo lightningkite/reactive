@@ -39,7 +39,7 @@ public class DebounceReactive<T> internal constructor(
     public val duration: Duration,
     timeSource: TimeSource.WithComparableMarks,
 ) : Reactive<T>, Listenable by DebounceListenable(source, scope, duration, timeSource) {
-    @Deprecated("Use .debounce() instead")
+    @Deprecated("Use source.debounce() instead", ReplaceWith("source.debounce(duration, scope)"))
     // for backwards compatibility
     public constructor(source: Reactive<T>, scope: CoroutineScope, duration: Duration) : this(source, scope, duration, TimeSource.Monotonic)
 
@@ -115,26 +115,30 @@ public class DebounceListenable internal constructor(
  * Debounces listener notifications by [timeMs] milliseconds. State is always current.
  * @see DebounceReactive
  */
-@Deprecated("Use Duration instead of milliseconds.")
+@Deprecated("Use Duration instead of milliseconds.", ReplaceWith("this.debounce(timeMs.milliseconds)", "kotlin.time.Duration.Companion.milliseconds"))
+@Suppress("DEPRECATION")
 public fun <T> Reactive<T>.debounce(timeMs: Long, scope: CoroutineScope): Reactive<T> = DebounceReactive(this, scope, timeMs.milliseconds)
 
 /**
  * Debounces listener notifications by [duration]. State is always current.
  * @see DebounceReactive
  */
+@Suppress("DEPRECATION")
 public fun <T> Reactive<T>.debounce(duration: Duration, scope: CoroutineScope): Reactive<T> = DebounceReactive(this, scope, duration)
 
 /**
  * Debounces listener notifications by [timeMs] milliseconds.
  * @see DebounceListenable
  */
-@Deprecated("Use Duration instead of milliseconds.")
+@Deprecated("Use Duration instead of milliseconds.", ReplaceWith("this.debounce(timeMs.milliseconds)", "kotlin.time.Duration.Companion.milliseconds"))
+@Suppress("DEPRECATION")
 public fun Listenable.debounce(timeMs: Long, scope: CoroutineScope): Listenable = DebounceListenable(this, scope, timeMs.milliseconds)
 
 /**
  * Debounces listener notifications by [duration].
  * @see DebounceListenable
  */
+@Suppress("DEPRECATION")
 public fun Listenable.debounce(duration: Duration, scope: CoroutineScope): Listenable = DebounceListenable(this, scope, duration)
 
 /**

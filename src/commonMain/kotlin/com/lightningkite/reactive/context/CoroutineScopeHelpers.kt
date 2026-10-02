@@ -128,26 +128,30 @@ public interface CoroutineScopeHelpers : CoroutineScope {
      * Debounces listener notifications by [timeMs] milliseconds using this scope. State is always current.
      * @see DebounceReactive
      */
-    @Deprecated("Use Duration instead of milliseconds.")
+    @Deprecated("Use Duration instead of milliseconds.", ReplaceWith("this.debounce(timeMs.milliseconds)", "kotlin.time.Duration.Companion.milliseconds"))
+    @Suppress("DEPRECATION")
     public fun <T> Reactive<T>.debounce(timeMs: Long): Reactive<T> = DebounceReactive(this, this@CoroutineScopeHelpers, timeMs.milliseconds)
 
     /**
      * Debounces listener notifications by [duration] using this scope. State is always current.
      * @see DebounceReactive
      */
+    @Suppress("DEPRECATION")
     public fun <T> Reactive<T>.debounce(duration: Duration): Reactive<T> = DebounceReactive(this, this@CoroutineScopeHelpers, duration)
 
     /**
      * Debounces listener notifications by [timeMs] milliseconds using this scope.
      * @see DebounceListenable
      */
-    @Deprecated("Use Duration instead of milliseconds.")
+    @Deprecated("Use Duration instead of milliseconds.", ReplaceWith("this.debounce(timeMs.milliseconds)", "kotlin.time.Duration.Companion.milliseconds"))
+    @Suppress("DEPRECATION")
     public fun Listenable.debounce(timeMs: Long): Listenable = DebounceListenable(this, this@CoroutineScopeHelpers, timeMs.milliseconds)
 
     /**
      * Debounces listener notifications by [duration] using this scope.
      * @see DebounceListenable
      */
+    @Suppress("DEPRECATION")
     public fun Listenable.debounce(duration: Duration): Listenable = DebounceListenable(this, this@CoroutineScopeHelpers, duration)
 
     /**

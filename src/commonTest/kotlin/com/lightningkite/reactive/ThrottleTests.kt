@@ -8,6 +8,7 @@ import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.extensions.ThrottleListenable
 import com.lightningkite.reactive.extensions.ThrottleReactive
 import com.lightningkite.reactive.extensions.value
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.currentTime
@@ -20,6 +21,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class ThrottleTests {
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun testThrottle(
         action: suspend TestContext.(hit: suspend () -> Unit) -> Unit,
         expected: List<Pair<Int, Duration>>,
@@ -43,16 +45,19 @@ class ThrottleTests {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun testHeadThrottle(
         action: suspend TestContext.(hit: suspend () -> Unit) -> Unit,
         expect: List<Pair<Int, Duration>>,
     ) = testThrottle(action, expect) { ThrottleReactive(it, 1.seconds, true, null, testTimeSource) }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun testTailThrottle(
         action: suspend TestContext.(hit: suspend () -> Unit) -> Unit,
         expect: List<Pair<Int, Duration>>,
     ) = testThrottle(action, expect) { ThrottleReactive(it, 1.seconds, false, this, testTimeSource) }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun testFullThrottle(
         action: suspend TestContext.(hit: suspend () -> Unit) -> Unit,
         expect: List<Pair<Int, Duration>>,
@@ -282,6 +287,7 @@ class ThrottleTests {
         testFullThrottle(action, listOf(0 to 0.seconds) + 1.rangeTo(10).map { (it * 4 - 1) to it.seconds })
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun testReentrantTail() {
         // a listener that writes back to the source during a tail notification should get notified again
