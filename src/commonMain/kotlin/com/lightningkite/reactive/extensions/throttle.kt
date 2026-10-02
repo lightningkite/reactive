@@ -6,6 +6,7 @@ import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.Release
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
@@ -78,13 +79,13 @@ internal class ThrottleListenable(
             val now = clock.now()
             val n = ++changeCount
 
-            if (head && now > (lastInvoked ?: Instant.DISTANT_PAST) + duration) {
+            if (head && now >= (lastInvoked ?: Instant.DISTANT_PAST) + duration) {
                 lastInvoked = now
                 invokeAllListeners()
                 return@addListener
             }
 
-            tailScope?.launch {
+            tailScope?.launch(start = CoroutineStart.UNDISPATCHED) {
                 val tailAt = (lastInvoked ?: now) + duration
                 delay(tailAt - now)
                 if (n != changeCount) return@launch

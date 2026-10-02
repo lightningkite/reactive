@@ -101,7 +101,7 @@ class ThrottleTests {
     }
 
     @Test
-    fun testDependantOffsets() {
+    fun testSporadicOffsets() {
         val action = action {
             it()
             it()
@@ -136,6 +136,46 @@ class ThrottleTests {
                 1 to 1.seconds,
                 4 to 2.seconds,
                 5 to 3.seconds,
+            )
+        )
+    }
+
+    @Test
+    fun testUnlikelyExactOffsets() {
+        val action = action {
+            it()
+            delay(1.seconds)
+            it()
+            delay(1.seconds)
+            it()
+            delay(1.seconds)
+            it()
+        }
+
+        testHeadThrottle(
+            action, listOf(
+                0 to 0.seconds,
+                1 to 1.seconds,
+                2 to 2.seconds,
+                3 to 3.seconds,
+            )
+        )
+
+        testTailThrottle(
+            action, listOf(
+                0 to 1.seconds,
+                1 to 2.seconds,
+                2 to 3.seconds,
+                3 to 4.seconds,
+            )
+        )
+
+        testFullThrottle(
+            action, listOf(
+                0 to 0.seconds,
+                1 to 1.seconds,
+                2 to 2.seconds,
+                3 to 3.seconds,
             )
         )
     }
