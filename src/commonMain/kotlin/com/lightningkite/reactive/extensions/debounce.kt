@@ -94,6 +94,7 @@ public class DebounceListenable internal constructor(
                     if (remaining <= Duration.ZERO) break
                     delay(remaining)
                 }
+                job = null
                 invokeAllListeners()
             }
         }

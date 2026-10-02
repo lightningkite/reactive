@@ -13,7 +13,6 @@ import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
 import kotlin.time.Duration
 import kotlin.time.ComparableTimeMark
-import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
@@ -92,6 +91,7 @@ internal class ThrottleListenable(
                 val tailAt = (lastInvoked ?: now) + duration
                 delay(tailAt - now)
                 lastInvoked = timeSource.markNow()
+                tailJob = null
                 invokeAllListeners()
             }
         }

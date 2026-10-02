@@ -3,6 +3,7 @@ package com.lightningkite.reactive
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.core.LateInitSignal
+import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.extensions.DebounceListenable
 import com.lightningkite.reactive.extensions.DebounceReactive
 import com.lightningkite.reactive.extensions.value
@@ -129,4 +130,22 @@ class DebounceTests {
         },
         0.rangeTo(3).map { (it * 5 + 4) to (it * 3.5 + 3).seconds },
     )
+
+    @Test
+    fun testReentrancy() = runTest {
+        // a listener that writes back to the source during notification should get notified again
+        val source = Signal(0)
+        val debounced = DebounceListenable(source, this, 1.seconds, testTimeSource)
+        val fired = mutableListOf<Long>()
+        val release = debounced.addListener {
+            fired.add(currentTime)
+            if (source.value == 1) source.value = 2
+        }
+
+        source.value = 1
+        delay(3.seconds)
+        release()
+
+        assertEquals(listOf(1000L, 2000L), fired)
+    }
 }

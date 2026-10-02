@@ -4,6 +4,8 @@ import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.Signal
+import com.lightningkite.reactive.extensions.ThrottleListenable
 import com.lightningkite.reactive.extensions.ThrottleReactive
 import com.lightningkite.reactive.extensions.value
 import kotlinx.coroutines.delay
@@ -278,5 +280,30 @@ class ThrottleTests {
         testHeadThrottle(action, 0.rangeTo(9).map { it * 4 to it.seconds })
         testTailThrottle(action, 1.rangeTo(10).map { (it * 4 - 1) to it.seconds })
         testFullThrottle(action, listOf(0 to 0.seconds) + 1.rangeTo(10).map { (it * 4 - 1) to it.seconds })
+    }
+
+    @Test
+    fun testReentrantTail() {
+        // a listener that writes back to the source during a tail notification should get notified again
+        fun test(head: Boolean, expected: List<Long>) = runTest {
+            val source = Signal(0)
+            val throttle = ThrottleListenable(source, 1.seconds, head, this, testTimeSource)
+            val fired = mutableListOf<Long>()
+            val release = throttle.addListener {
+                fired.add(currentTime)
+                if (source.value == 2) source.value = 3
+            }
+
+            source.value = 1
+            delay(0.5.seconds)
+            source.value = 2
+            delay(3.seconds)
+            release()
+
+            assertEquals(expected, fired)
+        }
+
+        test(head = false, listOf(1000L, 2000L))
+        test(head = true, listOf(0L, 1000L, 2000L))
     }
 }
