@@ -141,7 +141,7 @@ public interface CoroutineScopeHelpers : CoroutineScope {
      * Debounces listener notifications by [timeMs] milliseconds using this scope.
      * @see DebounceListenable
      */
-    @Deprecated("Use Duration instead of milliseconds.")
+    @Deprecated("Use Duration instead of milliseconds.", replaceWith = ReplaceWith("debounce(timeMs.milliseconds)", "kotlin.time.Duration.Companion.milliseconds"))
     public fun Listenable.debounce(timeMs: Long): Listenable = DebounceListenable(this, this@CoroutineScopeHelpers, timeMs.milliseconds)
 
     /**
