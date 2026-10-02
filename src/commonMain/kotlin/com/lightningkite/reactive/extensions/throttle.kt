@@ -11,9 +11,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
-import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.Instant
+import kotlin.time.ComparableTimeMark
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /**
  * A [Reactive] wrapper that throttles listener notifications from the [source]
@@ -38,8 +39,8 @@ internal class ThrottleReactive<T>(
     val duration: Duration,
     val head: Boolean,
     val tailScope: CoroutineScope?,
-    testingClock: Clock? = null,
-) : Reactive<T>, Listenable by ThrottleListenable(source, duration, head, tailScope, testingClock) {
+    timeSource: TimeSource.WithComparableMarks = TimeSource.Monotonic,
+) : Reactive<T>, Listenable by ThrottleListenable(source, duration, head, tailScope, timeSource) {
     override val state: ReactiveState<T> get() = source.state
 }
 
@@ -64,21 +65,19 @@ internal class ThrottleListenable(
     val duration: Duration,
     val head: Boolean,
     val tailScope: CoroutineScope?,
-    testingClock: Clock? = null,
+    val timeSource: TimeSource.WithComparableMarks = TimeSource.Monotonic,
 ) : BaseListenable() {
-    val clock = testingClock ?: Clock.System
-
     @Volatile
-    private var lastInvoked = Instant.DISTANT_PAST
+    private var lastInvoked: ComparableTimeMark? = null
 
     private var tailJob: Job? = null
     private var releaseListener: Release? = null
 
     override fun activate() {
         releaseListener = source.addListener {
-            val now = clock.now()
+            val now = timeSource.markNow()
 
-            val unthrottled = now >= lastInvoked + duration
+            val unthrottled = lastInvoked.let { it == null || now - it >= duration }
             if (unthrottled) {
                 lastInvoked = now
                 if (head) {
@@ -90,16 +89,16 @@ internal class ThrottleListenable(
 
             if (tailScope == null || tailJob?.isActive == true) return@addListener
             tailJob = tailScope.launch(start = CoroutineStart.UNDISPATCHED) {
-                val tailAt = lastInvoked + duration
+                val tailAt = (lastInvoked ?: now) + duration
                 delay(tailAt - now)
-                lastInvoked = clock.now()
+                lastInvoked = timeSource.markNow()
                 invokeAllListeners()
             }
         }
     }
 
     override fun deactivate() {
-        lastInvoked = Instant.DISTANT_PAST
+        lastInvoked = null
         tailJob?.cancel()
         tailJob = null
         releaseListener?.invoke()

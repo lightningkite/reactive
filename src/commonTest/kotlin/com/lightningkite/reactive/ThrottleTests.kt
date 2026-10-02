@@ -10,13 +10,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.testTimeSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.Instant
 
 class ThrottleTests {
     fun testThrottle(
@@ -42,24 +41,20 @@ class ThrottleTests {
         }
     }
 
-    fun TestScope.getTestClock() = object : Clock {
-        override fun now() = Instant.fromEpochMilliseconds(currentTime)
-    }
-
     fun testHeadThrottle(
         action: suspend TestContext.(hit: suspend () -> Unit) -> Unit,
         expect: List<Pair<Int, Duration>>,
-    ) = testThrottle(action, expect) { ThrottleReactive(it, 1.seconds, true, null, getTestClock()) }
+    ) = testThrottle(action, expect) { ThrottleReactive(it, 1.seconds, true, null, testTimeSource) }
 
     fun testTailThrottle(
         action: suspend TestContext.(hit: suspend () -> Unit) -> Unit,
         expect: List<Pair<Int, Duration>>,
-    ) = testThrottle(action, expect) { ThrottleReactive(it, 1.seconds, false, this, getTestClock()) }
+    ) = testThrottle(action, expect) { ThrottleReactive(it, 1.seconds, false, this, testTimeSource) }
 
     fun testFullThrottle(
         action: suspend TestContext.(hit: suspend () -> Unit) -> Unit,
         expect: List<Pair<Int, Duration>>,
-    ) = testThrottle(action, expect) { ThrottleReactive(it, 1.seconds, true, this, getTestClock()) }
+    ) = testThrottle(action, expect) { ThrottleReactive(it, 1.seconds, true, this, testTimeSource) }
 
     fun action(it: suspend TestContext.(hit: suspend () -> Unit) -> Unit) = it
 

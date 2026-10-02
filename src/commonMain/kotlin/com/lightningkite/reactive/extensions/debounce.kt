@@ -11,10 +11,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
-import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Instant
+import kotlin.time.ComparableTimeMark
+import kotlin.time.TimeSource
 
 /**
  * A [Reactive] wrapper that debounces listener notifications from the [source].
@@ -37,10 +37,10 @@ public class DebounceReactive<T> internal constructor(
     public val source: Reactive<T>,
     public val scope: CoroutineScope,
     public val duration: Duration,
-    testingClock: Clock? = null,
-) : Reactive<T>, Listenable by DebounceListenable(source, scope, duration, testingClock) {
+    timeSource: TimeSource.WithComparableMarks,
+) : Reactive<T>, Listenable by DebounceListenable(source, scope, duration, timeSource) {
     // for backwards compatibility
-    public constructor(source: Reactive<T>, scope: CoroutineScope, duration: Duration) : this(source, scope, duration, null)
+    public constructor(source: Reactive<T>, scope: CoroutineScope, duration: Duration) : this(source, scope, duration, TimeSource.Monotonic)
 
     override val state: ReactiveState<T> get() = source.state
 }
@@ -72,27 +72,25 @@ public class DebounceListenable internal constructor(
     public val source: Listenable,
     public val scope: CoroutineScope,
     public val duration: Duration,
-    testingClock: Clock?,
+    private val timeSource: TimeSource.WithComparableMarks,
 ) : BaseListenable() {
     // for backwards compatibility
-    public constructor(source: Listenable, scope: CoroutineScope, duration: Duration) : this(source, scope, duration, null)
-
-    private val clock = testingClock ?: Clock.System
+    public constructor(source: Listenable, scope: CoroutineScope, duration: Duration) : this(source, scope, duration, TimeSource.Monotonic)
 
     @Volatile
-    private var sourceLastFired: Instant = Instant.DISTANT_PAST
+    private var sourceLastFired: ComparableTimeMark? = null
 
     private var job: Job? = null
     private var releaseListener: Release? = null
 
     override fun activate() {
         releaseListener = source.addListener {
-            sourceLastFired = clock.now()
+            sourceLastFired = timeSource.markNow()
 
             if (job?.isActive == true) return@addListener
             job = scope.launch {
                 while (true) {
-                    val remaining = sourceLastFired + duration - clock.now()
+                    val remaining = duration - (sourceLastFired ?: return@launch).elapsedNow()
                     if (remaining <= Duration.ZERO) break
                     delay(remaining)
                 }
@@ -102,7 +100,7 @@ public class DebounceListenable internal constructor(
     }
 
     override fun deactivate() {
-        sourceLastFired = Instant.DISTANT_PAST
+        sourceLastFired = null
         job?.cancel()
         job = null
         releaseListener?.invoke()
