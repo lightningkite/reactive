@@ -7,13 +7,14 @@ import com.lightningkite.reactive.core.MutableReactive
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.ReactiveState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
-import kotlin.concurrent.atomics.AtomicInt
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.ComparableTimeMark
+import kotlin.time.TimeSource
 
 /**
  * A [Reactive] wrapper that debounces listener notifications from the [source].
@@ -27,16 +28,21 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * @param T The type of value held by the reactive.
  * @property source The underlying reactive to debounce.
- * @property scope The coroutine scope used for launching delay coroutines.
+ * @property scope The coroutine scope used for launching the debounce coroutine.
  * @property duration The debounce delay duration.
  *
  * @see DebounceListenable
  */
-public class DebounceReactive<T>(
+public class DebounceReactive<T> internal constructor(
     public val source: Reactive<T>,
     public val scope: CoroutineScope,
-    public val duration: Duration
-) : Reactive<T>, Listenable by DebounceListenable(source, scope, duration) {
+    public val duration: Duration,
+    timeSource: TimeSource.WithComparableMarks,
+) : Reactive<T>, Listenable by DebounceListenable(source, scope, duration, timeSource) {
+    @Deprecated("Use source.debounce() instead", ReplaceWith("source.debounce(duration, scope)"))
+    // for backwards compatibility
+    public constructor(source: Reactive<T>, scope: CoroutineScope, duration: Duration) : this(source, scope, duration, TimeSource.Monotonic)
+
     override val state: ReactiveState<T> get() = source.state
 }
 
@@ -50,34 +56,56 @@ public class DebounceReactive<T>(
  * This is useful for scenarios like search-as-you-type, where you want to wait for the user to
  * stop typing before triggering an expensive operation.
  *
- * **Threading note:** This implementation uses `@Volatile` for visibility but the increment operation
- * is not atomic. This is acceptable for debouncing where the consequence of a race is at most one
+ * A single coroutine is launched per burst of changes. It keeps sleeping until [duration] has passed
+ * since the most recent change, then notifies listeners and finishes.
+ *
+ * **Threading note:** This implementation uses `@Volatile` for visibility but is not otherwise
+ * synchronized. This is acceptable for debouncing where the consequence of a race is at most one
  * extra or missed notification. For typical single-threaded reactive patterns, this is not an issue.
  *
  * @property source The underlying listenable to debounce.
- * @property scope The coroutine scope used for launching delay coroutines.
+ * @property scope The coroutine scope used for launching the debounce coroutine.
  * @property duration The debounce delay duration.
  *
  * @see DebounceReactive
  */
-public class DebounceListenable(public val source: Listenable, public val scope: CoroutineScope, public val duration: Duration) : BaseListenable() {
-    @Volatile
-    private var changeCount = 0
+public class DebounceListenable internal constructor(
+    public val source: Listenable,
+    public val scope: CoroutineScope,
+    public val duration: Duration,
+    private val timeSource: TimeSource.WithComparableMarks,
+) : BaseListenable() {
+    @Deprecated("Use .debounce() instead")
+    // for backwards compatibility
+    public constructor(source: Listenable, scope: CoroutineScope, duration: Duration) : this(source, scope, duration, TimeSource.Monotonic)
 
+    @Volatile
+    private var sourceLastFired: ComparableTimeMark? = null
+
+    private var job: Job? = null
     private var releaseListener: Release? = null
 
     override fun activate() {
         releaseListener = source.addListener {
-            val n = ++changeCount
-            scope.launch {
-                delay(duration)
-                if (n == changeCount) invokeAllListeners()
+            sourceLastFired = timeSource.markNow()
+
+            if (job?.isActive == true) return@addListener
+            job = scope.launch {
+                while (true) {
+                    val remaining = duration - (sourceLastFired ?: return@launch).elapsedNow()
+                    if (remaining <= Duration.ZERO) break
+                    delay(remaining)
+                }
+                job = null
+                invokeAllListeners()
             }
         }
     }
 
     override fun deactivate() {
-        changeCount++ // invalidate any currently existing debounces
+        sourceLastFired = null
+        job?.cancel()
+        job = null
         releaseListener?.invoke()
         releaseListener = null
     }
@@ -87,24 +115,30 @@ public class DebounceListenable(public val source: Listenable, public val scope:
  * Debounces listener notifications by [timeMs] milliseconds. State is always current.
  * @see DebounceReactive
  */
+@Deprecated("Use Duration instead of milliseconds.", ReplaceWith("this.debounce(timeMs.milliseconds)", "kotlin.time.Duration.Companion.milliseconds"))
+@Suppress("DEPRECATION")
 public fun <T> Reactive<T>.debounce(timeMs: Long, scope: CoroutineScope): Reactive<T> = DebounceReactive(this, scope, timeMs.milliseconds)
 
 /**
  * Debounces listener notifications by [duration]. State is always current.
  * @see DebounceReactive
  */
+@Suppress("DEPRECATION")
 public fun <T> Reactive<T>.debounce(duration: Duration, scope: CoroutineScope): Reactive<T> = DebounceReactive(this, scope, duration)
 
 /**
  * Debounces listener notifications by [timeMs] milliseconds.
  * @see DebounceListenable
  */
+@Deprecated("Use Duration instead of milliseconds.", ReplaceWith("this.debounce(timeMs.milliseconds)", "kotlin.time.Duration.Companion.milliseconds"))
+@Suppress("DEPRECATION")
 public fun Listenable.debounce(timeMs: Long, scope: CoroutineScope): Listenable = DebounceListenable(this, scope, timeMs.milliseconds)
 
 /**
  * Debounces listener notifications by [duration].
  * @see DebounceListenable
  */
+@Suppress("DEPRECATION")
 public fun Listenable.debounce(duration: Duration, scope: CoroutineScope): Listenable = DebounceListenable(this, scope, duration)
 
 /**

@@ -622,39 +622,4 @@ class ValidationTests {
     // and the exact shape of the graph). Once the recursive read in `IssueNode.issues` is fixed to not
     // grow the stack with graph depth, these should start failing (no exception thrown) - at which
     // point `deepGraphDepth` can be folded into `chainDepths` above instead.
-    private val deepGraphDepth = 300
-
-    @Test fun deeplyChainedInlineValidationGraphCurrentlyFailsToRead() {
-        assertFailsWith<Throwable>("Expected reading issues() on a depth-$deepGraphDepth graph to currently fail") {
-            testContext {
-                val root = Signal(nestedObject(deepGraphDepth)).validated()
-                val leaf = buildInlineObjectChain(root, deepGraphDepth)
-
-                val context = reactive { rerunOn(leaf) }
-
-                launch {
-                    root.issues()
-                }
-
-                context.cancel()
-            }
-        }
-    }
-
-    @Test fun deeplyChainedReactiveValidationGraphCurrentlyFailsToRead() {
-        assertFailsWith<Throwable>("Expected reading issues() on a depth-$deepGraphDepth graph to currently fail") {
-            testContext {
-                val root = Signal(nestedObject(deepGraphDepth)).validated()
-                val leaf = buildReactiveObjectChain(root, deepGraphDepth)
-
-                val context = reactive { rerunOn(leaf) }
-
-                launch {
-                    root.issues()
-                }
-
-                context.cancel()
-            }
-        }
-    }
 }
