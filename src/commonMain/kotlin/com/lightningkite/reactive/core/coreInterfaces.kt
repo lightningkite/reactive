@@ -1,9 +1,9 @@
 package com.lightningkite.reactive.core
 
-import com.lightningkite.reactive.lensing.ModifyLens
-import com.lightningkite.reactive.lensing.ModifyValueLens
-import com.lightningkite.reactive.lensing.SetLens
-import com.lightningkite.reactive.lensing.SetValueLens
+import com.lightningkite.reactive.lensing.ModifyLensReactive
+import com.lightningkite.reactive.lensing.ModifyLensReactiveValue
+import com.lightningkite.reactive.lensing.SetLensReactive
+import com.lightningkite.reactive.lensing.SetLensReactiveValue
 import com.lightningkite.reactive.context.ReactiveContext
 import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
@@ -159,7 +159,7 @@ public interface MutableReactive<T> : Reactive<T>, Mutable<T> {
     public fun <L> lens(
         get: (T) -> L,
         set: (L) -> T
-    ): MutableReactive<L> = SetLens(this, get, set)
+    ): MutableReactive<L> = SetLensReactive(this, get, set)
 
     /**
      * 'Lenses' a subtype from this [MutableReactive]. This is useful for extracting properties from a data class
@@ -188,7 +188,7 @@ public interface MutableReactive<T> : Reactive<T>, Mutable<T> {
     public fun <L> lens(
         get: (T) -> L,
         modify: (T, L) -> T
-    ): MutableReactive<L> = ModifyLens(this, get, modify)
+    ): MutableReactive<L> = ModifyLensReactive(this, get, modify)
 }
 
 /**
@@ -271,10 +271,10 @@ public interface MutableReactiveValue<T> : MutableValue<T>, ReactiveValue<T>,
     override fun <L> lens(
         get: (T) -> L,
         set: (L) -> T
-    ): MutableReactiveValue<L> = SetValueLens(this, get, set)
+    ): MutableReactiveValue<L> = SetLensReactiveValue(this, get, set)
 
     override fun <L> lens(
         get: (T) -> L,
         modify: (T, L) -> T
-    ): MutableReactiveValue<L> = ModifyValueLens(this, get, modify)
+    ): MutableReactiveValue<L> = ModifyLensReactiveValue(this, get, modify)
 }

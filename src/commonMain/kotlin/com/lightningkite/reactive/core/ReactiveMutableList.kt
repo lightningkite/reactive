@@ -1,6 +1,5 @@
 package com.lightningkite.reactive.core
 
-import com.lightningkite.reactive.lensing.ValueLens
 import com.lightningkite.reactive.lensing.lens
 
 /**
