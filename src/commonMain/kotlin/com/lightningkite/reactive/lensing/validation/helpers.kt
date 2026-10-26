@@ -1,3 +1,5 @@
+@file:MustUseReturnValues
+
 package com.lightningkite.reactive.lensing.validation
 
 import com.lightningkite.reactive.core.MutableReactive

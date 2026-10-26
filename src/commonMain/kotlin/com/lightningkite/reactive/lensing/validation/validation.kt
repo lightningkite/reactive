@@ -1,3 +1,5 @@
+@file:MustUseReturnValues
+
 package com.lightningkite.reactive.lensing.validation
 
 import com.lightningkite.reactive.core.BaseReactive
@@ -14,10 +16,11 @@ private open class ValidatedLens<S : Validated<T>, T>(
     protected val baseNode = IssueNode(parent = source.node)
     private var myListen: Release? = null
 
-    private fun check(state: ReactiveState<T>) =
+    private fun check(state: ReactiveState<T>) {
         state.onSuccess { value ->
             baseNode.report(validate(value))
         }
+    }
 
     override val node: IssueNode
         get() = baseNode.also { if (myListen == null) check(source.state) }

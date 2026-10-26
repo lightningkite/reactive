@@ -58,6 +58,7 @@ kotlin {
     explicitApi()
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
+        freeCompilerArgs.add("-Xreturn-value-checker=check")
     }
     sourceSets {
         applyDefaultHierarchyTemplate()

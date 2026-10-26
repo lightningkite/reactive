@@ -1,9 +1,10 @@
+@file:MustUseReturnValues
+
 package com.lightningkite.reactive.lensing.validation
 
 import com.lightningkite.reactive.context.ReactiveContext
 import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.core.BaseListenable
-import com.lightningkite.reactive.core.Mutable
 import com.lightningkite.reactive.core.RawReactive
 import com.lightningkite.reactive.core.ReactiveState
 import com.lightningkite.reactive.core.Release
@@ -48,13 +49,13 @@ private class Auditor<T>(
 
     private val emit = RawReactive<Pair<T, CancellableContinuation<Issue?>?>>()
 
-    private inline fun <V> CancellableContinuation<V>?.terminate(action: (CancellableContinuation<V>) -> Unit) {
+    private inline fun <V> CancellableContinuation<V>?.ifActive(action: (CancellableContinuation<V>) -> Unit) {
         if (this != null && this.isActive) action(this)
     }
 
     private fun emit(state: ReactiveState<Pair<T, CancellableContinuation<Issue?>?>>) {
         if (willUseCheck) emit.state.onSuccess { prev ->
-            prev.second.terminate { it.cancel() }
+            prev.second.ifActive { it.cancel() }
         }
         emit.state = state
     }
@@ -64,7 +65,7 @@ private class Auditor<T>(
     private val process = remember {
         val (value: T, cont: CancellableContinuation<Issue?>?) = emit()
         val result: Issue? = validate(value)
-        cont.terminate { it.resume(result) }
+        cont.ifActive { it.resume(result) }
         result
     }
 
