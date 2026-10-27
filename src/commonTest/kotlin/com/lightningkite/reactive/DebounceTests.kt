@@ -4,14 +4,14 @@ import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.core.LateInitSignal
 import com.lightningkite.reactive.core.Signal
-import com.lightningkite.reactive.extensions.DebounceListenable
-import com.lightningkite.reactive.extensions.DebounceReactive
+import com.lightningkite.reactive.core.Listenable
+import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.extensions.debounce
 import com.lightningkite.reactive.extensions.value
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.testTimeSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration
@@ -27,8 +27,8 @@ class DebounceTests {
         val actual = mutableListOf<Pair<Int, Duration>>()
         val actualListenable = mutableListOf<Duration>()
         val source = LateInitSignal<Int>()
-        val debounced = DebounceReactive(source, this, 1.seconds, testTimeSource)
-        val debouncedListenable = DebounceListenable(source, this, 1.seconds, testTimeSource)
+        val debounced = (source as Reactive<Int>).debounce(1.seconds, this)
+        val debouncedListenable = (source as Listenable).debounce(1.seconds, this)
 
         testContext {
             reactive { actual.add(debounced() to currentTime.milliseconds) }
@@ -138,7 +138,7 @@ class DebounceTests {
     fun testReentrancy() = runTest {
         // a listener that writes back to the source during notification should get notified again
         val source = Signal(0)
-        val debounced = DebounceListenable(source, this, 1.seconds, testTimeSource)
+        val debounced = (source as Listenable).debounce(1.seconds, this)
         val fired = mutableListOf<Long>()
         val release = debounced.addListener {
             fired.add(currentTime)
