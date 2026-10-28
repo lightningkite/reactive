@@ -13,3 +13,4 @@ KBuildAnnotations.kt
 karma.config.d/chrome-no-sandbox.js
 
 local.version.txt
+.DS_Store
