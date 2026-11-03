@@ -13,8 +13,6 @@ import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.ComparableTimeMark
-import kotlin.time.TimeSource
 
 /**
  * A [Reactive] wrapper that debounces listener notifications from the [source].
@@ -33,16 +31,12 @@ import kotlin.time.TimeSource
  *
  * @see DebounceListenable
  */
-public class DebounceReactive<T> internal constructor(
+@Suppress("DEPRECATION")
+public class DebounceReactive<T> @Deprecated("Use source.debounce() instead", ReplaceWith("source.debounce(duration, scope)")) constructor(
     public val source: Reactive<T>,
     public val scope: CoroutineScope,
     public val duration: Duration,
-    timeSource: TimeSource.WithComparableMarks,
-) : Reactive<T>, Listenable by DebounceListenable(source, scope, duration, timeSource) {
-    @Deprecated("Use source.debounce() instead", ReplaceWith("source.debounce(duration, scope)"))
-    // for backwards compatibility
-    public constructor(source: Reactive<T>, scope: CoroutineScope, duration: Duration) : this(source, scope, duration, TimeSource.Monotonic)
-
+) : Reactive<T>, Listenable by DebounceListenable(source, scope, duration) {
     override val state: ReactiveState<T> get() = source.state
 }
 
@@ -56,12 +50,9 @@ public class DebounceReactive<T> internal constructor(
  * This is useful for scenarios like search-as-you-type, where you want to wait for the user to
  * stop typing before triggering an expensive operation.
  *
- * A single coroutine is launched per burst of changes. It keeps sleeping until [duration] has passed
- * since the most recent change, then notifies listeners and finishes.
- *
- * **Threading note:** This implementation uses `@Volatile` for visibility but is not otherwise
- * synchronized. This is acceptable for debouncing where the consequence of a race is at most one
- * extra or missed notification. For typical single-threaded reactive patterns, this is not an issue.
+ * **Threading note:** This implementation is not synchronized. This is acceptable for debouncing where
+ * the consequence of a race is at most one extra or missed notification. For typical single-threaded
+ * reactive patterns, this is not an issue.
  *
  * @property source The underlying listenable to debounce.
  * @property scope The coroutine scope used for launching the debounce coroutine.
@@ -69,33 +60,21 @@ public class DebounceReactive<T> internal constructor(
  *
  * @see DebounceReactive
  */
-public class DebounceListenable internal constructor(
+public class DebounceListenable @Deprecated("Use .debounce() instead") constructor(
     public val source: Listenable,
     public val scope: CoroutineScope,
     public val duration: Duration,
-    private val timeSource: TimeSource.WithComparableMarks,
 ) : BaseListenable() {
-    @Deprecated("Use .debounce() instead")
-    // for backwards compatibility
-    public constructor(source: Listenable, scope: CoroutineScope, duration: Duration) : this(source, scope, duration, TimeSource.Monotonic)
-
-    @Volatile
-    private var sourceLastFired: ComparableTimeMark? = null
-
     private var job: Job? = null
     private var releaseListener: Release? = null
 
     override fun activate() {
         releaseListener = source.addListener {
-            sourceLastFired = timeSource.markNow()
-
-            if (job?.isActive == true) return@addListener
+            // Time is measured only by delay(), never by a separate clock, so the wait follows the
+            // scope's own scheduler; under runTest, a wall clock would never see the wait end.
+            job?.cancel()
             job = scope.launch {
-                while (true) {
-                    val remaining = duration - (sourceLastFired ?: return@launch).elapsedNow()
-                    if (remaining <= Duration.ZERO) break
-                    delay(remaining)
-                }
+                delay(duration)
                 job = null
                 invokeAllListeners()
             }
@@ -103,7 +82,6 @@ public class DebounceListenable internal constructor(
     }
 
     override fun deactivate() {
-        sourceLastFired = null
         job?.cancel()
         job = null
         releaseListener?.invoke()
