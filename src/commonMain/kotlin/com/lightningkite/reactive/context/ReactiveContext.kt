@@ -198,7 +198,15 @@ public class TypedReactiveContext<T>(
      * - Current calculation's job (for cancellation control)
      * - This context itself (as DependencyChangeListener)
      */
-    override val coroutineContext: CoroutineContext get() = scope.coroutineContext + job + this
+    override val coroutineContext: CoroutineContext
+        get() {
+            jobUsed = true
+            return scope.coroutineContext + job + this
+        }
+
+    // Claude: set when a run reaches the Job through [coroutineContext], which is how `launch`, `onRemove` and
+    // nested contexts attach to it. A run that never did has nothing to cancel, see [endRun].
+    private var jobUsed = false
 
     /**
      * A recalculation has been requested but not yet performed. Set when a dependency changes and
@@ -272,6 +280,14 @@ public class TypedReactiveContext<T>(
 
     /** Cancels the current run's coroutines and opens a fresh job for the next run. */
     private fun endRun() {
+        // Claude: most runs only read values and never touch the Job, so there is nothing to cancel and the Job
+        // can serve the next run. Cancelling anyway builds a JobCancellationException, and on Kotlin/JS every
+        // Throwable captures a JS stack trace whose cost grows with stack depth (V8 walks the whole stack even
+        // with Error.stackTraceLimit = 0). Opening one list-heavy page in a KiteUI app did this ~160k times
+        // and spent ~9 s of 11 s CPU in it. Checking `job.children` is not enough: `onRemove` handlers are
+        // completion handlers, not children, and must still fire.
+        if (!jobUsed) return
+        jobUsed = false
         job.cancel()
         job = Job()
     }

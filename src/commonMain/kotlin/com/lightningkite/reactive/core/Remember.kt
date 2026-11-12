@@ -148,7 +148,7 @@ public class Remember<T>(
         remover?.invoke()
         remover = null
         scope.cancel()
-        job.cancel()
+        job.cancel(RoutineCancellation) // Claude: shared cause, see RoutineCancellation
         job = SupervisorJob()
         shuttingDown = null
         // The calculation is stopped, so the value it produced is no longer maintained. Reporting
